@@ -1,0 +1,473 @@
+{% extends "base.html" %}
+
+{% block title %}Safety Command Centre | APDL PV{% endblock %}
+
+{% block page_title %}Safety Command Centre{% endblock %}
+
+{% block content %}
+<style>
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: flex-start;
+        margin-bottom: 28px;
+    }
+
+    .eyebrow {
+        margin: 0 0 8px;
+        color: #7656e8;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+
+    .dashboard-header h2 {
+        margin: 0;
+        color: #282037;
+        font-size: 29px;
+        letter-spacing: -0.7px;
+    }
+
+    .dashboard-header p {
+        max-width: 650px;
+        margin: 10px 0 0;
+        color: #746d7d;
+        font-size: 14px;
+        line-height: 1.55;
+    }
+
+    .primary-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+        padding: 12px 17px;
+        border-radius: 9px;
+        background: #7656e8;
+        color: white;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: bold;
+        box-shadow: 0 8px 18px rgba(118, 86, 232, 0.22);
+    }
+
+    .primary-action:hover {
+        background: #5f3ed4;
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(145px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .metric-card {
+        position: relative;
+        overflow: hidden;
+        min-height: 145px;
+        padding: 18px;
+        border: 1px solid #e9e2e7;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);
+    }
+
+    .metric-card::after {
+        position: absolute;
+        right: -18px;
+        bottom: -24px;
+        width: 85px;
+        height: 85px;
+        border-radius: 50%;
+        background: #f1edff;
+        content: "";
+    }
+
+    .metric-card.serious::after {
+        background: #fff0ee;
+    }
+
+    .metric-card.neutral::after {
+        background: #f5f1f4;
+    }
+
+    .metric-icon {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 10px;
+        background: #eee9ff;
+        color: #7656e8;
+        font-size: 16px;
+        font-weight: bold;
+    }
+
+    .metric-card.serious .metric-icon {
+        background: #ffe9e6;
+        color: #d85c54;
+    }
+
+    .metric-card.neutral .metric-icon {
+        background: #f1ecf1;
+        color: #665b68;
+    }
+
+    .metric-label {
+        position: relative;
+        z-index: 1;
+        margin-top: 13px;
+        color: #746d7d;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .metric-value {
+        position: relative;
+        z-index: 1;
+        margin-top: 5px;
+        color: #282037;
+        font-size: 30px;
+        font-weight: bold;
+        line-height: 1;
+    }
+
+    .metric-card.serious .metric-value {
+        color: #d85c54;
+    }
+
+    .attention-strip {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr 1fr;
+        gap: 1px;
+        overflow: hidden;
+        margin-bottom: 24px;
+        border: 1px solid #e4ddf3;
+        border-radius: 14px;
+        background: #e4ddf3;
+    }
+
+    .attention-item {
+        padding: 17px 19px;
+        background: #fff;
+    }
+
+    .attention-item.highlight {
+        background: #f5f2ff;
+    }
+
+    .attention-item strong {
+        display: block;
+        margin-bottom: 5px;
+        color: #3e3159;
+        font-size: 13px;
+    }
+
+    .attention-item span {
+        color: #7a7183;
+        font-size: 12px;
+        line-height: 1.4;
+    }
+
+    .workspace-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.55fr) minmax(290px, 0.85fr);
+        gap: 22px;
+    }
+
+    .panel {
+        overflow: hidden;
+        border: 1px solid #e9e2e7;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);
+    }
+
+    .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 19px 21px;
+        border-bottom: 1px solid #eee8ec;
+    }
+
+    .panel-header h3 {
+        margin: 0;
+        color: #282037;
+        font-size: 16px;
+    }
+
+    .panel-header a {
+        color: #7656e8;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+    }
+
+    .case-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .case-table th {
+        padding: 12px 21px;
+        color: #918896;
+        background: #fffdfe;
+        font-size: 10px;
+        font-weight: bold;
+        letter-spacing: 0.6px;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    .case-table td {
+        padding: 15px 21px;
+        border-top: 1px solid #f0ebee;
+        color: #5d5568;
+        font-size: 13px;
+    }
+
+    .case-number {
+        color: #403057;
+        font-weight: bold;
+    }
+
+    .status-pill {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 20px;
+        background: #eee9ff;
+        color: #6242d7;
+        font-size: 11px;
+        font-weight: bold;
+    }
+
+    .serious-pill {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 20px;
+        background: #ffe9e6;
+        color: #cc5149;
+        font-size: 11px;
+        font-weight: bold;
+    }
+
+    .empty-state {
+        padding: 48px 25px;
+        color: #837a89;
+        text-align: center;
+        font-size: 14px;
+    }
+
+    .activity-list {
+        padding: 4px 21px;
+    }
+
+    .activity-item {
+        display: flex;
+        gap: 12px;
+        padding: 17px 0;
+        border-bottom: 1px solid #f0ebee;
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-dot {
+        flex: 0 0 9px;
+        width: 9px;
+        height: 9px;
+        margin-top: 5px;
+        border-radius: 50%;
+        background: #7656e8;
+        box-shadow: 0 0 0 4px #eee9ff;
+    }
+
+    .activity-dot.mauve {
+        background: #b3639c;
+        box-shadow: 0 0 0 4px #f8eaf2;
+    }
+
+    .activity-text {
+        color: #584e61;
+        font-size: 13px;
+        line-height: 1.4;
+    }
+
+    .activity-date {
+        display: block;
+        margin-top: 3px;
+        color: #978e9b;
+        font-size: 11px;
+    }
+
+    @media (max-width: 1150px) {
+        .metrics-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .workspace-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 760px) {
+        .dashboard-header {
+            display: block;
+        }
+
+        .primary-action {
+            margin-top: 18px;
+        }
+
+        .metrics-grid,
+        .attention-strip {
+            grid-template-columns: 1fr;
+        }
+
+        .case-table th:nth-child(3),
+        .case-table td:nth-child(3) {
+            display: none;
+        }
+    }
+</style>
+
+<section class="dashboard-header">
+    <div>
+        <div class="eyebrow">APDL Pharmacovigilance</div>
+        <h2>Good day, {{ session.get("full_name", "User") }}</h2>
+        <p>Review safety activity, prioritise new information and keep every case moving through the pharmacovigilance workflow.</p>
+    </div>
+
+    <a class="primary-action" href="{{ url_for('cases.create_case') }}">
+        <span>+</span> Create safety case
+    </a>
+</section>
+
+<section class="metrics-grid">
+    <article class="metric-card">
+        <div class="metric-icon">▣</div>
+        <div class="metric-label">Total safety cases</div>
+        <div class="metric-value">{{ metrics.total_cases }}</div>
+    </article>
+
+    <article class="metric-card">
+        <div class="metric-icon">+</div>
+        <div class="metric-label">New cases</div>
+        <div class="metric-value">{{ metrics.new_cases }}</div>
+    </article>
+
+    <article class="metric-card serious">
+        <div class="metric-icon">!</div>
+        <div class="metric-label">Serious cases</div>
+        <div class="metric-value">{{ metrics.serious_cases }}</div>
+    </article>
+
+    <article class="metric-card neutral">
+        <div class="metric-icon">⌁</div>
+        <div class="metric-label">Open signals</div>
+        <div class="metric-value">{{ metrics.open_signals }}</div>
+    </article>
+
+    <article class="metric-card neutral">
+        <div class="metric-icon">◷</div>
+        <div class="metric-label">Reports due</div>
+        <div class="metric-value">{{ metrics.reports_due }}</div>
+    </article>
+</section>
+
+<section class="attention-strip">
+    <div class="attention-item highlight">
+        <strong>Case intake is active</strong>
+        <span>New ADR reports can be captured and securely logged.</span>
+    </div>
+
+    <div class="attention-item">
+        <strong>{{ metrics.new_cases }} case(s) require triage</strong>
+        <span>Review new information and assign the next action.</span>
+    </div>
+
+    <div class="attention-item">
+        <strong>Data protection enabled</strong>
+        <span>Access is restricted to authenticated platform users.</span>
+    </div>
+</section>
+
+<section class="workspace-grid">
+    <article class="panel">
+        <div class="panel-header">
+            <h3>Recent safety cases</h3>
+            <a href="{{ url_for('cases.case_list') }}">View all cases</a>
+        </div>
+
+        {% if recent_cases %}
+            <table class="case-table">
+                <thead>
+                    <tr>
+                        <th>Case number</th>
+                        <th>Status</th>
+                        <th>Date received</th>
+                        <th>Priority</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for case in recent_cases %}
+                        <tr>
+                            <td class="case-number">{{ case.case_number }}</td>
+                            <td><span class="status-pill">{{ case.workflow_status }}</span></td>
+                            <td>{{ case.received_date.strftime("%d %b %Y") }}</td>
+                            <td>
+                                {% if case.seriousness %}
+                                    <span class="serious-pill">Serious</span>
+                                {% else %}
+                                    Routine
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">No safety cases have been created yet.</div>
+        {% endif %}
+    </article>
+
+    <article class="panel">
+        <div class="panel-header">
+            <h3>Platform activity</h3>
+        </div>
+
+        <div class="activity-list">
+            <div class="activity-item">
+                <span class="activity-dot"></span>
+                <div class="activity-text">
+                    Safety-case intake is available
+                    <span class="activity-date">Ready for use</span>
+                </div>
+            </div>
+
+            <div class="activity-item">
+                <span class="activity-dot mauve"></span>
+                <div class="activity-text">
+                    PostgreSQL safety database connected
+                    <span class="activity-date">System status: operational</span>
+                </div>
+            </div>
+
+            <div class="activity-item">
+                <span class="activity-dot"></span>
+                <div class="activity-text">
+                    Authenticated access enabled
+                    <span class="activity-date">Session controls active</span>
+                </div>
+            </div>
+        </div>
+    </article>
+</section>
+{% endblock %}

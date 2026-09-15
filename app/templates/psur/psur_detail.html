@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block title %}{{ report.report_number }} | APDL PV{% endblock %}
+
+{% block page_title %}PSUR{% endblock %}
+
+{% block content %}
+<style>
+    .psur-detail-header {
+        display:flex;
+        justify-content:space-between;
+        gap:20px;
+        align-items:flex-start;
+        margin-bottom:24px;
+    }
+
+    .back-link {
+        display:inline-block;
+        margin-bottom:10px;
+        color:#7656e8;
+        font-size:13px;
+        font-weight:bold;
+        text-decoration:none;
+    }
+
+    .psur-detail-header h2 {
+        margin:0 0 7px;
+        color:#282037;
+        font-size:28px;
+    }
+
+    .psur-detail-header p {
+        margin:0;
+        color:#746d7d;
+        font-size:14px;
+    }
+
+    .status-pill {
+        display:inline-block;
+        padding:7px 11px;
+        border-radius:20px;
+        background:#eee9ff;
+        color:#6242d7;
+        font-size:12px;
+        font-weight:bold;
+        white-space:nowrap;
+    }
+
+    .detail-layout {
+        display:grid;
+        grid-template-columns:minmax(0, 1fr) 310px;
+        gap:22px;
+        align-items:start;
+    }
+
+    .detail-card {
+        margin-bottom:20px;
+        overflow:hidden;
+        border:1px solid #e9e2e7;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(40,32,55,.025);
+    }
+
+    .detail-card-heading {
+        display:flex;
+        gap:12px;
+        align-items:center;
+        padding:16px 19px;
+        border-bottom:1px solid #eee8ec;
+    }
+
+    .detail-card-heading span {
+        width:27px;
+        height:27px;
+        display:grid;
+        place-items:center;
+        border-radius:8px;
+        background:#eee9ff;
+        color:#6545d8;
+        font-size:12px;
+        font-weight:bold;
+    }
+
+    .detail-card-heading h3 {
+        margin:0;
+        color:#3d3546;
+        font-size:15px;
+    }
+
+    .detail-grid {
+        display:grid;
+        grid-template-columns:repeat(3, minmax(0, 1fr));
+        gap:20px;
+        padding:20px;
+    }
+
+    .detail-item span,
+    .note-label {
+        display:block;
+        margin-bottom:6px;
+        color:#918896;
+        font-size:10px;
+        font-weight:bold;
+        letter-spacing:.6px;
+    }
+
+    .detail-item strong {
+        color:#42394b;
+        font-size:13px;
+        line-height:1.4;
+    }
+
+    .note-box {
+        margin:0 20px 20px;
+        padding:15px;
+        border-radius:10px;
+        background:#faf8fb;
+        color:#635a68;
+        font-size:13px;
+        line-height:1.55;
+        white-space:pre-wrap;
+    }
+
+    .review-card {
+        overflow:hidden;
+        border:1px solid #e9e2e7;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(40,32,55,.025);
+    }
+
+    .review-heading {
+        padding:17px 18px;
+        background:#f7f4ff;
+        color:#493273;
+        font-size:14px;
+        font-weight:bold;
+    }
+
+    .review-form {
+        padding:18px;
+    }
+
+    .field {
+        margin-bottom:16px;
+    }
+
+    .field label {
+        display:block;
+        margin-bottom:7px;
+        color:#554d5d;
+        font-size:12px;
+        font-weight:bold;
+    }
+
+    .input {
+        width:100%;
+        box-sizing:border-box;
+        padding:10px 11px;
+        border:1px solid #ddd5dc;
+        border-radius:8px;
+        background:#fffeff;
+        color:#322a3b;
+        font:inherit;
+        font-size:14px;
+    }
+
+    textarea.input {
+        min-height:100px;
+        resize:vertical;
+    }
+
+    .input:focus {
+        outline:none;
+        border-color:#9f88ed;
+        box-shadow:0 0 0 3px #eee9ff;
+    }
+
+    .save-button {
+        width:100%;
+        padding:12px;
+        border:0;
+        border-radius:9px;
+        background:#7656e8;
+        color:white;
+        font-size:14px;
+        font-weight:bold;
+        cursor:pointer;
+        box-shadow:0 7px 15px rgba(118,86,232,.2);
+    }
+
+    .record-card {
+        margin-top:18px;
+        padding:15px;
+        border-radius:10px;
+        background:#fcf7ee;
+        color:#876940;
+        font-size:12px;
+        line-height:1.5;
+    }
+
+    @media (max-width:1050px) {
+        .detail-layout { grid-template-columns:1fr; }
+    }
+
+    @media (max-width:700px) {
+        .psur-detail-header { display:block; }
+        .status-pill { margin-top:14px; }
+        .detail-grid { grid-template-columns:1fr; }
+    }
+</style>
+
+<section class="psur-detail-header">
+    <div>
+        <a class="back-link" href="{{ url_for('psur.psur_list') }}">← Back to PSURs</a>
+        <h2>{{ report.report_number }}</h2>
+        <p>{{ report.product_name }} · Period ending {{ report.reporting_period_end.strftime("%d %B %Y") }}</p>
+    </div>
+    <span class="status-pill">{{ report.status }}</span>
+</section>
+
+<div class="detail-layout">
+    <div>
+        <section class="detail-card">
+            <div class="detail-card-heading">
+                <span>1</span>
+                <h3>Report period and data lock point</h3>
+            </div>
+
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span>PRODUCT</span>
+                    <strong>{{ report.product_name }}</strong>
+                </div>
+                <div class="detail-item">
+                    <span>REPORTING PERIOD</span>
+                    <strong>{{ report.reporting_period_start.strftime("%d %b %Y") }} to {{ report.reporting_period_end.strftime("%d %b %Y") }}</strong>
+                </div>
+                <div class="detail-item">
+                    <span>DATA LOCK POINT</span>
+                    <strong>{{ report.data_lock_point.strftime("%d %b %Y") }}</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="detail-card">
+            <div class="detail-card-heading">
+                <span>2</span>
+                <h3>Coverage and preparation</h3>
+            </div>
+
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span>PREPARED BY</span>
+                    <strong>{{ report.prepared_by or "Not assigned" }}</strong>
+                </div>
+                <div class="detail-item">
+                    <span>APPROVED BY</span>
+                    <strong>{{ report.approved_by or "Not assigned" }}</strong>
+                </div>
+                <div class="detail-item">
+                    <span>RECORDED BY</span>
+                    <strong>{{ report.created_by_name or "System user" }}</strong>
+                </div>
+            </div>
+
+            <div class="note-box">
+                <span class="note-label">COUNTRIES COVERED</span>
+                {{ report.countries_covered or "Countries have not been recorded." }}
+            </div>
+        </section>
+
+        <section class="detail-card">
+            <div class="detail-card-heading">
+                <span>3</span>
+                <h3>Report preparation notes</h3>
+            </div>
+
+            <div class="note-box">
+                {{ report.report_notes or "No preparation notes have been recorded." }}
+            </div>
+        </section>
+    </div>
+
+    <aside>
+        <section class="review-card">
+            <div class="review-heading">PSUR status update</div>
+
+            <form method="post" action="{{ url_for('psur.review_psur', psur_id=report.psur_id) }}" class="review-form">
+                {{ review_form.hidden_tag() }}
+
+                <div class="field">
+                    <label>{{ review_form.status.label.text }}</label>
+                    {{ review_form.status(class_="input") }}
+                </div>
+
+                <div class="field">
+                    <label>{{ review_form.prepared_by.label.text }}</label>
+                    {{ review_form.prepared_by(class_="input") }}
+                </div>
+
+                <div class="field">
+                    <label>{{ review_form.approved_by.label.text }}</label>
+                    {{ review_form.approved_by(class_="input") }}
+                </div>
+
+                <div class="field">
+                    <label>{{ review_form.report_notes.label.text }}</label>
+                    {{ review_form.report_notes(class_="input", rows="7") }}
+                </div>
+
+                {{ review_form.submit(class_="save-button") }}
+            </form>
+        </section>
+
+        <div class="record-card">
+    <strong>PSUR document</strong><br>
+    Download a Word report using the approved APDL PSUR template.
+    <a href="{{ url_for('psur_reports.download_psur_report', psur_id=report.psur_id) }}" style="display:block; margin-top:12px; padding:10px; border-radius:8px; background:#7656e8; color:white; font-weight:bold; text-align:center; text-decoration:none;">
+        Download PSUR Word report
+    </a>
+</div>
+    </aside>
+</div>
+{% endblock %}

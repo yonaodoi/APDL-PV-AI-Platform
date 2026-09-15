@@ -1,0 +1,380 @@
+{% extends "base.html" %}
+
+{% block title %}Create Safety Case | APDL PV{% endblock %}
+
+{% block page_title %}New Safety Case{% endblock %}
+
+{% block content %}
+<style>
+    .page-header { display:flex; justify-content:space-between; gap:20px; align-items:flex-end; margin-bottom:22px; }
+    .page-header h2 { margin:0 0 7px; color:#282037; font-size:28px; }
+    .page-header p { margin:0; color:#746d7d; font-size:14px; }
+    .case-label { padding:8px 11px; border-radius:20px; background:#eee9ff; color:#6545d8; font-size:12px; font-weight:bold; }
+
+    .progress { display:grid; grid-template-columns:repeat(4, 1fr); overflow:hidden; margin-bottom:22px; border:1px solid #e6dff3; border-radius:12px; background:white; }
+    .progress-item { padding:14px 15px; color:#6242d7; background:#f6f3ff; font-size:12px; font-weight:bold; }
+    .progress-item span { display:inline-grid; width:20px; height:20px; place-items:center; margin-right:7px; border-radius:50%; background:#7656e8; color:white; font-size:11px; }
+
+    .layout { display:grid; grid-template-columns:minmax(0, 1fr) 280px; gap:22px; align-items:start; }
+    .section { margin-bottom:20px; padding:24px; border:1px solid #e9e2e7; border-radius:14px; background:white; box-shadow:0 5px 12px rgba(40,32,55,.025); }
+    .section-title { display:flex; gap:12px; align-items:flex-start; margin-bottom:21px; }
+    .section-number { width:29px; height:29px; display:grid; place-items:center; flex:0 0 29px; border-radius:9px; background:#eee9ff; color:#6545d8; font-size:13px; font-weight:bold; }
+    .section-title h3 { margin:1px 0 4px; color:#282037; font-size:16px; }
+    .section-title p { margin:0; color:#847b89; font-size:12px; line-height:1.4; }
+
+    .grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:17px; }
+    .grid.three { grid-template-columns:repeat(3, minmax(0, 1fr)); }
+    .field.full { grid-column:1 / -1; }
+    .field label { display:block; margin-bottom:7px; color:#554d5d; font-size:12px; font-weight:bold; }
+    .required { color:#d85c54; }
+    .input { width:100%; padding:10px 11px; border:1px solid #ddd5dc; border-radius:8px; background:#fffeff; color:#322a3b; font:inherit; font-size:14px; }
+    textarea.input { min-height:100px; resize:vertical; }
+    .input:focus { outline:none; border-color:#9f88ed; box-shadow:0 0 0 3px #eee9ff; }
+    .error { margin-top:6px; color:#d85c54; font-size:12px; }
+
+    .checkbox { display:flex; gap:9px; align-items:center; min-height:40px; padding:10px 12px; border:1px solid #e5dfe6; border-radius:8px; background:#fdfbfc; color:#514957; font-size:13px; }
+    .checkbox input { width:17px; height:17px; accent-color:#7656e8; }
+
+    .actions { display:flex; justify-content:flex-end; gap:12px; margin-top:8px; }
+    .button { padding:12px 18px; border-radius:9px; font-size:14px; font-weight:bold; cursor:pointer; }
+    .primary { border:0; background:#7656e8; color:white; box-shadow:0 7px 15px rgba(118,86,232,.2); }
+    .secondary { border:1px solid #ded6dd; background:white; color:#655c6a; text-decoration:none; }
+
+    .guide { overflow:hidden; border:1px solid #e9e2e7; border-radius:14px; background:white; box-shadow:0 5px 12px rgba(40,32,55,.025); }
+    .guide-heading { padding:17px 18px; background:#f7f4ff; color:#493273; font-size:14px; font-weight:bold; }
+    .guide-content { padding:18px; }
+    .guide-item { display:flex; gap:10px; padding:12px 0; border-bottom:1px solid #f0ebee; }
+    .guide-item:last-child { border-bottom:0; }
+    .dot { width:8px; height:8px; flex:0 0 8px; margin-top:5px; border-radius:50%; background:#7656e8; }
+    .dot.coral { background:#d85c54; }
+    .guide-item strong { display:block; margin-bottom:3px; color:#4d4555; font-size:12px; }
+    .guide-item span { color:#817887; font-size:12px; line-height:1.4; }
+    .privacy { margin:0 18px 18px; padding:12px; border-radius:9px; background:#fcf7ee; color:#876940; font-size:11px; line-height:1.5; }
+
+    @media (max-width:1050px) { .layout { grid-template-columns:1fr; } .guide { display:none; } }
+    @media (max-width:760px) {
+        .page-header { display:block; } .case-label { display:inline-block; margin-top:14px; }
+        .progress, .grid, .grid.three { grid-template-columns:1fr; }
+        .section { padding:19px; }
+    }
+</style>
+
+{% macro errors(field) %}
+    {% for error in field.errors %}
+        <div class="error">{{ error }}</div>
+    {% endfor %}
+{% endmacro %}
+
+<section class="page-header">
+    <div>
+        <h2>Capture adverse drug reaction</h2>
+        <p>Record the information exactly as received. Enter the APDL ICSR Case ID exactly as assigned before saving.</p>
+    </div>
+    <span class="case-label">Official ADR form</span>
+</section>
+
+<section class="progress">
+    <div class="progress-item"><span>1</span>Receipt</div>
+    <div class="progress-item"><span>2</span>Patient and product</div>
+    <div class="progress-item"><span>3</span>ADR assessment</div>
+    <div class="progress-item"><span>4</span>Save case</div>
+</section>
+
+<div class="layout">
+    <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+
+        <section class="section">
+            <div class="section-title">
+                <span class="section-number">1</span>
+                <div>
+                    <h3>Report and reporter details</h3>
+                    <p>Record the report classification, source and reporter contact details.</p>
+                </div>
+            </div>
+
+            <div class="grid three">
+                <div class="field">
+                    <label>{{ form.icsr_case_id.label.text }} <span class="required">*</span></label>
+                    {{ form.icsr_case_id(class_="input", placeholder="For example: APDL/ICSR/2026/0001") }}
+                    {{ errors(form.icsr_case_id) }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.received_date.label.text }} <span class="required">*</span></label>
+                    {{ form.received_date(class_="input", type="date") }}
+                    {{ errors(form.received_date) }}
+                </div>
+                <div class="field">
+                    <label>{{ form.country_id.label.text }} <span class="required">*</span></label>
+                    {{ form.country_id(class_="input") }}
+                    {{ errors(form.country_id) }}
+                </div>
+                <div class="field">
+                    <label>{{ form.source.label.text }} <span class="required">*</span></label>
+                    {{ form.source(class_="input") }}
+                    {{ errors(form.source) }}
+                </div>
+                <div class="field">
+                    <label>{{ form.report_type.label.text }} <span class="required">*</span></label>
+                    {{ form.report_type(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.report_title.label.text }}</label>
+                    {{ form.report_title(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.form_id.label.text }}</label>
+                    {{ form.form_id(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.reporter_name.label.text }}</label>
+                    {{ form.reporter_name(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.reporter_profession.label.text }}</label>
+                    {{ form.reporter_profession(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.reporter_organisation.label.text }}</label>
+                    {{ form.reporter_organisation(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.reporter_phone.label.text }}</label>
+                    {{ form.reporter_phone(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.reporter_email.label.text }}</label>
+                    {{ form.reporter_email(class_="input", type="email") }}
+                    {{ errors(form.reporter_email) }}
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">
+                <span class="section-number">2</span>
+                <div>
+                    <h3>Patient information</h3>
+                    <p>Use the minimum patient information required for pharmacovigilance.</p>
+                </div>
+            </div>
+
+            <div class="grid three">
+                <div class="field">
+                    <label>{{ form.patient_initials.label.text }}</label>
+                    {{ form.patient_initials(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.patient_date_of_birth.label.text }}</label>
+                    {{ form.patient_date_of_birth(class_="input", type="date") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.patient_age_years.label.text }}</label>
+                    {{ form.patient_age_years(class_="input", type="number", min="0", max="150") }}
+                    {{ errors(form.patient_age_years) }}
+                </div>
+                <div class="field">
+                    <label>{{ form.patient_sex.label.text }}</label>
+                    {{ form.patient_sex(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.patient_weight_kg.label.text }}</label>
+                    {{ form.patient_weight_kg(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.patient_pregnancy_status.label.text }}</label>
+                    {{ form.patient_pregnancy_status(class_="input") }}
+                </div>
+                <div class="field full">
+                    <label>{{ form.patient_address.label.text }}</label>
+                    {{ form.patient_address(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.patient_phone.label.text }}</label>
+                    {{ form.patient_phone(class_="input") }}
+                </div>
+                <div class="field full">
+                    <label>{{ form.medical_history.label.text }}</label>
+                    {{ form.medical_history(class_="input") }}
+                </div>
+                <div class="field full">
+                    <label>{{ form.concomitant_medicines.label.text }}</label>
+                    {{ form.concomitant_medicines(class_="input") }}
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">
+                <span class="section-number">3</span>
+                <div>
+                    <h3>Suspected medicinal product</h3>
+                    <p>Enter the product details exactly as reported.</p>
+                </div>
+            </div>
+
+            <div class="grid three">
+                <div class="field">
+                    <label>{{ form.product_name.label.text }} <span class="required">*</span></label>
+                    {{ form.product_name(class_="input") }}
+                    {{ errors(form.product_name) }}
+                </div>
+                <div class="field">
+                    <label>{{ form.generic_name.label.text }}</label>
+                    {{ form.generic_name(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.batch_number.label.text }}</label>
+                    {{ form.batch_number(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.strength.label.text }}</label>
+                    {{ form.strength(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.dosage_form.label.text }}</label>
+                    {{ form.dosage_form(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.expiry_date.label.text }}</label>
+                    {{ form.expiry_date(class_="input", type="date") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.dose.label.text }}</label>
+                    {{ form.dose(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.route.label.text }}</label>
+                    {{ form.route(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.frequency.label.text }}</label>
+                    {{ form.frequency(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.therapy_start_date.label.text }}</label>
+                    {{ form.therapy_start_date(class_="input", type="date") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.therapy_end_date.label.text }}</label>
+                    {{ form.therapy_end_date(class_="input", type="date") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.indication.label.text }}</label>
+                    {{ form.indication(class_="input") }}
+                </div>
+                <div class="field full">
+                    <label>{{ form.action_taken.label.text }}</label>
+                    {{ form.action_taken(class_="input") }}
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">
+                <span class="section-number">4</span>
+                <div>
+                    <h3>Adverse event and assessment</h3>
+                    <p>Describe the event, treatment, outcome and assessment information.</p>
+                </div>
+            </div>
+
+            <div class="grid three">
+                <div class="field full">
+                    <label>{{ form.event_description.label.text }} <span class="required">*</span></label>
+                    {{ form.event_description(class_="input") }}
+                    {{ errors(form.event_description) }}
+                </div>
+                <div class="field full">
+                    <label>{{ form.treatment_given.label.text }}</label>
+                    {{ form.treatment_given(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.event_onset_date.label.text }}</label>
+                    {{ form.event_onset_date(class_="input", type="date") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.event_onset_time.label.text }}</label>
+                    {{ form.event_onset_time(class_="input", type="time") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.event_end_date.label.text }}</label>
+                    {{ form.event_end_date(class_="input", type="date") }}
+                </div>
+                <div class="field full">
+                    <label>{{ form.laboratory_results.label.text }}</label>
+                    {{ form.laboratory_results(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.event_outcome.label.text }}</label>
+                    {{ form.event_outcome(class_="input") }}
+                </div>
+                <div class="field">
+                    <label>{{ form.causality_assessment.label.text }}</label>
+                    {{ form.causality_assessment(class_="input") }}
+                </div>
+                <div class="field">
+                    <label class="checkbox">
+                        {{ form.seriousness() }}
+                        {{ form.seriousness.label.text }}
+                    </label>
+                </div>
+                <div class="field full">
+                    <label>{{ form.seriousness_criteria.label.text }}</label>
+                    {{ form.seriousness_criteria(class_="input", placeholder="For example: hospitalization, life-threatening event, disability or fatal outcome") }}
+                </div>
+                <div class="field full">
+                    <label>{{ form.case_narrative.label.text }}</label>
+                    {{ form.case_narrative(class_="input") }}
+                </div>
+                <div class="field">
+                    <label class="checkbox">
+                        {{ form.follow_up_required() }}
+                        {{ form.follow_up_required.label.text }}
+                    </label>
+                </div>
+                <div class="field">
+                    <label>{{ form.follow_up_due_date.label.text }}</label>
+                    {{ form.follow_up_due_date(class_="input", type="date") }}
+                </div>
+            </div>
+        </section>
+
+        <div class="actions">
+            <a class="button secondary" href="{{ url_for('core.dashboard') }}">Cancel</a>
+            <button class="button primary" type="submit">Create safety case</button>
+        </div>
+    </form>
+
+    <aside class="guide">
+        <div class="guide-heading">Official ADR form guide</div>
+        <div class="guide-content">
+            <div class="guide-item">
+                <span class="dot"></span>
+                <div>
+                    <strong>Minimum case validity</strong>
+                    <span>Reporter, patient, suspected product and ADR should be identifiable.</span>
+                </div>
+            </div>
+            <div class="guide-item">
+                <span class="dot coral"></span>
+                <div>
+                    <strong>Serious cases</strong>
+                    <span>Mark serious and clearly state the applicable seriousness reason.</span>
+                </div>
+            </div>
+            <div class="guide-item">
+                <span class="dot"></span>
+                <div>
+                    <strong>Report generation</strong>
+                    <span>Saved information will populate the controlled APDL ADR reporting form.</span>
+                </div>
+            </div>
+        </div>
+        <div class="privacy">
+            Patient information is confidential. Record only information needed for safety-case processing.
+        </div>
+    </aside>
+</div>
+{% endblock %}

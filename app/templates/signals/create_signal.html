@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}New Safety Signal | APDL PV{% endblock %}
+
+{% block page_title %}New Safety Signal{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">SAFETY MANAGEMENT</p>
+    <h1>Capture safety signal</h1>
+    <p>Document an emerging or potential medicine-safety concern for evaluation.</p>
+  </div>
+  <a class="button button-secondary" href="{{ url_for('signals.signal_list') }}">Back to safety signals</a>
+</section>
+
+<form method="post" class="case-form">
+  {{ form.hidden_tag() }}
+
+  <section class="form-card">
+    <div class="section-title">
+      <span>1</span>
+      <div>
+        <h2>Signal identification</h2>
+        <p>Identify the product, safety concern and source of the signal.</p>
+      </div>
+    </div>
+
+    <div class="form-grid">
+      <div class="field">
+        <label>{{ form.signal_number.label.text }} <span class="required">*</span></label>
+        {{ form.signal_number(class_="input", placeholder="For example: APDL-SIG-2026-0001") }}
+        {% for error in form.signal_number.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+      </div>
+
+      <div class="field">
+        <label>{{ form.date_detected.label.text }} <span class="required">*</span></label>
+        {{ form.date_detected(class_="input") }}
+      </div>
+
+      <div class="field">
+        <label>{{ form.product_name.label.text }} <span class="required">*</span></label>
+        {{ form.product_name(class_="input", placeholder="Product name") }}
+      </div>
+
+      <div class="field">
+        <label>{{ form.event_term.label.text }} <span class="required">*</span></label>
+        {{ form.event_term(class_="input", placeholder="For example: Chills and fever") }}
+      </div>
+
+      <div class="field">
+        <label>{{ form.signal_source.label.text }} <span class="required">*</span></label>
+        {{ form.signal_source(class_="input") }}
+      </div>
+
+      <div class="field">
+        <label>{{ form.priority.label.text }} <span class="required">*</span></label>
+        {{ form.priority(class_="input") }}
+      </div>
+
+      <div class="field">
+        <label>{{ form.owner_name.label.text }}</label>
+        {{ form.owner_name(class_="input", placeholder="Person responsible for assessment") }}
+      </div>
+    </div>
+
+    <div class="field field-wide">
+      <label>{{ form.signal_description.label.text }} <span class="required">*</span></label>
+      {{ form.signal_description(class_="input textarea", rows="7", placeholder="Describe the evidence, cases, trend or concern that requires evaluation.") }}
+      {% for error in form.signal_description.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+    </div>
+  </section>
+
+  <div class="form-actions">
+    <a class="button button-secondary" href="{{ url_for('signals.signal_list') }}">Cancel</a>
+    {{ form.submit(class_="button") }}
+  </div>
+</form>
+{% endblock %}

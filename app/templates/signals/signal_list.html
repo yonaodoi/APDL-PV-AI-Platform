@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}Safety Signals | APDL PV{% endblock %}
+{% block page_title %}Safety Signals{% endblock %}
+
+{% block content %}
+<style>
+    .signals-header {
+        display:flex;
+        justify-content:space-between;
+        gap:20px;
+        align-items:flex-end;
+        margin-bottom:24px;
+    }
+
+    .signals-header h2 {
+        margin:0 0 7px;
+        color:#282037;
+        font-size:28px;
+        letter-spacing:-0.5px;
+    }
+
+    .signals-header p {
+        margin:0;
+        color:#746d7d;
+        font-size:14px;
+    }
+
+    .new-signal-button {
+        padding:12px 17px;
+        border-radius:9px;
+        background:#7656e8;
+        color:white;
+        font-size:14px;
+        font-weight:bold;
+        text-decoration:none;
+        white-space:nowrap;
+        box-shadow:0 7px 15px rgba(118,86,232,.2);
+    }
+
+    .signal-summary {
+        display:flex;
+        gap:13px;
+        margin-bottom:20px;
+    }
+
+    .summary-chip {
+        padding:9px 12px;
+        border:1px solid #e6deeb;
+        border-radius:9px;
+        background:white;
+        color:#655c6a;
+        font-size:12px;
+    }
+
+    .summary-chip strong {
+        margin-right:4px;
+        color:#5f3ed4;
+    }
+
+    .signal-register {
+        overflow:hidden;
+        border:1px solid #e9e2e7;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(40,32,55,.035);
+    }
+
+    .register-toolbar {
+        display:flex;
+        justify-content:space-between;
+        gap:16px;
+        align-items:center;
+        padding:16px 20px;
+        border-bottom:1px solid #eee8ec;
+    }
+
+    .register-toolbar h3 {
+        margin:0;
+        color:#403748;
+        font-size:15px;
+    }
+
+    .register-toolbar span {
+        color:#8a818f;
+        font-size:12px;
+    }
+
+    .signal-table {
+        width:100%;
+        border-collapse:collapse;
+    }
+
+    .signal-table th {
+        padding:13px 20px;
+        color:#918896;
+        background:#fffdfe;
+        font-size:10px;
+        letter-spacing:.6px;
+        text-align:left;
+        text-transform:uppercase;
+    }
+
+    .signal-table td {
+        padding:16px 20px;
+        border-top:1px solid #f0ebee;
+        color:#5c5365;
+        font-size:13px;
+        vertical-align:top;
+    }
+
+    .signal-number {
+        color:#49366d;
+        font-weight:bold;
+    }
+
+    .signal-number a {
+        color:inherit;
+        text-decoration:none;
+    }
+
+    .product-name {
+        color:#443a4b;
+        font-weight:bold;
+    }
+
+    .signal-concern {
+        max-width:240px;
+        overflow:hidden;
+        color:#756c7a;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+    }
+
+    .status-pill,
+    .priority-pill {
+        display:inline-block;
+        padding:5px 9px;
+        border-radius:20px;
+        font-size:11px;
+        font-weight:bold;
+    }
+
+    .status-pill {
+        background:#eee9ff;
+        color:#6242d7;
+    }
+
+    .priority-pill {
+        background:#f1edf1;
+        color:#6f6572;
+    }
+
+    .priority-high {
+        background:#ffe9e6;
+        color:#cc5149;
+    }
+
+    .empty-state {
+        padding:60px 25px;
+        color:#827988;
+        text-align:center;
+    }
+
+    .empty-icon {
+        width:42px;
+        height:42px;
+        display:grid;
+        place-items:center;
+        margin:0 auto 13px;
+        border-radius:12px;
+        background:#eee9ff;
+        color:#7656e8;
+        font-size:22px;
+        font-weight:bold;
+    }
+
+    .empty-state h3 {
+        margin:0 0 7px;
+        color:#473d50;
+        font-size:16px;
+    }
+
+    .empty-state p {
+        margin:0;
+        font-size:13px;
+    }
+
+    @media (max-width:1050px) {
+        .signal-table th:nth-child(4),
+        .signal-table td:nth-child(4),
+        .signal-table th:nth-child(5),
+        .signal-table td:nth-child(5) {
+            display:none;
+        }
+    }
+
+    @media (max-width:700px) {
+        .signals-header {
+            display:block;
+        }
+
+        .new-signal-button {
+            display:inline-block;
+            margin-top:17px;
+        }
+
+        .signal-summary {
+            flex-wrap:wrap;
+        }
+
+        .signal-table th:nth-child(6),
+        .signal-table td:nth-child(6) {
+            display:none;
+        }
+    }
+</style>
+
+<section class="signals-header">
+    <div>
+        <h2>Safety signal register</h2>
+        <p>Monitor emerging medicine-safety concerns and their evaluation status.</p>
+    </div>
+
+    <a class="new-signal-button" href="{{ url_for('signals.create_signal') }}">
+        + Create safety signal
+    </a>
+</section>
+
+<section class="signal-summary">
+    <div class="summary-chip"><strong>{{ signals|length }}</strong> total signal(s)</div>
+    <div class="summary-chip"><strong>{{ signals|selectattr("status", "equalto", "New")|list|length }}</strong> new signal(s)</div>
+    <div class="summary-chip">
+        <strong>{{ signals|selectattr("priority", "equalto", "High")|list|length + signals|selectattr("priority", "equalto", "Critical")|list|length }}</strong>
+        high-priority signal(s)
+    </div>
+</section>
+
+<section class="signal-register">
+    <div class="register-toolbar">
+        <h3>All safety signals</h3>
+        <span>Newest signals first</span>
+    </div>
+
+    {% if signals %}
+        <table class="signal-table">
+            <thead>
+                <tr>
+                    <th>Signal ID</th>
+                    <th>Product</th>
+                    <th>Safety concern</th>
+                    <th>Source</th>
+                    <th>Owner</th>
+                    <th>Status</th>
+                    <th>Detected</th>
+                    <th>Priority</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for signal in signals %}
+                    <tr>
+                        <td class="signal-number">
+                            <a href="{{ url_for('signals.signal_detail', signal_id=signal.signal_id) }}">
+                                {{ signal.signal_number }}
+                            </a>
+                        </td>
+                        <td class="product-name">{{ signal.product_name }}</td>
+                        <td class="signal-concern" title="{{ signal.event_term }}">{{ signal.event_term }}</td>
+                        <td>{{ signal.signal_source }}</td>
+                        <td>{{ signal.owner_name or "Not assigned" }}</td>
+                        <td><span class="status-pill">{{ signal.status }}</span></td>
+                        <td>{{ signal.date_detected.strftime("%d %b %Y") }}</td>
+                        <td>
+                            <span class="priority-pill {% if signal.priority in ('High', 'Critical') %}priority-high{% endif %}">
+                                {{ signal.priority }}
+                            </span>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">+</div>
+            <h3>No safety signals yet</h3>
+            <p>Create the first safety signal when an emerging concern requires evaluation.</p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

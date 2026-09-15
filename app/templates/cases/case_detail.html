@@ -1,0 +1,573 @@
+{% extends "base.html" %}
+
+{% block title %}{{ case.case_number }} | APDL PV{% endblock %}
+
+{% block page_title %}Safety Case{% endblock %}
+
+{% block content %}
+<style>
+    .case-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-start;
+        margin-bottom: 24px;
+    }
+
+    .back-link {
+        display: inline-block;
+        margin-bottom: 13px;
+        color: #7656e8;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+    }
+
+    .case-top h2 {
+        margin: 0;
+        color: #282037;
+        font-size: 28px;
+        letter-spacing: -0.5px;
+    }
+
+    .case-subtitle {
+        margin: 8px 0 0;
+        color: #776e7d;
+        font-size: 14px;
+    }
+
+    .case-badges {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .badge {
+        padding: 8px 11px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+        white-space: nowrap;
+    }
+
+    .badge-status {
+        background: #eee9ff;
+        color: #6242d7;
+    }
+
+    .badge-serious {
+        background: #ffe9e6;
+        color: #cc5149;
+    }
+
+    .badge-routine {
+        background: #f0ecf0;
+        color: #6c626e;
+    }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 22px;
+        align-items: start;
+    }
+
+    .detail-section {
+        margin-bottom: 20px;
+        overflow: hidden;
+        border: 1px solid #e9e2e7;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(40, 32, 55, 0.025);
+    }
+
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 17px 20px;
+        border-bottom: 1px solid #eee8ec;
+        color: #403748;
+        font-size: 15px;
+        font-weight: bold;
+    }
+
+    .section-icon {
+        width: 27px;
+        height: 27px;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+        background: #eee9ff;
+        color: #6a4adc;
+        font-size: 13px;
+    }
+
+    .detail-content {
+        padding: 20px;
+    }
+
+    .data-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .data-item.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .data-label {
+        margin-bottom: 5px;
+        color: #958b99;
+        font-size: 10px;
+        font-weight: bold;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+    }
+
+    .data-value {
+        color: #453c4d;
+        font-size: 13px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+
+    .product-card {
+        margin-bottom: 12px;
+        padding: 16px;
+        border: 1px solid #e9e2e7;
+        border-radius: 10px;
+        background: #fefcff;
+    }
+
+    .product-card:last-child {
+        margin-bottom: 0;
+    }
+
+    .product-name {
+        margin: 0 0 12px;
+        color: #453265;
+        font-size: 15px;
+        font-weight: bold;
+    }
+
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .narrative {
+        padding: 14px;
+        border-radius: 9px;
+        background: #faf7fb;
+        color: #554c5b;
+        font-size: 13px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+    }
+
+    .side-panel {
+        overflow: hidden;
+        border: 1px solid #e9e2e7;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(40, 32, 55, 0.025);
+    }
+
+    .side-heading {
+        padding: 17px 18px;
+        background: #f7f4ff;
+        color: #493273;
+        font-size: 14px;
+        font-weight: bold;
+    }
+
+    .side-content {
+        padding: 16px 18px;
+    }
+
+    .timeline-item {
+        position: relative;
+        padding: 0 0 18px 18px;
+        border-left: 1px solid #e7dff1;
+    }
+
+    .timeline-item:last-child {
+        padding-bottom: 0;
+        border-left: 0;
+    }
+
+    .timeline-item::before {
+        position: absolute;
+        top: 2px;
+        left: -5px;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #7656e8;
+        content: "";
+        box-shadow: 0 0 0 4px #f1edff;
+    }
+
+    .timeline-title {
+        color: #504658;
+        font-size: 12px;
+        font-weight: bold;
+        line-height: 1.4;
+    }
+
+    .timeline-text {
+        margin-top: 4px;
+        color: #837989;
+        font-size: 11px;
+        line-height: 1.45;
+    }
+
+    .timeline-date {
+        margin-top: 5px;
+        color: #a096a4;
+        font-size: 10px;
+    }
+
+    .case-meta {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #eee8ec;
+    }
+
+    .case-meta-item {
+        margin-bottom: 10px;
+        color: #776e7d;
+        font-size: 12px;
+    }
+
+    .case-meta-item strong {
+        display: block;
+        margin-bottom: 3px;
+        color: #4c4353;
+        font-size: 11px;
+    }
+
+    @media (max-width: 1000px) {
+        .detail-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .side-panel {
+            display: none;
+        }
+    }
+
+    @media (max-width: 700px) {
+        .case-top {
+            display: block;
+        }
+
+        .case-badges {
+            justify-content: flex-start;
+            margin-top: 15px;
+        }
+
+        .data-grid,
+        .product-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<section class="case-top">
+    <div>
+        <a class="back-link" href="{{ url_for('cases.case_list') }}">← Back to safety cases</a>
+        <h2>{{ case.case_number }}</h2>
+        <p class="case-subtitle">Received {{ case.received_date.strftime("%d %B %Y") }} from {{ case.country_name or "country not recorded" }}.</p>
+    </div>
+
+    <div class="case-badges">
+        <span class="badge badge-status">{{ case.workflow_status }}</span>
+        {% if case.seriousness %}
+            <span class="badge badge-serious">Serious case</span>
+        {% else %}
+            <span class="badge badge-routine">Routine case</span>
+
+        {% endif %}
+        <a href="{{ url_for('case_reports.download_adr_report', case_id=case.case_id) }}" style="padding: 8px 11px; border-radius: 20px; background: #7656e8; color: white; font-size: 12px; font-weight: bold; text-decoration: none;">Download ADR report</a>
+    </div>
+</section>
+
+<div class="detail-grid">
+    <div>
+        <section class="detail-section">
+            <div class="section-title">
+                <span class="section-icon">1</span>
+                Case receipt and reporter
+            </div>
+
+            <div class="detail-content">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <div class="data-label">Date received</div>
+                        <div class="data-value">{{ case.received_date.strftime("%d %b %Y") }}</div>
+                    </div>
+
+                    <div class="data-item">
+                        <div class="data-label">Country</div>
+                        <div class="data-value">{{ case.country_name or "Not recorded" }}</div>
+                    </div>
+
+                    <div class="data-item">
+                        <div class="data-label">Report source</div>
+                        <div class="data-value">{{ case.source }}</div>
+                    </div>
+
+                    <div class="data-item">
+                        <div class="data-label">Report type</div>
+                        <div class="data-value">{{ case.report_type or "Not recorded" }}</div>
+                    </div>
+
+                    <div class="data-item">
+                        <div class="data-label">Reporter</div>
+                        <div class="data-value">{{ case.reporter_name or "Not recorded" }}</div>
+                    </div>
+
+                    <div class="data-item">
+                        <div class="data-label">Profession</div>
+                        <div class="data-value">{{ case.reporter_profession or "Not recorded" }}</div>
+                    </div>
+
+                    <div class="data-item">
+                        <div class="data-label">Organisation</div>
+                        <div class="data-value">{{ case.reporter_organisation or "Not recorded" }}</div>
+                    </div>
+
+                    <div class="data-item">
+                        <div class="data-label">Telephone</div>
+                        <div class="data-value">{{ case.reporter_phone or "Not recorded" }}</div>
+                    </div>
+
+                    <div class="data-item">
+                        <div class="data-label">Email</div>
+                        <div class="data-value">{{ case.reporter_email or "Not recorded" }}</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="detail-section">
+            <div class="section-title">
+                <span class="section-icon">2</span>
+                Patient information
+            </div>
+
+            <div class="detail-content">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <div class="data-label">Patient initials</div>
+                        <div class="data-value">{{ case.patient_initials or "Not recorded" }}</div>
+                    </div>
+
+                    <div class="data-item">
+                        <div class="data-label">Age</div>
+                        <div class="data-value">
+                            {% if case.patient_age_years is not none %}
+                                {{ case.patient_age_years }} years
+                            {% else %}
+                                Not recorded
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="data-item">
+                        <div class="data-label">Sex</div>
+                        <div class="data-value">{{ case.patient_sex or "Not recorded" }}</div>
+                    </div>
+
+                    <div class="data-item">
+                        <div class="data-label">Weight</div>
+                        <div class="data-value">
+                            {% if case.patient_weight_kg %}
+                                {{ case.patient_weight_kg }} kg
+                            {% else %}
+                                Not recorded
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="data-item full-width">
+                        <div class="data-label">Relevant medical history</div>
+                        <div class="data-value">{{ case.medical_history or "Not recorded" }}</div>
+                    </div>
+
+                    <div class="data-item full-width">
+                        <div class="data-label">Concomitant medicines</div>
+                        <div class="data-value">{{ case.concomitant_medicines or "Not recorded" }}</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="detail-section">
+            <div class="section-title">
+                <span class="section-icon">3</span>
+                Suspected medicinal product
+            </div>
+
+            <div class="detail-content">
+                {% for product in products %}
+                    <article class="product-card">
+                        <h3 class="product-name">{{ product.product_name }}</h3>
+
+                        <div class="product-grid">
+                            <div class="data-item">
+                                <div class="data-label">Generic name</div>
+                                <div class="data-value">{{ product.generic_name or "Not recorded" }}</div>
+                            </div>
+
+                            <div class="data-item">
+                                <div class="data-label">Strength</div>
+                                <div class="data-value">{{ product.strength or "Not recorded" }}</div>
+                            </div>
+
+                            <div class="data-item">
+                                <div class="data-label">Dosage form</div>
+                                <div class="data-value">{{ product.dosage_form or "Not recorded" }}</div>
+                            </div>
+
+                            <div class="data-item">
+                                <div class="data-label">Batch number</div>
+                                <div class="data-value">{{ product.batch_number or "Not recorded" }}</div>
+                            </div>
+
+                            <div class="data-item">
+                                <div class="data-label">Dose and route</div>
+                                <div class="data-value">{{ product.dose or "Not recorded" }}{% if product.route %}, {{ product.route }}{% endif %}</div>
+                            </div>
+
+                            <div class="data-item">
+                                <div class="data-label">Indication</div>
+                                <div class="data-value">{{ product.indication or "Not recorded" }}</div>
+                            </div>
+                        </div>
+                    </article>
+                {% else %}
+                    <div class="data-value">No suspected product has been recorded.</div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="detail-section">
+            <div class="section-title">
+                <span class="section-icon">4</span>
+                Adverse event and assessment
+            </div>
+
+            <div class="detail-content">
+                <div class="data-grid">
+                    <div class="data-item full-width">
+                        <div class="data-label">Adverse event description</div>
+                        <div class="narrative">{{ case.event_description }}</div>
+                    </div>
+
+                    <div class="data-item">
+                        <div class="data-label">Event onset date</div>
+                        <div class="data-value">
+                            {% if case.event_onset_date %}
+                                {{ case.event_onset_date.strftime("%d %b %Y") }}
+                            {% else %}
+                                Not recorded
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="data-item">
+                        <div class="data-label">Outcome</div>
+                        <div class="data-value">{{ case.event_outcome or "Not recorded" }}</div>
+                    </div>
+
+                    <div class="data-item">
+                        <div class="data-label">Follow-up required</div>
+                        <div class="data-value">{{ "Yes" if case.follow_up_required else "No" }}</div>
+                    </div>
+
+                    <div class="data-item full-width">
+                        <div class="data-label">Seriousness criteria</div>
+                        <div class="data-value">{{ case.seriousness_criteria or "Not recorded" }}</div>
+                    </div>
+
+                    <div class="data-item full-width">
+                        <div class="data-label">Case narrative</div>
+                        <div class="data-value">{{ case.case_narrative or "Not recorded" }}</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <aside class="side-panel">
+        <div class="side-heading">Case workflow review</div>
+
+        <form method="post" action="{{ url_for('case_review.review_case', case_id=case.case_id) }}" style="padding: 16px 18px; border-bottom: 1px solid #eee8ec;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <label style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Workflow status</label>
+            <select name="workflow_status" style="width: 100%; margin-bottom: 13px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px; background: white;">
+                {% for status in ["New", "Triage", "Follow-up requested", "Medical review", "Ready for submission", "Submitted", "Closed"] %}
+                    <option value="{{ status }}" {% if case.workflow_status == status %}selected{% endif %}>{{ status }}</option>
+                {% endfor %}
+            </select>
+
+            <label style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Causality assessment</label>
+            <select name="causality_assessment" style="width: 100%; margin-bottom: 13px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px; background: white;">
+                <option value="">Not assessed</option>
+                {% for assessment in ["Certain", "Probable / Likely", "Possible", "Unlikely", "Unassessable / Unclassifiable"] %}
+                    <option value="{{ assessment }}" {% if case.causality_assessment == assessment %}selected{% endif %}>{{ assessment }}</option>
+                {% endfor %}
+            </select>
+
+            <label style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Review notes</label>
+            <textarea name="review_notes" style="width: 100%; min-height: 72px; margin-bottom: 13px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px; font: inherit; font-size: 12px; resize: vertical;"></textarea>
+
+            <label style="display: flex; gap: 7px; align-items: center; margin-bottom: 11px; color: #554d5d; font-size: 12px;">
+                <input type="checkbox" name="follow_up_required" {% if case.follow_up_required %}checked{% endif %}>
+                Follow-up required
+            </label>
+
+            <label style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Follow-up due date</label>
+            <input type="date" name="follow_up_due_date" value="{{ case.follow_up_due_date.strftime('%Y-%m-%d') if case.follow_up_due_date else '' }}" style="width: 100%; margin-bottom: 14px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px;">
+
+            <button type="submit" style="width: 100%; padding: 10px; border: 0; border-radius: 8px; background: #7656e8; color: white; cursor: pointer; font-size: 12px; font-weight: bold;">Save review</button>
+        </form>
+
+        <div class="side-heading">Case activity</div>
+
+        <div class="side-content">
+            {% for item in audit_log %}
+                <div class="timeline-item">
+                    <div class="timeline-title">{{ item.action }}</div>
+                    <div class="timeline-text">{{ item.details }}</div>
+                    <div class="timeline-date">
+                        {{ item.performed_at.strftime("%d %b %Y, %H:%M") }}
+                        {% if item.full_name %} · {{ item.full_name }}{% endif %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="timeline-text">No activity has been recorded.</div>
+            {% endfor %}
+
+            <div class="case-meta">
+                <div class="case-meta-item">
+                    <strong>Created by</strong>
+                    {{ case.created_by_name or "Not recorded" }}
+                </div>
+
+                <div class="case-meta-item">
+                    <strong>Created on</strong>
+                    {{ case.created_at.strftime("%d %b %Y, %H:%M") }}
+                </div>
+            </div>
+        </div>
+    </aside>
+</div>
+{% endblock %}

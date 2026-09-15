@@ -1,0 +1,95 @@
+from datetime import datetime, timedelta, timezone
+
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash
+
+from app.db import query_one, transaction
+
+
+bp = Blueprint("auth", __name__)
+
+
+@bp.route("/login", methods=["GET", "POST"])
+def login():
+    if session.get("user_id"):
+        return redirect(url_for("core.dashboard"))
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+
+        user = query_one(
+            """
+            SELECT
+                u.user_id,
+                u.username,
+                u.full_name,
+                u.password_hash,
+                u.is_active,
+                u.failed_login_attempts,
+                u.locked_until,
+                r.role_name
+            FROM pv.users AS u
+            JOIN pv.roles AS r ON r.role_id = u.role_id
+            WHERE u.username = %s
+            """,
+            (username,),
+        )
+
+        now = datetime.now(timezone.utc)
+
+        if not user or not user["is_active"]:
+            flash("Invalid username or password.", "error")
+            return render_template("auth/login.html")
+
+        locked_until = user["locked_until"]
+        if locked_until and locked_until > now:
+            flash("This account is temporarily locked. Try again later.", "error")
+            return render_template("auth/login.html")
+
+        if not check_password_hash(user["password_hash"], request.form.get("password", "")):
+            failed_attempts = user["failed_login_attempts"] + 1
+            new_locked_until = now + timedelta(minutes=15) if failed_attempts >= 5 else None
+
+            with transaction() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE pv.users
+                    SET failed_login_attempts = %s,
+                        locked_until = %s
+                    WHERE user_id = %s
+                    """,
+                    (failed_attempts, new_locked_until, user["user_id"]),
+                )
+
+            flash("Invalid username or password.", "error")
+            return render_template("auth/login.html")
+
+        with transaction() as cursor:
+            cursor.execute(
+                """
+                UPDATE pv.users
+                SET failed_login_attempts = 0,
+                    locked_until = NULL,
+                    last_login_at = %s
+                WHERE user_id = %s
+                """,
+                (now, user["user_id"]),
+            )
+
+        session.clear()
+        session.permanent = True
+        session["user_id"] = user["user_id"]
+        session["username"] = user["username"]
+        session["full_name"] = user["full_name"]
+        session["role"] = user["role_name"]
+
+        return redirect(url_for("core.dashboard"))
+
+    return render_template("auth/login.html")
+
+
+@bp.post("/logout")
+def logout():
+    session.clear()
+    flash("You have been logged out.", "success")
+    return redirect(url_for("auth.login"))

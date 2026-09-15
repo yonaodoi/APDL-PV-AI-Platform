@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}New Product Complaint | APDL PV{% endblock %}
+
+{% block page_title %}New Product Complaint{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">PRODUCT QUALITY MANAGEMENT</p>
+    <h1>Capture product complaint</h1>
+    <p>Record the information exactly as received. The Complaint ID is entered manually.</p>
+  </div>
+  <a class="button button-secondary" href="{{ url_for('complaints.complaint_list') }}">
+    Back to complaints
+  </a>
+</section>
+
+<form method="post" class="case-form">
+  {{ form.hidden_tag() }}
+
+  <section class="form-card">
+    <div class="section-title">
+      <span>1</span>
+      <div>
+        <h2>Complaint receipt and reporter</h2>
+        <p>Record when the complaint was received and who reported it.</p>
+      </div>
+    </div>
+
+    <div class="form-grid">
+      <div class="field">
+        <label>{{ form.complaint_number.label.text }} <span class="required">*</span></label>
+        {{ form.complaint_number(class_="input", placeholder="For example: APDL-PC-2026-0001") }}
+        {% for error in form.complaint_number.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+      </div>
+
+      <div class="field">
+        <label>{{ form.date_received.label.text }} <span class="required">*</span></label>
+        {{ form.date_received(class_="input") }}
+        {% for error in form.date_received.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+      </div>
+
+      <div class="field">
+        <label>{{ form.country_id.label.text }} <span class="required">*</span></label>
+        {{ form.country_id(class_="input") }}
+        {% for error in form.country_id.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+      </div>
+
+      <div class="field">
+        <label>{{ form.reporter_name.label.text }}</label>
+        {{ form.reporter_name(class_="input", placeholder="Name of reporter") }}
+      </div>
+
+      <div class="field">
+        <label>{{ form.reporter_contact.label.text }}</label>
+        {{ form.reporter_contact(class_="input", placeholder="Telephone or email") }}
+      </div>
+    </div>
+  </section>
+
+  <section class="form-card">
+    <div class="section-title">
+      <span>2</span>
+      <div>
+        <h2>Product and complaint details</h2>
+        <p>Provide the product, batch and issue details.</p>
+      </div>
+    </div>
+
+    <div class="form-grid">
+      <div class="field">
+        <label>{{ form.product_name.label.text }} <span class="required">*</span></label>
+        {{ form.product_name(class_="input", placeholder="For example: ABPARA Paracetamol IV") }}
+        {% for error in form.product_name.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+      </div>
+
+      <div class="field">
+        <label>{{ form.batch_number.label.text }}</label>
+        {{ form.batch_number(class_="input", placeholder="Batch number") }}
+      </div>
+
+      <div class="field">
+        <label>{{ form.manufacturing_date.label.text }}</label>
+        {{ form.manufacturing_date(class_="input") }}
+      </div>
+
+      <div class="field">
+        <label>{{ form.expiry_date.label.text }}</label>
+        {{ form.expiry_date(class_="input") }}
+      </div>
+
+      <div class="field">
+        <label>{{ form.complaint_category.label.text }} <span class="required">*</span></label>
+        {{ form.complaint_category(class_="input") }}
+      </div>
+
+      <div class="field">
+        <label>{{ form.severity.label.text }} <span class="required">*</span></label>
+        {{ form.severity(class_="input") }}
+      </div>
+    </div>
+
+    <div class="field field-wide">
+      <label>{{ form.complaint_description.label.text }} <span class="required">*</span></label>
+      {{ form.complaint_description(class_="input textarea", rows="6", placeholder="Describe the complaint, including the observed defect or issue.") }}
+      {% for error in form.complaint_description.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+    </div>
+  </section>
+
+  <div class="form-actions">
+    <a class="button button-secondary" href="{{ url_for('complaints.complaint_list') }}">Cancel</a>
+    {{ form.submit(class_="button") }}
+  </div>
+</form>
+{% endblock %}

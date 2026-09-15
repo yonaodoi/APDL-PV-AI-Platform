@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}Safety Cases | APDL PV{% endblock %}
+
+{% block page_title %}Safety Cases{% endblock %}
+
+{% block content %}
+<style>
+    .cases-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-end;
+        margin-bottom: 24px;
+    }
+
+    .cases-header h2 {
+        margin: 0 0 7px;
+        color: #282037;
+        font-size: 28px;
+        letter-spacing: -0.5px;
+    }
+
+    .cases-header p {
+        margin: 0;
+        color: #746d7d;
+        font-size: 14px;
+    }
+
+    .new-case-button {
+        padding: 12px 17px;
+        border-radius: 9px;
+        background: #7656e8;
+        color: white;
+        font-size: 14px;
+        font-weight: bold;
+        text-decoration: none;
+        white-space: nowrap;
+        box-shadow: 0 7px 15px rgba(118, 86, 232, 0.2);
+    }
+
+    .case-summary {
+        display: flex;
+        gap: 13px;
+        margin-bottom: 20px;
+    }
+
+    .summary-chip {
+        padding: 9px 12px;
+        border: 1px solid #e6deeb;
+        border-radius: 9px;
+        background: white;
+        color: #655c6a;
+        font-size: 12px;
+    }
+
+    .summary-chip strong {
+        margin-right: 4px;
+        color: #5f3ed4;
+    }
+
+    .case-register {
+        overflow: hidden;
+        border: 1px solid #e9e2e7;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);
+    }
+
+    .register-toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid #eee8ec;
+    }
+
+    .register-toolbar h3 {
+        margin: 0;
+        color: #403748;
+        font-size: 15px;
+    }
+
+    .register-toolbar span {
+        color: #8a818f;
+        font-size: 12px;
+    }
+
+    .case-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .case-table th {
+        padding: 13px 20px;
+        color: #918896;
+        background: #fffdfe;
+        font-size: 10px;
+        letter-spacing: 0.6px;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    .case-table td {
+        padding: 16px 20px;
+        border-top: 1px solid #f0ebee;
+        color: #5c5365;
+        font-size: 13px;
+        vertical-align: top;
+    }
+
+    .case-number {
+        color: #49366d;
+        font-weight: bold;
+    }
+
+    .product-name {
+        color: #443a4b;
+        font-weight: bold;
+    }
+
+    .event-description {
+        max-width: 280px;
+        overflow: hidden;
+        color: #756c7a;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .status-pill,
+    .serious-pill,
+    .routine-pill {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: bold;
+    }
+
+    .status-pill {
+        background: #eee9ff;
+        color: #6242d7;
+    }
+
+    .serious-pill {
+        background: #ffe9e6;
+        color: #cc5149;
+    }
+
+    .routine-pill {
+        background: #f1edf1;
+        color: #6f6572;
+    }
+
+    .empty-state {
+        padding: 60px 25px;
+        color: #827988;
+        text-align: center;
+    }
+
+    .empty-icon {
+        width: 42px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        margin: 0 auto 13px;
+        border-radius: 12px;
+        background: #eee9ff;
+        color: #7656e8;
+        font-size: 22px;
+        font-weight: bold;
+    }
+
+    .empty-state h3 {
+        margin: 0 0 7px;
+        color: #473d50;
+        font-size: 16px;
+    }
+
+    .empty-state p {
+        margin: 0;
+        font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+        .case-table th:nth-child(4),
+        .case-table td:nth-child(4),
+        .case-table th:nth-child(6),
+        .case-table td:nth-child(6) {
+            display: none;
+        }
+    }
+
+    @media (max-width: 650px) {
+        .cases-header {
+            display: block;
+        }
+
+        .new-case-button {
+            display: inline-block;
+            margin-top: 17px;
+        }
+
+        .case-summary {
+            flex-wrap: wrap;
+        }
+
+        .case-table th:nth-child(3),
+        .case-table td:nth-child(3) {
+            display: none;
+        }
+    }
+</style>
+
+<section class="cases-header">
+    <div>
+        <h2>Safety case register</h2>
+        <p>Review and manage all adverse drug reaction reports received by APDL.</p>
+    </div>
+
+    <a class="new-case-button" href="{{ url_for('cases.create_case') }}">
+        + Create safety case
+    </a>
+</section>
+
+<section class="case-summary">
+    <div class="summary-chip"><strong>{{ cases|length }}</strong> total case(s)</div>
+    <div class="summary-chip"><strong>{{ cases|selectattr("workflow_status", "equalto", "New")|list|length }}</strong> new case(s)</div>
+    <div class="summary-chip"><strong>{{ cases|selectattr("seriousness")|list|length }}</strong> serious case(s)</div>
+</section>
+
+<section class="case-register">
+    <div class="register-toolbar">
+        <h3>All safety cases</h3>
+        <span>Newest cases first</span>
+    </div>
+
+    {% if cases %}
+        <table class="case-table">
+            <thead>
+                <tr>
+                    <th>Case number</th>
+                    <th>Product</th>
+                    <th>Country</th>
+                    <th>Event</th>
+                    <th>Status</th>
+                    <th>Received</th>
+                    <th>Priority</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for case in cases %}
+                    <tr>
+                        <td class="case-number"><a href="{{ url_for('cases.case_detail', case_id=case.case_id) }}" style="color: inherit; text-decoration: none;">{{ case.case_number }}</a></td>
+                        <td class="product-name">{{ case.product_name or "Not recorded" }}</td>
+                        <td>{{ case.country_name or "Not recorded" }}</td>
+                        <td class="event-description" title="{{ case.event_description }}">{{ case.event_description }}</td>
+                        <td><span class="status-pill">{{ case.workflow_status }}</span></td>
+                        <td>{{ case.received_date.strftime("%d %b %Y") }}</td>
+                        <td>
+                            {% if case.seriousness %}
+                                <span class="serious-pill">Serious</span>
+                            {% else %}
+                                <span class="routine-pill">Routine</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">+</div>
+            <h3>No safety cases yet</h3>
+            <p>Create the first case to start the APDL safety register.</p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

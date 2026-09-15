@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}{{ signal.signal_number }} | APDL PV{% endblock %}
+{% block page_title %}Safety Signal{% endblock %}
+
+{% block content %}
+<style>
+    .signal-header {
+        display:flex;
+        justify-content:space-between;
+        gap:20px;
+        align-items:flex-start;
+        margin-bottom:24px;
+    }
+
+    .back-link {
+        display:inline-block;
+        margin-bottom:10px;
+        color:#7656e8;
+        font-size:13px;
+        font-weight:bold;
+        text-decoration:none;
+    }
+
+    .signal-header h2 {
+        margin:0 0 7px;
+        color:#282037;
+        font-size:28px;
+    }
+
+    .signal-header p {
+        margin:0;
+        color:#746d7d;
+        font-size:14px;
+    }
+
+    .signal-badges {
+        display:flex;
+        gap:8px;
+        flex-wrap:wrap;
+    }
+
+    .status-pill,
+    .priority-pill {
+        display:inline-block;
+        padding:7px 11px;
+        border-radius:20px;
+        font-size:12px;
+        font-weight:bold;
+        white-space:nowrap;
+    }
+
+    .status-pill {
+        background:#eee9ff;
+        color:#6242d7;
+    }
+
+    .priority-pill {
+        background:#f1edf1;
+        color:#6f6572;
+    }
+
+    .priority-high {
+        background:#ffe9e6;
+        color:#cc5149;
+    }
+
+    .signal-layout {
+        display:grid;
+        grid-template-columns:minmax(0, 1fr) 310px;
+        gap:22px;
+        align-items:start;
+    }
+
+    .signal-card {
+        margin-bottom:20px;
+        overflow:hidden;
+        border:1px solid #e9e2e7;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(40,32,55,.025);
+    }
+
+    .card-heading {
+        display:flex;
+        gap:12px;
+        align-items:center;
+        padding:16px 19px;
+        border-bottom:1px solid #eee8ec;
+    }
+
+    .card-heading span {
+        width:27px;
+        height:27px;
+        display:grid;
+        place-items:center;
+        border-radius:8px;
+        background:#eee9ff;
+        color:#6545d8;
+        font-size:12px;
+        font-weight:bold;
+    }
+
+    .card-heading h3 {
+        margin:0;
+        color:#3d3546;
+        font-size:15px;
+    }
+
+    .detail-grid {
+        display:grid;
+        grid-template-columns:repeat(3, minmax(0, 1fr));
+        gap:20px;
+        padding:20px;
+    }
+
+    .detail-item span,
+    .note-label {
+        display:block;
+        margin-bottom:6px;
+        color:#918896;
+        font-size:10px;
+        font-weight:bold;
+        letter-spacing:.6px;
+    }
+
+    .detail-item strong {
+        color:#42394b;
+        font-size:13px;
+        line-height:1.4;
+    }
+
+    .note-box {
+        margin:0 20px 20px;
+        padding:15px;
+        border-radius:10px;
+        background:#faf8fb;
+        color:#635a68;
+        font-size:13px;
+        line-height:1.55;
+        white-space:pre-wrap;
+    }
+
+    .evaluation-card {
+        overflow:hidden;
+        border:1px solid #e9e2e7;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(40,32,55,.025);
+    }
+
+    .evaluation-heading {
+        padding:17px 18px;
+        background:#f7f4ff;
+        color:#493273;
+        font-size:14px;
+        font-weight:bold;
+    }
+
+    .evaluation-form {
+        padding:18px;
+    }
+
+    .field {
+        margin-bottom:16px;
+    }
+
+    .field label {
+        display:block;
+        margin-bottom:7px;
+        color:#554d5d;
+        font-size:12px;
+        font-weight:bold;
+    }
+
+    .input {
+        width:100%;
+        box-sizing:border-box;
+        padding:10px 11px;
+        border:1px solid #ddd5dc;
+        border-radius:8px;
+        background:#fffeff;
+        color:#322a3b;
+        font:inherit;
+        font-size:14px;
+    }
+
+    textarea.input {
+        min-height:105px;
+        resize:vertical;
+    }
+
+    .input:focus {
+        outline:none;
+        border-color:#9f88ed;
+        box-shadow:0 0 0 3px #eee9ff;
+    }
+
+    .save-button {
+        width:100%;
+        padding:12px;
+        border:0;
+        border-radius:9px;
+        background:#7656e8;
+        color:white;
+        font-size:14px;
+        font-weight:bold;
+        cursor:pointer;
+        box-shadow:0 7px 15px rgba(118,86,232,.2);
+    }
+
+    .signal-guide {
+        margin-top:18px;
+        padding:15px;
+        border-radius:10px;
+        background:#fcf7ee;
+        color:#876940;
+        font-size:12px;
+        line-height:1.5;
+    }
+
+    @media (max-width:1050px) {
+        .signal-layout { grid-template-columns:1fr; }
+    }
+
+    @media (max-width:700px) {
+        .signal-header { display:block; }
+        .signal-badges { margin-top:14px; }
+        .detail-grid { grid-template-columns:1fr; }
+    }
+</style>
+
+<section class="signal-header">
+    <div>
+        <a class="back-link" href="{{ url_for('signals.signal_list') }}">← Back to safety signals</a>
+        <h2>{{ signal.signal_number }}</h2>
+        <p>Detected {{ signal.date_detected.strftime("%d %B %Y") }} for {{ signal.product_name }}.</p>
+    </div>
+
+    <div class="signal-badges">
+        <span class="status-pill">{{ signal.status }}</span>
+        <span class="priority-pill {% if signal.priority in ('High', 'Critical') %}priority-high{% endif %}">
+            {{ signal.priority }}
+        </span>
+    </div>
+</section>
+
+<div class="signal-layout">
+    <div>
+        <section class="signal-card">
+            <div class="card-heading">
+                <span>1</span>
+                <h3>Signal identification</h3>
+            </div>
+
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span>DATE DETECTED</span>
+                    <strong>{{ signal.date_detected.strftime("%d %b %Y") }}</strong>
+                </div>
+
+                <div class="detail-item">
+                    <span>PRODUCT</span>
+                    <strong>{{ signal.product_name }}</strong>
+                </div>
+
+                <div class="detail-item">
+                    <span>SAFETY CONCERN</span>
+                    <strong>{{ signal.event_term }}</strong>
+                </div>
+
+                <div class="detail-item">
+                    <span>SOURCE</span>
+                    <strong>{{ signal.signal_source }}</strong>
+                </div>
+
+                <div class="detail-item">
+                    <span>SIGNAL OWNER</span>
+                    <strong>{{ signal.owner_name or "Not assigned" }}</strong>
+                </div>
+
+                <div class="detail-item">
+                    <span>CREATED BY</span>
+                    <strong>{{ signal.created_by_name or "System user" }}</strong>
+                </div>
+            </div>
+
+            <div class="note-box">
+                <span class="note-label">SIGNAL DESCRIPTION</span>
+                {{ signal.signal_description }}
+            </div>
+        </section>
+
+        <section class="signal-card">
+            <div class="card-heading">
+                <span>2</span>
+                <h3>Signal assessment and decision</h3>
+            </div>
+
+            <div class="note-box">
+                <span class="note-label">ASSESSMENT SUMMARY</span>
+                {{ signal.assessment_summary or "Assessment has not been recorded." }}
+            </div>
+
+            <div class="note-box">
+                <span class="note-label">DECISION AND ACTION</span>
+                {{ signal.decision_summary or "No decision or action has been recorded." }}
+            </div>
+        </section>
+    </div>
+
+    <aside>
+        <section class="evaluation-card">
+            <div class="evaluation-heading">Signal evaluation</div>
+
+            <form method="post" action="{{ url_for('signals.evaluate_signal', signal_id=signal.signal_id) }}" class="evaluation-form">
+                {{ evaluation_form.hidden_tag() }}
+
+                <div class="field">
+                    <label>{{ evaluation_form.status.label.text }}</label>
+                    {{ evaluation_form.status(class_="input") }}
+                </div>
+
+                <div class="field">
+                    <label>{{ evaluation_form.owner_name.label.text }}</label>
+                    {{ evaluation_form.owner_name(class_="input", placeholder="Person responsible") }}
+                </div>
+
+                <div class="field">
+                    <label>{{ evaluation_form.assessment_summary.label.text }}</label>
+                    {{ evaluation_form.assessment_summary(class_="input", rows="6", placeholder="Record the medical and data assessment.") }}
+                </div>
+
+                <div class="field">
+                    <label>{{ evaluation_form.decision_summary.label.text }}</label>
+                    {{ evaluation_form.decision_summary(class_="input", rows="6", placeholder="Record the decision, action or monitoring plan.") }}
+                </div>
+
+                {{ evaluation_form.submit(class_="save-button") }}
+            </form>
+        </section>
+
+        <div class="signal-guide">
+            Record decisions using verified safety evidence. Any validated signal should be assessed for regulatory, labelling and risk-minimisation action.
+        </div>
+    </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Sign In | APDL PV AI Platform</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/app.css') }}"
+    >
+</head>
+
+<body class="auth-page">
+    <main class="auth-card">
+
+        <div class="brand">
+            <div class="brand-mark">+</div>
+
+            <div>
+                <div class="brand-name">APDL PV</div>
+
+                <div class="brand-subtitle">
+                    Pharmacovigilance AI Platform
+                </div>
+            </div>
+        </div>
+
+        <div class="auth-heading">
+            <p class="eyebrow">Secure access</p>
+
+            <h1>Welcome back</h1>
+
+            <p>
+                Sign in to access the APDL
+                Pharmacovigilance AI Platform.
+            </p>
+        </div>
+
+        {% with messages = get_flashed_messages(
+            with_categories=true
+        ) %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endwith %}
+
+        <form method="POST" class="auth-form">
+
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token() }}"
+            >
+
+            <label for="username">
+                Username
+            </label>
+
+            <input
+                id="username"
+                name="username"
+                type="text"
+                autocomplete="username"
+                required
+                autofocus
+            >
+
+            <label for="password">
+                Password
+            </label>
+
+            <input
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                required
+            >
+
+            <button
+                type="submit"
+                class="button button-primary"
+            >
+                Sign in
+            </button>
+        </form>
+
+        <p class="auth-footer">
+            Authorised APDL users only
+        </p>
+    </main>
+</body>
+</html>

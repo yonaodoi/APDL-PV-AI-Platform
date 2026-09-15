@@ -1,0 +1,8 @@
+Flask==3.1.2
+Flask-WTF==1.2.2
+psycopg2-binary==2.9.10
+python-dotenv==1.1.1
+python-docx==1.2.0
+requests==2.32.5
+waitress==3.0.2
+pytest==8.4.2email-validator==2.3.0

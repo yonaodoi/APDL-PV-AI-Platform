@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}{{ complaint.complaint_number }} | APDL PV{% endblock %}
+
+{% block page_title %}Product Complaint{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <div>
+    <a class="back-link" href="{{ url_for('complaints.complaint_list') }}">← Back to product complaints</a>
+    <h1>{{ complaint.complaint_number }}</h1>
+    <p>Received {{ complaint.date_received.strftime("%d %B %Y") }}{% if complaint.country_name %} from {{ complaint.country_name }}{% endif %}.</p>
+  </div>
+  <div class="case-badges">
+    <span class="status-badge">{{ complaint.status }}</span>
+    <span class="priority-badge {% if complaint.severity in ('Serious', 'Critical') %}priority-serious{% endif %}">
+      {{ complaint.severity }}
+    </span>
+  </div>
+</section>
+
+<div class="case-detail-layout">
+  <div class="detail-main">
+    <section class="form-card">
+      <div class="section-title">
+        <span>1</span>
+        <div><h2>Complaint receipt and reporter</h2></div>
+      </div>
+
+      <div class="detail-grid">
+        <div><span>DATE RECEIVED</span><strong>{{ complaint.date_received.strftime("%d %b %Y") }}</strong></div>
+        <div><span>COUNTRY</span><strong>{{ complaint.country_name or "Not recorded" }}</strong></div>
+        <div><span>REPORTER</span><strong>{{ complaint.reporter_name or "Not recorded" }}</strong></div>
+        <div><span>CONTACT</span><strong>{{ complaint.reporter_contact or "Not recorded" }}</strong></div>
+      </div>
+    </section>
+
+    <section class="form-card">
+      <div class="section-title">
+        <span>2</span>
+        <div><h2>Product and complaint details</h2></div>
+      </div>
+
+      <div class="detail-grid">
+        <div><span>PRODUCT</span><strong>{{ complaint.product_name }}</strong></div>
+        <div><span>BATCH NUMBER</span><strong>{{ complaint.batch_number or "Not recorded" }}</strong></div>
+        <div><span>MANUFACTURING DATE</span><strong>{{ complaint.manufacturing_date.strftime("%d %b %Y") if complaint.manufacturing_date else "Not recorded" }}</strong></div>
+        <div><span>EXPIRY DATE</span><strong>{{ complaint.expiry_date.strftime("%d %b %Y") if complaint.expiry_date else "Not recorded" }}</strong></div>
+        <div><span>CATEGORY</span><strong>{{ complaint.complaint_category }}</strong></div>
+      </div>
+
+      <div class="narrative-box">
+        <span>COMPLAINT DESCRIPTION</span>
+        <p>{{ complaint.complaint_description }}</p>
+      </div>
+    </section>
+
+    <section class="form-card">
+      <div class="section-title">
+        <span>3</span>
+        <div><h2>Investigation and closure</h2></div>
+      </div>
+
+      <div class="narrative-box">
+        <span>INVESTIGATION SUMMARY</span>
+        <p>{{ complaint.investigation_summary or "Investigation has not been recorded." }}</p>
+      </div>
+
+      <div class="narrative-box">
+        <span>CORRECTIVE ACTION</span>
+        <p>{{ complaint.corrective_action or "No corrective action has been recorded." }}</p>
+      </div>
+
+      <div class="detail-grid">
+        <div><span>CLOSURE DATE</span><strong>{{ complaint.closure_date.strftime("%d %b %Y") if complaint.closure_date else "Not closed" }}</strong></div>
+        <div><span>RECORDED BY</span><strong>{{ complaint.created_by_name or "System user" }}</strong></div>
+      </div>
+    </section>
+  </div>
+
+  <aside class="detail-side">
+  <section class="panel">
+    <div class="panel-header"><h2>Investigation update</h2></div>
+
+    <form method="post" action="{{ url_for('complaints.review_complaint', complaint_id=complaint.complaint_id) }}" class="review-form">
+      {{ review_form.hidden_tag() }}
+
+      <div class="field">
+        <label>{{ review_form.status.label.text }}</label>
+        {{ review_form.status(class_="input") }}
+      </div>
+
+      <div class="field">
+        <label>{{ review_form.investigation_summary.label.text }}</label>
+        {{ review_form.investigation_summary(class_="input textarea", rows="5", placeholder="Record investigation findings.") }}
+      </div>
+
+      <div class="field">
+        <label>{{ review_form.corrective_action.label.text }}</label>
+        {{ review_form.corrective_action(class_="input textarea", rows="5", placeholder="Record the CAPA or other action.") }}
+      </div>
+
+      <div class="field">
+        <label>{{ review_form.closure_date.label.text }}</label>
+        {{ review_form.closure_date(class_="input") }}
+      </div>
+
+      {{ review_form.submit(class_="button button-full") }}
+    </form>
+  </section>
+    <section class="panel">
+      <div class="panel-header"><h2>Complaint status</h2></div>
+      <div class="activity-item">
+        <strong>{{ complaint.status }}</strong>
+        <span>Current workflow status</span>
+      </div>
+      <div class="activity-item">
+        <strong>{{ complaint.severity }}</strong>
+        <span>Complaint severity</span>
+      </div>
+    </section>
+  </aside>
+</div>
+{% endblock %}

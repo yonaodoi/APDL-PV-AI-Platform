@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}APDL PV AI Platform{% endblock %}</title>
+
+    <style>
+        :root {
+            --ink: #282037;
+            --muted: #746d7d;
+            --violet: #7656e8;
+            --violet-dark: #5f3ed4;
+            --violet-soft: #eee9ff;
+            --coral: #d85c54;
+            --page: #f7f4f6;
+            --surface: #ffffff;
+            --sidebar: #fffafb;
+            --line: #e9e2e7;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            color: var(--ink);
+            background: var(--page);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .app-shell {
+            min-height: 100vh;
+            display: flex;
+        }
+
+        .sidebar {
+            width: 254px;
+            padding: 25px 15px;
+            background: var(--sidebar);
+            border-right: 1px solid var(--line);
+        }
+
+        .brand {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin: 0 9px 34px;
+        }
+
+        .brand-mark {
+            width: 39px;
+            height: 39px;
+            display: grid;
+            place-items: center;
+            border-radius: 12px;
+            background: var(--violet);
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            box-shadow: 0 6px 15px rgba(118, 86, 232, 0.2);
+        }
+
+        .brand-name {
+            color: var(--ink);
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .brand-subtitle {
+            margin-top: 3px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .nav-label {
+            margin: 24px 12px 8px;
+            color: #a099a6;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 0.9px;
+        }
+
+        .nav-link {
+            display: block;
+            margin: 3px 0;
+            padding: 11px 12px;
+            border-radius: 8px;
+            color: #5d5568;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: #5f3ed4;
+            background: var(--violet-soft);
+        }
+
+        .main-area {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .topbar {
+            height: 76px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 34px;
+            background: rgba(255, 255, 255, 0.76);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .page-title {
+            margin: 0;
+            color: var(--ink);
+            font-size: 22px;
+            letter-spacing: -0.3px;
+        }
+
+        .user-menu {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .user-menu strong {
+            color: var(--ink);
+        }
+
+        .logout-button {
+            margin-left: 16px;
+            padding: 8px 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: white;
+            color: #5d5568;
+            cursor: pointer;
+        }
+
+        .logout-button:hover {
+            color: var(--violet-dark);
+            border-color: #cfc3fa;
+            background: #fbfaff;
+        }
+
+        .content {
+            padding: 34px;
+        }
+
+        .flash {
+            margin-bottom: 20px;
+            padding: 13px 15px;
+            border: 1px solid #d9cffb;
+            border-radius: 9px;
+            background: #f5f1ff;
+            color: #5f3ed4;
+        }
+
+        @media (max-width: 760px) {
+            .sidebar {
+                display: none;
+            }
+
+            .topbar,
+            .content {
+                padding-left: 18px;
+                padding-right: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-mark">+</div>
+                <div>
+                    <div class="brand-name">APDL PV</div>
+                    <div class="brand-subtitle">AI Platform</div>
+                </div>
+            </div>
+
+            <div class="nav-label">WORKSPACE</div>
+<a class="nav-link {% if request.endpoint == 'core.dashboard' %}active{% endif %}" href="{{ url_for('core.dashboard') }}">Dashboard</a>
+            <a class="nav-link {% if request.endpoint in ('cases.case_list', 'cases.create_case', 'cases.case_detail') %}active{% endif %}" href="{{ url_for('cases.case_list') }}">Safety Cases</a>
+            <a class="nav-link {% if request.endpoint in ('complaints.complaint_list', 'complaints.create_complaint') %}active{% endif %}" href="{{ url_for('complaints.complaint_list') }}">Product Complaints</a>
+
+            <div class="nav-label">SAFETY MANAGEMENT</div>
+            <a class="nav-link" href="#">Regulatory Reporting</a>
+            <a class="nav-link {% if request.endpoint in ('signals.signal_list', 'signals.create_signal') %}active{% endif %}" href="{{ url_for('signals.signal_list') }}">Safety Signals</a>
+            <a class="nav-link {% if request.endpoint in ('psur.psur_list', 'psur.create_psur') %}active{% endif %}" href="{{ url_for('psur.psur_list') }}">PSURs</a>
+
+            <div class="nav-label">SYSTEM</div>
+            <a class="nav-link" href="#">Administration</a>
+        </aside>
+
+        <div class="main-area">
+            <header class="topbar">
+                <h1 class="page-title">{% block page_title %}APDL PV AI Platform{% endblock %}</h1>
+
+                <div class="user-menu">
+                    Signed in as <strong>{{ session.get("full_name", "User") }}</strong>
+                    <form method="post" action="{{ url_for('auth.logout') }}" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="logout-button" type="submit">Log out</button>
+                    </form>
+                </div>
+            </header>
+
+            <main class="content">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% for category, message in messages %}
+                        <div class="flash">{{ message }}</div>
+                    {% endfor %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+</body>
+</html>

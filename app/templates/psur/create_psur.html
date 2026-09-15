@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}New PSUR | APDL PV{% endblock %}
+{% block page_title %}New PSUR{% endblock %}
+
+{% block content %}
+<style>
+    .page-header { display:flex; justify-content:space-between; gap:20px; align-items:flex-end; margin-bottom:22px; }
+    .page-header h2 { margin:0 0 7px; color:#282037; font-size:28px; }
+    .page-header p { margin:0; color:#746d7d; font-size:14px; }
+    .psur-label { padding:8px 11px; border-radius:20px; background:#eee9ff; color:#6545d8; font-size:12px; font-weight:bold; }
+
+    .progress { display:grid; grid-template-columns:repeat(4, 1fr); overflow:hidden; margin-bottom:22px; border:1px solid #e6dff3; border-radius:12px; background:white; }
+    .progress-item { padding:14px 15px; color:#6242d7; background:#f6f3ff; font-size:12px; font-weight:bold; }
+    .progress-item span { display:inline-grid; width:20px; height:20px; place-items:center; margin-right:7px; border-radius:50%; background:#7656e8; color:white; font-size:11px; }
+
+    .layout { display:grid; grid-template-columns:minmax(0, 1fr) 280px; gap:22px; align-items:start; }
+    .section { margin-bottom:20px; padding:24px; border:1px solid #e9e2e7; border-radius:14px; background:white; box-shadow:0 5px 12px rgba(40,32,55,.025); }
+    .section-title { display:flex; gap:12px; align-items:flex-start; margin-bottom:21px; }
+    .section-number { width:29px; height:29px; display:grid; place-items:center; flex:0 0 29px; border-radius:9px; background:#eee9ff; color:#6545d8; font-size:13px; font-weight:bold; }
+    .section-title h3 { margin:1px 0 4px; color:#282037; font-size:16px; }
+    .section-title p { margin:0; color:#847b89; font-size:12px; line-height:1.4; }
+
+    .grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:17px; }
+    .field.full { grid-column:1 / -1; }
+    .field label { display:block; margin-bottom:7px; color:#554d5d; font-size:12px; font-weight:bold; }
+    .required { color:#d85c54; }
+    .input { width:100%; box-sizing:border-box; padding:10px 11px; border:1px solid #ddd5dc; border-radius:8px; background:#fffeff; color:#322a3b; font:inherit; font-size:14px; }
+    textarea.input { min-height:100px; resize:vertical; }
+    .input:focus { outline:none; border-color:#9f88ed; box-shadow:0 0 0 3px #eee9ff; }
+    .error { margin-top:6px; color:#d85c54; font-size:12px; }
+
+    .actions { display:flex; justify-content:flex-end; gap:12px; margin-top:8px; }
+    .button { padding:12px 18px; border-radius:9px; font-size:14px; font-weight:bold; cursor:pointer; }
+    .primary { border:0; background:#7656e8; color:white; box-shadow:0 7px 15px rgba(118,86,232,.2); }
+    .secondary { border:1px solid #ded6dd; background:white; color:#655c6a; text-decoration:none; }
+
+    .guide { overflow:hidden; border:1px solid #e9e2e7; border-radius:14px; background:white; box-shadow:0 5px 12px rgba(40,32,55,.025); }
+    .guide-heading { padding:17px 18px; background:#f7f4ff; color:#493273; font-size:14px; font-weight:bold; }
+    .guide-content { padding:18px; }
+    .guide-item { display:flex; gap:10px; padding:12px 0; border-bottom:1px solid #f0ebee; }
+    .guide-item:last-child { border-bottom:0; }
+    .dot { width:8px; height:8px; flex:0 0 8px; margin-top:5px; border-radius:50%; background:#7656e8; }
+    .dot.coral { background:#d85c54; }
+    .guide-item strong { display:block; margin-bottom:3px; color:#4d4555; font-size:12px; }
+    .guide-item span { color:#817887; font-size:12px; line-height:1.4; }
+    .privacy { margin:0 18px 18px; padding:12px; border-radius:9px; background:#fcf7ee; color:#876940; font-size:11px; line-height:1.5; }
+
+    @media (max-width:1050px) { .layout { grid-template-columns:1fr; } .guide { display:none; } }
+    @media (max-width:760px) {
+        .page-header { display:block; } .psur-label { display:inline-block; margin-top:14px; }
+        .progress, .grid { grid-template-columns:1fr; }
+        .section { padding:19px; }
+    }
+</style>
+
+{% macro errors(field) %}
+    {% for error in field.errors %}
+        <div class="error">{{ error }}</div>
+    {% endfor %}
+{% endmacro %}
+
+<section class="page-header">
+    <div>
+        <h2>Create PSUR record</h2>
+        <p>Capture the report information required for the approved APDL PSUR template.</p>
+    </div>
+    <span class="psur-label">Periodic safety report</span>
+</section>
+
+<section class="progress">
+    <div class="progress-item"><span>1</span>Product identity</div>
+    <div class="progress-item"><span>2</span>Report period</div>
+    <div class="progress-item"><span>3</span>PV responsibility</div>
+    <div class="progress-item"><span>4</span>Save PSUR</div>
+</section>
+
+<div class="layout">
+    <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+
+        <section class="section">
+            <div class="section-title">
+                <span class="section-number">1</span>
+                <div>
+                    <h3>Product and regulatory identity</h3>
+                    <p>These details populate the title and product-information section of the PSUR template.</p>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="field">
+                    <label>{{ form.report_number.label.text }} <span class="required">*</span></label>
+                    {{ form.report_number(class_="input", placeholder="For example: APDL-PSUR-2026-0001") }}
+                    {{ errors(form.report_number) }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.serial_number.label.text }}</label>
+                    {{ form.serial_number(class_="input", placeholder="Serial number") }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.product_name.label.text }} <span class="required">*</span></label>
+                    {{ form.product_name(class_="input", placeholder="Product name") }}
+                    {{ errors(form.product_name) }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.active_substances.label.text }}</label>
+                    {{ form.active_substances(class_="input", placeholder="Active substance(s)") }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.atc_codes.label.text }}</label>
+                    {{ form.atc_codes(class_="input", placeholder="ATC code(s)") }}
+                </div>
+
+<div class="field">
+    <label>{{ form.marketing_authorisation_number.label.text }}</label>
+    {{ form.marketing_authorisation_number(class_="input", placeholder="Marketing authorisation number(s)") }}
+</div>
+
+<div class="field">
+    <label>{{ form.marketing_authorisation_date.label.text }}</label>
+    {{ form.marketing_authorisation_date(class_="input", type="date") }}
+</div>
+
+<div class="field">
+    <label>{{ form.marketing_authorisation_procedure.label.text }}</label>
+    {{ form.marketing_authorisation_procedure(class_="input", placeholder="For example: National procedure") }}
+</div>
+                <div class="field">
+                    <label>{{ form.international_birth_date.label.text }}</label>
+                    {{ form.international_birth_date(class_="input", type="date") }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.eurd.label.text }}</label>
+                    {{ form.eurd(class_="input", type="date") }}
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">
+                <span class="section-number">2</span>
+                <div>
+                    <h3>Reporting period and data lock point</h3>
+                    <p>Use the approved reporting period and cut-off date for the safety data.</p>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="field">
+                    <label>{{ form.reporting_period_start.label.text }} <span class="required">*</span></label>
+                    {{ form.reporting_period_start(class_="input", type="date") }}
+                    {{ errors(form.reporting_period_start) }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.reporting_period_end.label.text }} <span class="required">*</span></label>
+                    {{ form.reporting_period_end(class_="input", type="date") }}
+                    {{ errors(form.reporting_period_end) }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.data_lock_point.label.text }} <span class="required">*</span></label>
+                    {{ form.data_lock_point(class_="input", type="date") }}
+                    {{ errors(form.data_lock_point) }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.countries_covered.label.text }}</label>
+                    {{ form.countries_covered(class_="input", rows="3", placeholder="List countries covered by this report.") }}
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">
+                <span class="section-number">3</span>
+                <div>
+                    <h3>Marketing authorisation holder and QPPV</h3>
+                    <p>These details appear in the report-cover information.</p>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="field full">
+                    <label>{{ form.marketing_authorisation_holder_name.label.text }}</label>
+                    {{ form.marketing_authorisation_holder_name(class_="input", placeholder="For example: Abacus Parenteral Drugs Limited") }}
+                </div>
+
+                <div class="field full">
+                    <label>{{ form.marketing_authorisation_holder_address.label.text }}</label>
+                    {{ form.marketing_authorisation_holder_address(class_="input", rows="3", placeholder="Marketing authorisation holder address") }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.qppv_name.label.text }}</label>
+                    {{ form.qppv_name(class_="input") }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.qppv_phone.label.text }}</label>
+                    {{ form.qppv_phone(class_="input") }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.qppv_email.label.text }}</label>
+                    {{ form.qppv_email(class_="input", type="email") }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.prepared_by.label.text }}</label>
+                    {{ form.prepared_by(class_="input") }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.approved_by.label.text }}</label>
+                    {{ form.approved_by(class_="input") }}
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">
+                <span class="section-number">4</span>
+                <div>
+                    <h3>Clinical context and preparation notes</h3>
+                    <p>Provide the key product background for the executive summary and introduction.</p>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="field full">
+                    <label>{{ form.therapeutic_indication.label.text }}</label>
+                    {{ form.therapeutic_indication(class_="input", rows="4", placeholder="Approved therapeutic indication(s)") }}
+                </div>
+
+                <div class="field full">
+                    <label>{{ form.mechanism_of_action.label.text }}</label>
+                    {{ form.mechanism_of_action(class_="input", rows="4", placeholder="Mechanism of action") }}
+                </div>
+
+                <div class="field full">
+                    <label>{{ form.report_notes.label.text }}</label>
+                    {{ form.report_notes(class_="input", rows="5", placeholder="Add data sources, report scope or preparation notes.") }}
+                </div>
+            </div>
+        </section>
+
+        <div class="actions">
+            <a class="button secondary" href="{{ url_for('psur.psur_list') }}">Cancel</a>
+            {{ form.submit(class_="button primary") }}
+        </div>
+    </form>
+
+    <aside class="guide">
+        <div class="guide-heading">PSUR record guide</div>
+
+        <div class="guide-content">
+            <div class="guide-item">
+                <span class="dot"></span>
+                <div>
+                    <strong>Use approved data</strong>
+                    <span>Enter only verified product, authorisation and PV-contact information.</span>
+                </div>
+            </div>
+
+            <div class="guide-item">
+                <span class="dot coral"></span>
+                <div>
+                    <strong>Data lock point</strong>
+                    <span>Do not include safety information received after this date in the reporting interval.</span>
+                </div>
+            </div>
+
+            <div class="guide-item">
+                <span class="dot"></span>
+                <div>
+                    <strong>Template integrity</strong>
+                    <span>The Word template will be filled without altering its approved layout.</span>
+                </div>
+            </div>
+        </div>
+
+        <p class="privacy">
+            Create the PSUR record first. We will then generate the report from the controlled APDL template.
+        </p>
+    </aside>
+</div>
+{% endblock %}
