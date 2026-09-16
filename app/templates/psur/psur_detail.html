@@ -217,7 +217,10 @@
         <h2>{{ report.report_number }}</h2>
         <p>{{ report.product_name }} · Period ending {{ report.reporting_period_end.strftime("%d %B %Y") }}</p>
     </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+    <a href="{{ url_for('psur.edit_psur', psur_id=report.psur_id) }}" style="padding:8px 11px; border:1px solid #dcd3e4; border-radius:8px; background:white; color:#6242d7; font-size:12px; font-weight:bold; text-decoration:none;">Edit PSUR record</a>
     <span class="status-pill">{{ report.status }}</span>
+</div>
 </section>
 
 <div class="detail-layout">
@@ -317,6 +320,10 @@
         <div class="record-card">
     <strong>PSUR document</strong><br>
     Download a Word report using the approved APDL PSUR template.
+<a href="{{ url_for('attachments.manage_attachments', record_type='psur', record_id=report.psur_id) }}" style="display:block; margin-top:12px; padding:10px; border:1px solid #d9cfdf; border-radius:8px; background:white; color:#6242d7; font-weight:bold; text-align:center; text-decoration:none;">
+    Manage record attachments
+</a>
+
 <a href="{{ url_for('psur_sections.manage_psur_sections', psur_id=report.psur_id) }}" style="display:block; margin-top:12px; padding:10px; border:1px solid #7656e8; border-radius:8px; color:#6242d7; font-weight:bold; text-align:center; text-decoration:none;">
     Manage PSUR narrative sections
 </a>

@@ -12,7 +12,6 @@
             --violet: #7656e8;
             --violet-dark: #5f3ed4;
             --violet-soft: #eee9ff;
-            --coral: #d85c54;
             --page: #f7f4f6;
             --surface: #ffffff;
             --sidebar: #fffafb;
@@ -95,7 +94,7 @@
 
         .nav-link:hover,
         .nav-link.active {
-            color: #5f3ed4;
+            color: var(--violet-dark);
             background: var(--violet-soft);
         }
 
@@ -121,29 +120,109 @@
             letter-spacing: -0.3px;
         }
 
-        .user-menu {
+        .account-menu {
+            position: relative;
+        }
+
+        .account-menu summary {
+            display: flex;
+            gap: 9px;
+            align-items: center;
+            padding: 7px 9px;
+            border: 1px solid transparent;
+            border-radius: 10px;
             color: var(--muted);
+            cursor: pointer;
+            font-size: 13px;
+            list-style: none;
+        }
+
+        .account-menu summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .account-menu summary:hover,
+        .account-menu[open] summary {
+            border-color: #e2dbe7;
+            background: #ffffff;
+        }
+
+        .user-avatar {
+            width: 29px;
+            height: 29px;
+            display: grid;
+            place-items: center;
+            border-radius: 9px;
+            background: var(--violet-soft);
+            color: var(--violet-dark);
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .account-name {
+            color: var(--ink);
+            font-weight: bold;
+        }
+
+        .account-chevron {
+            color: #918896;
+            font-size: 15px;
+        }
+
+        .account-dropdown {
+            position: absolute;
+            z-index: 20;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 230px;
+            overflow: hidden;
+            border: 1px solid #e5dfe8;
+            border-radius: 12px;
+            background: #ffffff;
+            box-shadow: 0 14px 28px rgba(48, 35, 62, 0.13);
+        }
+
+        .account-identity {
+            padding: 14px;
+            border-bottom: 1px solid #eee9ee;
+        }
+
+        .account-identity strong {
+            display: block;
+            color: var(--ink);
             font-size: 13px;
         }
 
-        .user-menu strong {
-            color: var(--ink);
+        .account-identity span {
+            display: block;
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 12px;
         }
 
-        .logout-button {
-            margin-left: 16px;
-            padding: 8px 12px;
-            border: 1px solid var(--line);
-            border-radius: 8px;
-            background: white;
-            color: #5d5568;
+        .account-action {
+            display: block;
+            width: 100%;
+            padding: 12px 14px;
+            border: 0;
+            background: #ffffff;
+            color: #51465a;
+            font: inherit;
+            font-size: 13px;
+            font-weight: bold;
+            text-align: left;
+            text-decoration: none;
             cursor: pointer;
         }
 
-        .logout-button:hover {
+        .account-action:hover {
+            background: #faf8ff;
             color: var(--violet-dark);
-            border-color: #cfc3fa;
-            background: #fbfaff;
+        }
+
+        .logout-action {
+            border-top: 1px solid #eee9ee;
+            color: #a24a55;
         }
 
         .content {
@@ -169,6 +248,10 @@
                 padding-left: 18px;
                 padding-right: 18px;
             }
+
+            .account-name {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -184,30 +267,50 @@
             </div>
 
             <div class="nav-label">WORKSPACE</div>
-<a class="nav-link {% if request.endpoint == 'core.dashboard' %}active{% endif %}" href="{{ url_for('core.dashboard') }}">Dashboard</a>
+            <a class="nav-link {% if request.endpoint == 'core.dashboard' %}active{% endif %}" href="{{ url_for('core.dashboard') }}">Dashboard</a>
             <a class="nav-link {% if request.endpoint in ('cases.case_list', 'cases.create_case', 'cases.case_detail') %}active{% endif %}" href="{{ url_for('cases.case_list') }}">Safety Cases</a>
-            <a class="nav-link {% if request.endpoint in ('complaints.complaint_list', 'complaints.create_complaint') %}active{% endif %}" href="{{ url_for('complaints.complaint_list') }}">Product Complaints</a>
+            <a class="nav-link {% if request.endpoint in ('complaints.complaint_list', 'complaints.create_complaint', 'complaints.complaint_detail') %}active{% endif %}" href="{{ url_for('complaints.complaint_list') }}">Product Complaints</a>
 
             <div class="nav-label">SAFETY MANAGEMENT</div>
             <a class="nav-link" href="#">Regulatory Reporting</a>
-            <a class="nav-link {% if request.endpoint in ('signals.signal_list', 'signals.create_signal') %}active{% endif %}" href="{{ url_for('signals.signal_list') }}">Safety Signals</a>
-            <a class="nav-link {% if request.endpoint in ('psur.psur_list', 'psur.create_psur') %}active{% endif %}" href="{{ url_for('psur.psur_list') }}">PSURs</a>
+            <a class="nav-link {% if request.endpoint in ('signals.signal_list', 'signals.create_signal', 'signals.signal_detail') %}active{% endif %}" href="{{ url_for('signals.signal_list') }}">Safety Signals</a>
+            <a class="nav-link {% if request.endpoint in ('psur.psur_list', 'psur.create_psur', 'psur.psur_detail', 'psur.edit_psur', 'psur_sections.manage_psur_sections') %}active{% endif %}" href="{{ url_for('psur.psur_list') }}">PSURs</a>
 
             <div class="nav-label">SYSTEM</div>
-            <a class="nav-link" href="#">Administration</a>
+            {% if session.get('role') == 'System Administrator' %}
+                <a class="nav-link {% if request.endpoint in ('administration.user_list', 'administration.create_user', 'administration.audit_log') %}active{% endif %}" href="{{ url_for('administration.user_list') }}">Administration</a>
+            {% endif %}
         </aside>
 
         <div class="main-area">
             <header class="topbar">
                 <h1 class="page-title">{% block page_title %}APDL PV AI Platform{% endblock %}</h1>
 
-                <div class="user-menu">
-                    Signed in as <strong>{{ session.get("full_name", "User") }}</strong>
-                    <form method="post" action="{{ url_for('auth.logout') }}" style="display: inline;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button class="logout-button" type="submit">Log out</button>
-                    </form>
-                </div>
+                <details class="account-menu">
+                    <summary>
+                        <span class="user-avatar">{{ session.get("full_name", "U")|first|upper }}</span>
+                        <span class="account-name">{{ session.get("full_name", "User") }}</span>
+                        <span class="account-chevron">⌄</span>
+                    </summary>
+
+                    <div class="account-dropdown">
+                        <div class="account-identity">
+                            <strong>{{ session.get("full_name", "User") }}</strong>
+                            <span>{{ session.get("role", "Platform user") }}</span>
+                        </div>
+
+                        <a class="account-action" href="{{ url_for('auth.change_password') }}">
+                            Change password
+                        </a>
+
+                        <form method="post" action="{{ url_for('auth.logout') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="account-action logout-action" type="submit">
+                                Log out
+                            </button>
+                        </form>
+                    </div>
+                </details>
             </header>
 
             <main class="content">

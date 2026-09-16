@@ -5,112 +5,411 @@
 {% block page_title %}New Product Complaint{% endblock %}
 
 {% block content %}
-<section class="page-heading">
-  <div>
-    <p class="eyebrow">PRODUCT QUALITY MANAGEMENT</p>
-    <h1>Capture product complaint</h1>
-    <p>Record the information exactly as received. The Complaint ID is entered manually.</p>
-  </div>
-  <a class="button button-secondary" href="{{ url_for('complaints.complaint_list') }}">
-    Back to complaints
-  </a>
+<style>
+    .complaint-page {
+        max-width: 1120px;
+        margin: 0 auto;
+    }
+
+    .complaint-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: flex-end;
+        margin-bottom: 24px;
+    }
+
+    .complaint-kicker {
+        margin: 0 0 8px;
+        color: #7656e8;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 1px;
+    }
+
+    .complaint-header h1 {
+        margin: 0 0 8px;
+        color: #282037;
+        font-size: 29px;
+        letter-spacing: -0.6px;
+    }
+
+    .complaint-header p {
+        margin: 0;
+        color: #746d7d;
+        font-size: 14px;
+    }
+
+    .back-link,
+    .cancel-link,
+    .save-button {
+        display: inline-block;
+        padding: 12px 17px;
+        border: 0;
+        border-radius: 9px;
+        font-size: 13px;
+        font-weight: 800;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .back-link,
+    .cancel-link {
+        border: 1px solid #e3dce8;
+        background: #ffffff;
+        color: #5d5165;
+    }
+
+    .complaint-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 290px;
+        gap: 20px;
+        align-items: start;
+    }
+
+    .complaint-card,
+    .complaint-guide {
+        border: 1px solid #e9e2e8;
+        border-radius: 15px;
+        background: #ffffff;
+        box-shadow: 0 7px 18px rgba(50, 37, 67, 0.04);
+    }
+
+    .complaint-card {
+        padding: 24px;
+        margin-bottom: 20px;
+    }
+
+    .section-heading {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        margin-bottom: 24px;
+    }
+
+    .section-number {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        flex: 0 0 28px;
+        border-radius: 9px;
+        background: #eee9ff;
+        color: #6847dc;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .section-heading h2 {
+        margin: 1px 0 5px;
+        color: #342840;
+        font-size: 17px;
+    }
+
+    .section-heading p {
+        margin: 0;
+        color: #817685;
+        font-size: 13px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .field {
+        min-width: 0;
+    }
+
+    .field-wide {
+        margin-top: 18px;
+    }
+
+    .field label {
+        display: block;
+        margin-bottom: 7px;
+        color: #514558;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .required {
+        color: #d6525d;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 11px 12px;
+        border: 1px solid #ded4e2;
+        border-radius: 9px;
+        outline: none;
+        background: #fffefe;
+        color: #342b3b;
+        font: inherit;
+        font-size: 13px;
+    }
+
+    .field textarea {
+        min-height: 140px;
+        resize: vertical;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+        border-color: #8a6aec;
+        box-shadow: 0 0 0 3px rgba(118, 86, 232, 0.12);
+    }
+
+    .field-error {
+        margin: 6px 0 0;
+        color: #c94f57;
+        font-size: 12px;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 11px;
+        margin-top: 2px;
+    }
+
+    .save-button {
+        background: #7656e8;
+        color: #ffffff;
+        box-shadow: 0 8px 16px rgba(118, 86, 232, 0.22);
+    }
+
+    .complaint-guide {
+        overflow: hidden;
+    }
+
+    .guide-title {
+        margin: 0;
+        padding: 17px 19px;
+        border-bottom: 1px solid #eee8f1;
+        background: #faf8ff;
+        color: #493760;
+        font-size: 14px;
+    }
+
+    .guide-content {
+        padding: 6px 19px 18px;
+    }
+
+    .guide-item {
+        padding: 15px 0;
+        border-bottom: 1px solid #eee9ee;
+    }
+
+    .guide-item:last-child {
+        border-bottom: 0;
+    }
+
+    .guide-item strong {
+        display: block;
+        margin-bottom: 5px;
+        color: #493d51;
+        font-size: 12px;
+    }
+
+    .guide-item p {
+        margin: 0;
+        color: #7a7080;
+        font-size: 12px;
+        line-height: 1.55;
+    }
+
+    .guide-note {
+        margin-top: 16px;
+        padding: 13px;
+        border-radius: 9px;
+        background: #fff8ed;
+        color: #8b672c;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    @media (max-width: 880px) {
+        .complaint-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .complaint-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .complaint-card {
+            padding: 18px;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<section class="complaint-page">
+    <header class="complaint-header">
+        <div>
+            <p class="complaint-kicker">PRODUCT QUALITY MANAGEMENT</p>
+            <h1>Capture product complaint</h1>
+            <p>Record the information exactly as received. The Complaint ID is entered manually.</p>
+        </div>
+
+        <a class="back-link" href="{{ url_for('complaints.complaint_list') }}">
+            ← Back to complaints
+        </a>
+    </header>
+
+    <form method="post">
+        {{ form.hidden_tag() }}
+
+        <div class="complaint-layout">
+            <div>
+                <section class="complaint-card">
+                    <div class="section-heading">
+                        <span class="section-number">1</span>
+                        <div>
+                            <h2>Complaint receipt and reporter</h2>
+                            <p>Record when the complaint was received and who reported it.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="field">
+                            <label>{{ form.complaint_number.label.text }} <span class="required">*</span></label>
+                            {{ form.complaint_number(placeholder="For example: APDL-PC-2026-0001") }}
+                            {% for error in form.complaint_number.errors %}
+                                <p class="field-error">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+
+                        <div class="field">
+                            <label>{{ form.date_received.label.text }} <span class="required">*</span></label>
+                            {{ form.date_received() }}
+                            {% for error in form.date_received.errors %}
+                                <p class="field-error">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+
+                        <div class="field">
+                            <label>{{ form.country_id.label.text }} <span class="required">*</span></label>
+                            {{ form.country_id() }}
+                            {% for error in form.country_id.errors %}
+                                <p class="field-error">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+
+                        <div class="field">
+                            <label>{{ form.reporter_name.label.text }}</label>
+                            {{ form.reporter_name(placeholder="Name of reporter") }}
+                        </div>
+
+                        <div class="field">
+                            <label>{{ form.reporter_contact.label.text }}</label>
+                            {{ form.reporter_contact(placeholder="Telephone or email") }}
+                        </div>
+                    </div>
+                </section>
+
+                <section class="complaint-card">
+                    <div class="section-heading">
+                        <span class="section-number">2</span>
+                        <div>
+                            <h2>Product and complaint details</h2>
+                            <p>Provide the product, batch and observed issue details.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="field">
+                            <label>{{ form.product_name.label.text }} <span class="required">*</span></label>
+                            {{ form.product_name(placeholder="For example: ABPARA Paracetamol IV") }}
+                            {% for error in form.product_name.errors %}
+                                <p class="field-error">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+
+                        <div class="field">
+                            <label>{{ form.batch_number.label.text }}</label>
+                            {{ form.batch_number(placeholder="Batch number") }}
+                        </div>
+
+                        <div class="field">
+                            <label>{{ form.manufacturing_date.label.text }}</label>
+                            {{ form.manufacturing_date() }}
+                        </div>
+
+                        <div class="field">
+                            <label>{{ form.expiry_date.label.text }}</label>
+                            {{ form.expiry_date() }}
+                        </div>
+
+                        <div class="field">
+                            <label>{{ form.complaint_category.label.text }} <span class="required">*</span></label>
+                            {{ form.complaint_category() }}
+                            {% for error in form.complaint_category.errors %}
+                                <p class="field-error">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+
+                        <div class="field">
+                            <label>{{ form.severity.label.text }} <span class="required">*</span></label>
+                            {{ form.severity() }}
+                            {% for error in form.severity.errors %}
+                                <p class="field-error">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="field field-wide">
+                        <label>{{ form.complaint_description.label.text }} <span class="required">*</span></label>
+                        {{ form.complaint_description(rows="6", placeholder="Describe the complaint, including the observed defect or issue.") }}
+                        {% for error in form.complaint_description.errors %}
+                            <p class="field-error">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <div class="form-actions">
+                    <a class="cancel-link" href="{{ url_for('complaints.complaint_list') }}">Cancel</a>
+                    {{ form.submit(class_="save-button") }}
+                </div>
+            </div>
+
+            <aside class="complaint-guide">
+                <h2 class="guide-title">Complaint-quality guide</h2>
+
+                <div class="guide-content">
+                    <div class="guide-item">
+                        <strong>Describe the actual issue</strong>
+                        <p>Record what was observed, where possible using the reporter’s own description.</p>
+                    </div>
+
+                    <div class="guide-item">
+                        <strong>Batch details matter</strong>
+                        <p>Include the batch number, manufacturing date and expiry date when available.</p>
+                    </div>
+
+                    <div class="guide-item">
+                        <strong>Set severity carefully</strong>
+                        <p>Use critical severity for complaints that may create an immediate patient-safety or major quality risk.</p>
+                    </div>
+
+                    <div class="guide-note">
+                        Attachments and investigation outcomes can be documented later during complaint review.
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </form>
 </section>
-
-<form method="post" class="case-form">
-  {{ form.hidden_tag() }}
-
-  <section class="form-card">
-    <div class="section-title">
-      <span>1</span>
-      <div>
-        <h2>Complaint receipt and reporter</h2>
-        <p>Record when the complaint was received and who reported it.</p>
-      </div>
-    </div>
-
-    <div class="form-grid">
-      <div class="field">
-        <label>{{ form.complaint_number.label.text }} <span class="required">*</span></label>
-        {{ form.complaint_number(class_="input", placeholder="For example: APDL-PC-2026-0001") }}
-        {% for error in form.complaint_number.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
-      </div>
-
-      <div class="field">
-        <label>{{ form.date_received.label.text }} <span class="required">*</span></label>
-        {{ form.date_received(class_="input") }}
-        {% for error in form.date_received.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
-      </div>
-
-      <div class="field">
-        <label>{{ form.country_id.label.text }} <span class="required">*</span></label>
-        {{ form.country_id(class_="input") }}
-        {% for error in form.country_id.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
-      </div>
-
-      <div class="field">
-        <label>{{ form.reporter_name.label.text }}</label>
-        {{ form.reporter_name(class_="input", placeholder="Name of reporter") }}
-      </div>
-
-      <div class="field">
-        <label>{{ form.reporter_contact.label.text }}</label>
-        {{ form.reporter_contact(class_="input", placeholder="Telephone or email") }}
-      </div>
-    </div>
-  </section>
-
-  <section class="form-card">
-    <div class="section-title">
-      <span>2</span>
-      <div>
-        <h2>Product and complaint details</h2>
-        <p>Provide the product, batch and issue details.</p>
-      </div>
-    </div>
-
-    <div class="form-grid">
-      <div class="field">
-        <label>{{ form.product_name.label.text }} <span class="required">*</span></label>
-        {{ form.product_name(class_="input", placeholder="For example: ABPARA Paracetamol IV") }}
-        {% for error in form.product_name.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
-      </div>
-
-      <div class="field">
-        <label>{{ form.batch_number.label.text }}</label>
-        {{ form.batch_number(class_="input", placeholder="Batch number") }}
-      </div>
-
-      <div class="field">
-        <label>{{ form.manufacturing_date.label.text }}</label>
-        {{ form.manufacturing_date(class_="input") }}
-      </div>
-
-      <div class="field">
-        <label>{{ form.expiry_date.label.text }}</label>
-        {{ form.expiry_date(class_="input") }}
-      </div>
-
-      <div class="field">
-        <label>{{ form.complaint_category.label.text }} <span class="required">*</span></label>
-        {{ form.complaint_category(class_="input") }}
-      </div>
-
-      <div class="field">
-        <label>{{ form.severity.label.text }} <span class="required">*</span></label>
-        {{ form.severity(class_="input") }}
-      </div>
-    </div>
-
-    <div class="field field-wide">
-      <label>{{ form.complaint_description.label.text }} <span class="required">*</span></label>
-      {{ form.complaint_description(class_="input textarea", rows="6", placeholder="Describe the complaint, including the observed defect or issue.") }}
-      {% for error in form.complaint_description.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
-    </div>
-  </section>
-
-  <div class="form-actions">
-    <a class="button button-secondary" href="{{ url_for('complaints.complaint_list') }}">Cancel</a>
-    {{ form.submit(class_="button") }}
-  </div>
-</form>
 {% endblock %}

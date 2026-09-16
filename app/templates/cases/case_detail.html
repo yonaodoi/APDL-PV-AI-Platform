@@ -293,7 +293,15 @@
             <span class="badge badge-routine">Routine case</span>
 
         {% endif %}
-        <a href="{{ url_for('case_reports.download_adr_report', case_id=case.case_id) }}" style="padding: 8px 11px; border-radius: 20px; background: #7656e8; color: white; font-size: 12px; font-weight: bold; text-decoration: none;">Download ADR report</a>
+      <a href="{{ url_for('rsi.assess_case', case_id=case.case_id) }}" style="padding: 8px 11px; border: 1px solid #d8caef; border-radius: 20px; background: #f7f3ff; color: #5f3ed4; font-size: 12px; font-weight: bold; text-decoration: none;">Listedness / Expectedness</a>
+
+<a href="{{ url_for('cases.edit_case', case_id=case.case_id) }}" style="padding: 8px 11px; border: 1px solid #ded4e3; border-radius: 20px; background: white; color: #6242d7; font-size: 12px; font-weight: bold; text-decoration: none;">Edit safety case</a>
+
+<a href="{{ url_for('attachments.manage_attachments', record_type='case', record_id=case.case_id) }}" style="padding: 8px 11px; border: 1px solid #ded4e3; border-radius: 20px; background: white; color: #6242d7; font-size: 12px; font-weight: bold; text-decoration: none;">Attachments</a>
+
+<a href="{{ url_for('case_ai_reports.view_ai_case_assessment', case_id=case.case_id) }}" style="padding: 8px 11px; border-radius: 20px; background: #5f3ed4; color: white; font-size: 12px; font-weight: bold; text-decoration: none;">AI assessment report</a>
+
+<a href="{{ url_for('case_reports.download_adr_report', case_id=case.case_id) }}" style="padding: 8px 11px; border-radius: 20px; background: #7656e8; color: white; font-size: 12px; font-weight: bold; text-decoration: none;">Download ADR report</a>
     </div>
 </section>
 

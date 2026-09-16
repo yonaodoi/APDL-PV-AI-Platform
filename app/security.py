@@ -1,6 +1,6 @@
 from functools import wraps
 
-from flask import abort, redirect, session, url_for
+from flask import flash, redirect, session, url_for
 
 
 def login_required(view_function):
@@ -28,7 +28,13 @@ def roles_required(*allowed_roles):
                 )
 
             if session.get("role") not in allowed_roles:
-                abort(403)
+                flash(
+                    "You do not have permission to access that page.",
+                    "error",
+                )
+                return redirect(
+                    url_for("core.dashboard")
+                )
 
             return view_function(*args, **kwargs)
 

@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}Attachments | APDL PV{% endblock %}
+
+{% block page_title %}Record Attachments{% endblock %}
+
+{% block content %}
+<style>
+    .attachment-page {
+        max-width: 980px;
+        margin: 0 auto;
+    }
+
+    .attachment-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-end;
+        margin-bottom: 24px;
+    }
+
+    .attachment-header h1 {
+        margin: 0 0 7px;
+        color: #282037;
+        font-size: 28px;
+    }
+
+    .attachment-header p {
+        margin: 0;
+        color: #746d7d;
+        font-size: 14px;
+    }
+
+    .back-link {
+        display: inline-block;
+        padding: 11px 15px;
+        border: 1px solid #e1d9e6;
+        border-radius: 9px;
+        background: #ffffff;
+        color: #6242d7;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .upload-card,
+    .attachment-card {
+        overflow: hidden;
+        border: 1px solid #e9e2e8;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);
+    }
+
+    .upload-card {
+        margin-bottom: 20px;
+        padding: 20px;
+    }
+
+    .upload-card h2,
+    .attachment-card h2 {
+        margin: 0;
+        color: #3d3546;
+        font-size: 15px;
+    }
+
+    .upload-card p {
+        margin: 7px 0 17px;
+        color: #827988;
+        font-size: 13px;
+    }
+
+    .upload-row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .file-input {
+        flex: 1;
+        min-width: 0;
+        padding: 9px;
+        border: 1px dashed #cfc2d7;
+        border-radius: 9px;
+        background: #fdfbfe;
+        color: #5f5667;
+        font-size: 13px;
+    }
+
+    .upload-button {
+        padding: 11px 16px;
+        border: 0;
+        border-radius: 9px;
+        background: #7656e8;
+        color: #ffffff;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .attachment-heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        align-items: center;
+        padding: 17px 20px;
+        border-bottom: 1px solid #eee8ec;
+    }
+
+    .attachment-heading span {
+        color: #8a818f;
+        font-size: 12px;
+    }
+
+    .attachment-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid #f0ebee;
+    }
+
+    .attachment-row:last-child {
+        border-bottom: 0;
+    }
+
+    .attachment-name {
+        color: #49366d;
+        font-size: 13px;
+        font-weight: bold;
+        overflow-wrap: anywhere;
+    }
+
+    .attachment-meta {
+        margin-top: 5px;
+        color: #8b8190;
+        font-size: 12px;
+    }
+
+    .download-link {
+        padding: 8px 11px;
+        border: 1px solid #ded4e3;
+        border-radius: 8px;
+        color: #6242d7;
+        font-size: 12px;
+        font-weight: bold;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .empty-state {
+        padding: 48px 22px;
+        color: #817786;
+        font-size: 13px;
+        text-align: center;
+    }
+
+    @media (max-width: 650px) {
+        .attachment-header,
+        .upload-row,
+        .attachment-row {
+            display: block;
+        }
+
+        .back-link {
+            margin-top: 15px;
+        }
+
+        .upload-button {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .download-link {
+            display: inline-block;
+            margin-top: 12px;
+        }
+    }
+</style>
+
+<section class="attachment-page">
+    <header class="attachment-header">
+        <div>
+            <h1>{{ record_label }} attachments</h1>
+            <p>Store supporting documents, source records and assessment evidence securely.</p>
+        </div>
+
+        <a class="back-link" href="{{ back_url }}">← Back to record</a>
+    </header>
+
+    <section class="upload-card">
+        <h2>Upload supporting document</h2>
+        <p>Accepted formats: PDF, Word, Excel, CSV, text and image files. Maximum file size: 20 MB.</p>
+
+        <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="upload-row">
+                <input class="file-input" type="file" name="attachment" required>
+                <button class="upload-button" type="submit">Upload attachment</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="attachment-card">
+        <div class="attachment-heading">
+            <h2>Uploaded documents</h2>
+            <span>{{ attachments|length }} attachment(s)</span>
+        </div>
+
+        {% if attachments %}
+            {% for attachment in attachments %}
+                <div class="attachment-row">
+                    <div>
+                        <div class="attachment-name">{{ attachment.original_filename }}</div>
+                        <div class="attachment-meta">
+                            Uploaded {{ attachment.uploaded_at.strftime("%d %b %Y, %H:%M") }}
+                            by {{ attachment.uploaded_by_name or "System user" }}
+                        </div>
+                    </div>
+
+                    <a class="download-link" href="{{ url_for('attachments.download_attachment', attachment_id=attachment.attachment_id) }}">
+                        Download
+                    </a>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                No supporting documents have been uploaded for this record.
+            </div>
+        {% endif %}
+    </section>
+</section>
+{% endblock %}

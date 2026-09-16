@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}Create Safety Case | APDL PV{% endblock %}
+{% block title %}{% if editing %}Edit Safety Case{% else %}Create Safety Case{% endif %} | APDL PV{% endblock %}
 
-{% block page_title %}New Safety Case{% endblock %}
+{% block page_title %}{% if editing %}Edit Safety Case{% else %}New Safety Case{% endif %}{% endblock %}
 
 {% block content %}
 <style>
@@ -67,7 +67,7 @@
 
 <section class="page-header">
     <div>
-        <h2>Capture adverse drug reaction</h2>
+        <h2>{% if editing %}Edit safety case{% else %}Capture adverse drug reaction{% endif %}</h2>
         <p>Record the information exactly as received. Enter the APDL ICSR Case ID exactly as assigned before saving.</p>
     </div>
     <span class="case-label">Official ADR form</span>
@@ -96,7 +96,11 @@
             <div class="grid three">
                 <div class="field">
                     <label>{{ form.icsr_case_id.label.text }} <span class="required">*</span></label>
-                    {{ form.icsr_case_id(class_="input", placeholder="For example: APDL/ICSR/2026/0001") }}
+                    {% if editing %}
+    {{ form.icsr_case_id(class_="input", readonly=true) }}
+{% else %}
+    {{ form.icsr_case_id(class_="input", placeholder="For example: APDL/ICSR/2026/0001") }}
+{% endif %}
                     {{ errors(form.icsr_case_id) }}
                 </div>
 
@@ -342,8 +346,8 @@
         </section>
 
         <div class="actions">
-            <a class="button secondary" href="{{ url_for('core.dashboard') }}">Cancel</a>
-            <button class="button primary" type="submit">Create safety case</button>
+            <a class="button secondary" href="{% if editing %}{{ url_for('cases.case_detail', case_id=case.case_id) }}{% else %}{{ url_for('core.dashboard') }}{% endif %}">Cancel</a>
+<button class="button primary" type="submit">{% if editing %}Update safety case{% else %}Create safety case{% endif %}</button>
         </div>
     </form>
 

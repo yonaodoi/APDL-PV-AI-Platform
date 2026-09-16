@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+
+{% block title %}Add Reference Safety Information | APDL PV{% endblock %}
+
+{% block page_title %}Add Reference Safety Information{% endblock %}
+
+{% block content %}
+<style>
+    .rsi-form-page {
+        max-width: 1080px;
+        margin: 0 auto;
+    }
+
+    .rsi-form-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-end;
+        margin-bottom: 24px;
+    }
+
+    .rsi-form-header h1 {
+        margin: 0 0 7px;
+        color: #282037;
+        font-size: 28px;
+    }
+
+    .rsi-form-header p {
+        margin: 0;
+        color: #746d7d;
+        font-size: 14px;
+    }
+
+    .back-link,
+    .cancel-link {
+        display: inline-block;
+        padding: 11px 15px;
+        border: 1px solid #e1d9e6;
+        border-radius: 9px;
+        background: white;
+        color: #6242d7;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+    }
+
+    .rsi-form-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 280px;
+        gap: 20px;
+        align-items: start;
+    }
+
+    .rsi-form-card,
+    .guide-card {
+        overflow: hidden;
+        border: 1px solid #e9e2e7;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);
+    }
+
+    .form-heading {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 20px 22px 16px;
+        border-bottom: 1px solid #eee8ec;
+    }
+
+    .form-heading span {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        border-radius: 9px;
+        background: #eee9ff;
+        color: #6545d8;
+        font-size: 13px;
+        font-weight: bold;
+    }
+
+    .form-heading h2 {
+        margin: 2px 0 5px;
+        color: #3d3546;
+        font-size: 16px;
+    }
+
+    .form-heading p {
+        margin: 0;
+        color: #837989;
+        font-size: 12px;
+    }
+
+    .form-content {
+        padding: 22px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .field {
+        min-width: 0;
+    }
+
+    .field-wide {
+        grid-column: 1 / -1;
+    }
+
+    .field label {
+        display: block;
+        margin-bottom: 7px;
+        color: #554d5d;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .field input,
+    .field select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 11px 12px;
+        border: 1px solid #ddd5dc;
+        border-radius: 8px;
+        background: #fffeff;
+        color: #322a3b;
+        font: inherit;
+        font-size: 14px;
+    }
+
+    .field input:focus,
+    .field select:focus {
+        outline: none;
+        border-color: #9f88ed;
+        box-shadow: 0 0 0 3px #eee9ff;
+    }
+
+    .field-error {
+        margin: 6px 0 0;
+        color: #d85c54;
+        font-size: 12px;
+    }
+
+    .source-note {
+        margin: 19px 0 0;
+        padding: 13px;
+        border-radius: 9px;
+        background: #faf7ee;
+        color: #806337;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 23px;
+    }
+
+    .save-button {
+        padding: 12px 18px;
+        border: 0;
+        border-radius: 9px;
+        background: #7656e8;
+        color: white;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 7px 15px rgba(118, 86, 232, 0.2);
+    }
+
+    .guide-card h2 {
+        margin: 0;
+        padding: 17px 18px;
+        background: #f7f4ff;
+        color: #493273;
+        font-size: 14px;
+    }
+
+    .guide-content {
+        padding: 7px 18px 18px;
+    }
+
+    .guide-item {
+        padding: 14px 0;
+        border-bottom: 1px solid #f0ebee;
+    }
+
+    .guide-item:last-child {
+        border-bottom: 0;
+    }
+
+    .guide-item strong {
+        display: block;
+        margin-bottom: 5px;
+        color: #4e4555;
+        font-size: 12px;
+    }
+
+    .guide-item p {
+        margin: 0;
+        color: #817887;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    @media (max-width: 820px) {
+        .rsi-form-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .rsi-form-header {
+            display: block;
+        }
+
+        .back-link {
+            margin-top: 15px;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<section class="rsi-form-page">
+    <header class="rsi-form-header">
+        <div>
+            <h1>Add reference safety information</h1>
+            <p>Record the current controlled innovator or reference-product document used for expectedness review.</p>
+        </div>
+
+        <a class="back-link" href="{{ url_for('rsi.rsi_list') }}">
+            ← Back to reference library
+        </a>
+    </header>
+
+    <div class="rsi-form-layout">
+        <form method="post" enctype="multipart/form-data" class="rsi-form-card">
+            {{ form.hidden_tag() }}
+
+            <div class="form-heading">
+                <span>1</span>
+                <div>
+                    <h2>Document identification and source</h2>
+                    <p>Provide an official online source, upload the approved document, or provide both.</p>
+                </div>
+            </div>
+
+            <div class="form-content">
+                <div class="form-grid">
+                    <div class="field">
+                        <label>{{ form.product_name.label.text }}</label>
+                        {{ form.product_name(placeholder="APDL product name") }}
+                        {% for error in form.product_name.errors %}
+                            <p class="field-error">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+
+                    <div class="field">
+                        <label>{{ form.active_substance.label.text }}</label>
+                        {{ form.active_substance(placeholder="Active substance") }}
+                    </div>
+
+                    <div class="field">
+                        <label>{{ form.reference_product_name.label.text }}</label>
+                        {{ form.reference_product_name(placeholder="Innovator or reference product") }}
+                    </div>
+
+                    <div class="field">
+                        <label>{{ form.market.label.text }}</label>
+                        {{ form.market(placeholder="For example: EU, US, Uganda") }}
+                    </div>
+
+                    <div class="field">
+                        <label>{{ form.document_type.label.text }}</label>
+                        {{ form.document_type() }}
+                    </div>
+
+                    <div class="field">
+                        <label>{{ form.document_version.label.text }}</label>
+                        {{ form.document_version(placeholder="Version, revision or date") }}
+                    </div>
+
+                    <div class="field">
+                        <label>{{ form.effective_date.label.text }}</label>
+                        {{ form.effective_date(type="date") }}
+                    </div>
+
+                    <div class="field">
+                        <label>{{ form.source_file.label.text }}</label>
+                        {{ form.source_file(accept=".pdf,.doc,.docx") }}
+                        {% for error in form.source_file.errors %}
+                            <p class="field-error">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+
+                    <div class="field field-wide">
+                        <label>{{ form.source_url.label.text }}</label>
+                        {{ form.source_url(placeholder="https://official-regulator-or-innovator-source/...") }}
+                        {% for error in form.source_url.errors %}
+                            <p class="field-error">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="source-note">
+                    The official source must be verified by the reviewer. Do not use search results, blog posts or unverified third-party websites as RSI.
+                </div>
+
+                <div class="form-actions">
+                    <a class="cancel-link" href="{{ url_for('rsi.rsi_list') }}">Cancel</a>
+                    {{ form.submit(class_="save-button") }}
+                </div>
+            </div>
+        </form>
+
+        <aside class="guide-card">
+            <h2>RSI review guide</h2>
+
+            <div class="guide-content">
+                <div class="guide-item">
+                    <strong>Use the correct reference</strong>
+                    <p>Select the current innovator, CCD, SmPC, USPI or approved local label for the medicine and market.</p>
+                </div>
+
+                <div class="guide-item">
+                    <strong>Keep version details</strong>
+                    <p>Record the document version and effective date so the review remains traceable.</p>
+                </div>
+
+                <div class="guide-item">
+                    <strong>Review before conclusion</strong>
+                    <p>The platform records the assessment; the authorised reviewer makes the clinical and regulatory decision.</p>
+                </div>
+            </div>
+        </aside>
+    </div>
+</section>
+{% endblock %}

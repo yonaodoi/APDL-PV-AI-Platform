@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+
+{% block title %}Create User | APDL PV{% endblock %}
+
+{% block page_title %}Create User{% endblock %}
+
+{% block content %}
+<style>
+    .user-form-page {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .user-form-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-end;
+        margin-bottom: 24px;
+    }
+
+    .user-form-header h1 {
+        margin: 0 0 7px;
+        color: #282037;
+        font-size: 28px;
+    }
+
+    .user-form-header p {
+        margin: 0;
+        color: #746d7d;
+        font-size: 14px;
+    }
+
+    .back-link,
+    .cancel-link {
+        display: inline-block;
+        padding: 11px 15px;
+        border: 1px solid #e1d9e6;
+        border-radius: 9px;
+        background: white;
+        color: #6242d7;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+    }
+
+    .user-form-card,
+    .access-guide {
+        overflow: hidden;
+        border: 1px solid #e9e2e7;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);
+    }
+
+    .user-form-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 270px;
+        gap: 20px;
+        align-items: start;
+    }
+
+    .form-heading {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 20px 22px 16px;
+        border-bottom: 1px solid #eee8ec;
+    }
+
+    .form-heading span {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        border-radius: 9px;
+        background: #eee9ff;
+        color: #6545d8;
+        font-size: 13px;
+        font-weight: bold;
+    }
+
+    .form-heading h2 {
+        margin: 2px 0 5px;
+        color: #3d3546;
+        font-size: 16px;
+    }
+
+    .form-heading p {
+        margin: 0;
+        color: #837989;
+        font-size: 12px;
+    }
+
+    .form-content {
+        padding: 22px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .field {
+        min-width: 0;
+    }
+
+    .field-wide {
+        grid-column: 1 / -1;
+    }
+
+    .field label {
+        display: block;
+        margin-bottom: 7px;
+        color: #554d5d;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .field input,
+    .field select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 11px 12px;
+        border: 1px solid #ddd5dc;
+        border-radius: 8px;
+        background: #fffeff;
+        color: #322a3b;
+        font: inherit;
+        font-size: 14px;
+    }
+
+    .field input:focus,
+    .field select:focus {
+        outline: none;
+        border-color: #9f88ed;
+        box-shadow: 0 0 0 3px #eee9ff;
+    }
+
+    .field-error {
+        margin: 6px 0 0;
+        color: #d85c54;
+        font-size: 12px;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 23px;
+    }
+
+    .save-button {
+        padding: 12px 18px;
+        border: 0;
+        border-radius: 9px;
+        background: #7656e8;
+        color: white;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 7px 15px rgba(118, 86, 232, 0.2);
+    }
+
+    .access-guide h2 {
+        margin: 0;
+        padding: 17px 18px;
+        background: #f7f4ff;
+        color: #493273;
+        font-size: 14px;
+    }
+
+    .access-guide-content {
+        padding: 7px 18px 18px;
+    }
+
+    .guide-item {
+        padding: 14px 0;
+        border-bottom: 1px solid #f0ebee;
+    }
+
+    .guide-item:last-child {
+        border-bottom: 0;
+    }
+
+    .guide-item strong {
+        display: block;
+        margin-bottom: 5px;
+        color: #4e4555;
+        font-size: 12px;
+    }
+
+    .guide-item p {
+        margin: 0;
+        color: #817887;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    @media (max-width: 800px) {
+        .user-form-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .user-form-header {
+            display: block;
+        }
+
+        .back-link {
+            margin-top: 15px;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<section class="user-form-page">
+    <header class="user-form-header">
+        <div>
+            <h1>Create user account</h1>
+            <p>Create an authorised platform account and assign the correct system role.</p>
+        </div>
+
+        <a class="back-link" href="{{ url_for('administration.user_list') }}">
+            ← Back to users
+        </a>
+    </header>
+
+    <div class="user-form-layout">
+        <form method="post" class="user-form-card">
+            {{ form.hidden_tag() }}
+
+            <div class="form-heading">
+                <span>1</span>
+                <div>
+                    <h2>Account details</h2>
+                    <p>The user will sign in with their username and temporary password.</p>
+                </div>
+            </div>
+
+            <div class="form-content">
+                <div class="form-grid">
+                    <div class="field">
+                        <label>{{ form.full_name.label.text }}</label>
+                        {{ form.full_name(placeholder="Full name") }}
+                        {% for error in form.full_name.errors %}
+                            <p class="field-error">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+
+                    <div class="field">
+                        <label>{{ form.username.label.text }}</label>
+                        {{ form.username(placeholder="Username") }}
+                        {% for error in form.username.errors %}
+                            <p class="field-error">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+
+                    <div class="field field-wide">
+                        <label>{{ form.email.label.text }}</label>
+                        {{ form.email(placeholder="name@example.com") }}
+                        {% for error in form.email.errors %}
+                            <p class="field-error">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+
+                    <div class="field">
+                        <label>{{ form.role_id.label.text }}</label>
+                        {{ form.role_id() }}
+                        {% for error in form.role_id.errors %}
+                            <p class="field-error">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+
+                    <div class="field">
+                        <label>{{ form.password.label.text }}</label>
+                        {{ form.password(placeholder="At least 10 characters") }}
+                        {% for error in form.password.errors %}
+                            <p class="field-error">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <a class="cancel-link" href="{{ url_for('administration.user_list') }}">Cancel</a>
+                    {{ form.submit(class_="save-button") }}
+                </div>
+            </div>
+        </form>
+
+        <aside class="access-guide">
+            <h2>Access guidance</h2>
+
+            <div class="access-guide-content">
+                <div class="guide-item">
+                    <strong>Assign the least access needed</strong>
+                    <p>Choose a role that matches the person’s approved pharmacovigilance responsibility.</p>
+                </div>
+
+                <div class="guide-item">
+                    <strong>Use a temporary password</strong>
+                    <p>Share it securely and ask the user to change it after their first sign-in.</p>
+                </div>
+
+                <div class="guide-item">
+                    <strong>Deactivate when access ends</strong>
+                    <p>Inactive accounts cannot sign in and remain visible for audit purposes.</p>
+                </div>
+            </div>
+        </aside>
+    </div>
+</section>
+{% endblock %}

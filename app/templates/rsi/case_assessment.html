@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+
+{% block title %}Safety Assessment | APDL PV{% endblock %}
+
+{% block page_title %}RSI Safety Assessment{% endblock %}
+
+{% block content %}
+<style>
+    .assessment-page {
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    .assessment-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-end;
+        margin-bottom: 24px;
+    }
+
+    .assessment-kicker {
+        margin: 0 0 8px;
+        color: #7656e8;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 1px;
+    }
+
+    .assessment-header h1 {
+        margin: 0 0 7px;
+        color: #282037;
+        font-size: 28px;
+    }
+
+    .assessment-header p {
+        margin: 0;
+        color: #746d7d;
+        font-size: 14px;
+    }
+
+    .back-link {
+        padding: 11px 15px;
+        border: 1px solid #e1d9e6;
+        border-radius: 9px;
+        background: white;
+        color: #6242d7;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .assessment-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 290px;
+        gap: 20px;
+        align-items: start;
+    }
+
+    .assessment-card,
+    .guide-card {
+        overflow: hidden;
+        border: 1px solid #e9e2e7;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);
+    }
+
+    .case-context {
+        margin-bottom: 20px;
+        padding: 17px 19px;
+        border: 1px solid #e2d9f0;
+        border-radius: 12px;
+        background: #faf8ff;
+    }
+
+    .case-context strong {
+        display: block;
+        margin-bottom: 6px;
+        color: #443458;
+        font-size: 14px;
+    }
+
+    .case-context span {
+        color: #756a80;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .form-heading {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 20px 22px 16px;
+        border-bottom: 1px solid #eee8ec;
+    }
+
+    .form-heading span {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        border-radius: 9px;
+        background: #eee9ff;
+        color: #6545d8;
+        font-size: 13px;
+        font-weight: bold;
+    }
+
+    .form-heading h2 {
+        margin: 2px 0 5px;
+        color: #3d3546;
+        font-size: 16px;
+    }
+
+    .form-heading p {
+        margin: 0;
+        color: #837989;
+        font-size: 12px;
+    }
+
+    .form-content {
+        padding: 22px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .field {
+        min-width: 0;
+    }
+
+    .field-wide {
+        grid-column: 1 / -1;
+    }
+
+    .field label {
+        display: block;
+        margin-bottom: 7px;
+        color: #554d5d;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 11px 12px;
+        border: 1px solid #ddd5dc;
+        border-radius: 8px;
+        background: #fffeff;
+        color: #322a3b;
+        font: inherit;
+        font-size: 14px;
+    }
+
+    .field textarea {
+        min-height: 112px;
+        resize: vertical;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+        outline: none;
+        border-color: #9f88ed;
+        box-shadow: 0 0 0 3px #eee9ff;
+    }
+
+    .field-error {
+        margin: 6px 0 0;
+        color: #d85c54;
+        font-size: 12px;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 23px;
+    }
+
+    .save-button {
+        padding: 12px 18px;
+        border: 0;
+        border-radius: 9px;
+        background: #7656e8;
+        color: white;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 7px 15px rgba(118, 86, 232, 0.2);
+    }
+
+    .guide-card h2 {
+        margin: 0;
+        padding: 17px 18px;
+        background: #f7f4ff;
+        color: #493273;
+        font-size: 14px;
+    }
+
+    .guide-content {
+        padding: 7px 18px 18px;
+    }
+
+    .guide-item {
+        padding: 14px 0;
+        border-bottom: 1px solid #f0ebee;
+    }
+
+    .guide-item:last-child {
+        border-bottom: 0;
+    }
+
+    .guide-item strong {
+        display: block;
+        margin-bottom: 5px;
+        color: #4e4555;
+        font-size: 12px;
+    }
+
+    .guide-item p {
+        margin: 0;
+        color: #817887;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    @media (max-width: 840px) {
+        .assessment-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .assessment-header {
+            display: block;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 15px;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<section class="assessment-page">
+    <header class="assessment-header">
+        <div>
+            <p class="assessment-kicker">MEDICAL AND SAFETY REVIEW</p>
+            <h1>Listedness, expectedness and seriousness</h1>
+            <p>Record the authorised reviewer’s conclusion against the selected reference safety information.</p>
+        </div>
+
+        <a class="back-link" href="{{ url_for('cases.case_detail', case_id=case.case_id) }}">
+            ← Back to safety case
+        </a>
+    </header>
+
+    <div class="assessment-layout">
+        <div>
+            <section class="case-context">
+                <strong>{{ case.case_number }} · {{ case.product_name or "Product not recorded" }}</strong>
+                <span>{{ case.event_description }}</span>
+            </section>
+
+          <section style="margin: 0 0 18px; padding: 16px; border: 1px solid #e6deeb; border-radius: 12px; background: #fff;">
+  <div style="margin-bottom: 12px; color: #403748; font-size: 14px; font-weight: bold;">Reference documents for automatic assessment</div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+    <a href="{{ url_for('rsi.create_rsi', document_source='apdl') }}" style="padding: 10px 12px; border: 1px solid #d8caef; border-radius: 8px; background: #f7f3ff; color: #5f3ed4; font-size: 12px; font-weight: bold; text-decoration: none;">
+      Upload APDL Product Information
+    </a>
+
+    <a href="{{ url_for('rsi.create_rsi', document_source='innovator') }}" style="padding: 10px 12px; border-radius: 8px; background: #7656e8; color: white; font-size: 12px; font-weight: bold; text-decoration: none;">
+      Upload Innovator RSI
+    </a>
+  </div>
+
+  <p style="margin: 12px 0 0; color: #746d7d; font-size: 12px; line-height: 1.5;">
+    Use <strong>APDL Product Information</strong> for the APDL document and
+    <strong>Innovator Reference Safety Information</strong> for the innovator document.
+    Enter the same product name and active substance used in this safety case.
+  </p>
+</section>
+
+<form method="post" action="{{ url_for('rsi.automatic_case_assessment', case_id=case.case_id) }}" style="margin: 0 0 18px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit" style="width: 100%; padding: 13px; border: 0; border-radius: 9px; background: #7656e8; color: white; font-size: 14px; font-weight: bold; cursor: pointer;">
+    Run automatic RSI assessment
+  </button>
+</form>
+
+<form method="post" class="assessment-card">
+                {{ form.hidden_tag() }}
+
+                <div class="form-heading">
+                    <span>1</span>
+                    <div>
+                        <h2>Safety assessment</h2>
+                        <p>Use the approved RSI and document the evidence supporting the review conclusion.</p>
+                    </div>
+                </div>
+
+                <div class="form-content">
+                    <div class="form-grid">
+                        <div class="field field-wide">
+                            <label>{{ form.rsi_id.label.text }}</label>
+                            {{ form.rsi_id() }}
+                            {% for error in form.rsi_id.errors %}
+                                <p class="field-error">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+
+                        <div class="field field-wide">
+                            <label>{{ form.event_term_assessed.label.text }}</label>
+                            {{ form.event_term_assessed(placeholder="Medical term assessed against the RSI") }}
+                            {% for error in form.event_term_assessed.errors %}
+                                <p class="field-error">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+
+                        <div class="field">
+                            <label>{{ form.listedness_status.label.text }}</label>
+                            {{ form.listedness_status() }}
+                        </div>
+
+                        <div class="field">
+                            <label>{{ form.expectedness_status.label.text }}</label>
+                            {{ form.expectedness_status() }}
+                        </div>
+
+                        <div class="field field-wide">
+                            <label>{{ form.seriousness_assessment.label.text }}</label>
+                            {{ form.seriousness_assessment() }}
+                        </div>
+
+                        <div class="field field-wide">
+                            <label>{{ form.seriousness_criteria.label.text }}</label>
+                            {{ form.seriousness_criteria(rows="3", placeholder="For serious events, record the applicable criterion, for example death, life-threatening event, hospitalisation, disability or congenital anomaly.") }}
+                        </div>
+
+                        <div class="field field-wide">
+                            <label>{{ form.rsi_evidence.label.text }}</label>
+                            {{ form.rsi_evidence(rows="5", placeholder="Quote or summarise the relevant approved RSI section, including section number where available.") }}
+                        </div>
+
+      <div class="field">
+        <label>{{ form.frequency_assessment.label.text }}</label>
+        {{ form.frequency_assessment(class_="input") }}
+      </div>
+
+      <div class="field">
+        <label>{{ form.frequency_evidence.label.text }}</label>
+        {{ form.frequency_evidence(class_="input textarea", rows="4", placeholder="State the frequency wording from the APDL PI or innovator RSI.") }}
+      </div>
+                        <div class="field field-wide">
+                            <label>{{ form.assessment_rationale.label.text }}</label>
+                            {{ form.assessment_rationale(rows="5", placeholder="Document the clinical and regulatory rationale for the conclusion.") }}
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        {{ form.submit(class_="save-button") }}
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <aside class="guide-card">
+            <h2>Review guidance</h2>
+
+            <div class="guide-content">
+                <div class="guide-item">
+                    <strong>Listedness</strong>
+                    <p>Confirm whether the event is described in the selected current RSI.</p>
+                </div>
+
+                <div class="guide-item">
+                    <strong>Expectedness</strong>
+                    <p>Record whether the nature, severity and outcome are consistent with the RSI.</p>
+                </div>
+
+                <div class="guide-item">
+                    <strong>Seriousness</strong>
+                    <p>Assess against standard seriousness criteria. Seriousness is not the same as severity.</p>
+                </div>
+
+                <div class="guide-item">
+                    <strong>Human review required</strong>
+                    <p>The platform supports documentation. The authorised medical/PV reviewer retains final responsibility.</p>
+                </div>
+            </div>
+        </aside>
+    </div>
+</section>
+{% endblock %}

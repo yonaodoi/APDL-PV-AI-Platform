@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}PV Portfolio Summary | APDL PV{% endblock %}
+
+{% block page_title %}PV Portfolio Summary{% endblock %}
+
+{% block content %}
+<style>
+    .summary-page {
+        max-width: 1160px;
+        margin: 0 auto;
+    }
+
+    .summary-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-end;
+        margin-bottom: 24px;
+    }
+
+    .summary-header h1 {
+        margin: 0 0 7px;
+        color: #282037;
+        font-size: 28px;
+    }
+
+    .summary-header p {
+        margin: 0;
+        color: #746d7d;
+        font-size: 14px;
+    }
+
+    .back-link {
+        padding: 11px 15px;
+        border: 1px solid #e1d9e6;
+        border-radius: 9px;
+        background: white;
+        color: #6242d7;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+    }
+
+    .summary-card {
+        overflow: hidden;
+        border: 1px solid #e9e2e7;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);
+    }
+
+    .summary-card-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        align-items: center;
+        padding: 17px 20px;
+        border-bottom: 1px solid #eee8ec;
+        background: #fdfbfe;
+    }
+
+    .summary-card-header h2 {
+        margin: 0;
+        color: #3d3546;
+        font-size: 15px;
+    }
+
+    .summary-card-header a {
+        color: #7656e8;
+        font-size: 12px;
+        font-weight: bold;
+        text-decoration: none;
+    }
+
+    .status-list {
+        padding: 4px 20px 12px;
+    }
+
+    .status-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        align-items: center;
+        padding: 14px 0;
+        border-bottom: 1px solid #f0ebee;
+    }
+
+    .status-row:last-child {
+        border-bottom: 0;
+    }
+
+    .status-name {
+        color: #5c5365;
+        font-size: 13px;
+    }
+
+    .status-total {
+        min-width: 31px;
+        padding: 5px 9px;
+        border-radius: 20px;
+        background: #eee9ff;
+        color: #6242d7;
+        font-size: 12px;
+        font-weight: bold;
+        text-align: center;
+    }
+
+    .empty-state {
+        padding: 33px 20px;
+        color: #837a89;
+        font-size: 13px;
+        text-align: center;
+    }
+
+    @media (max-width: 800px) {
+        .summary-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .summary-header {
+            display: block;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 15px;
+        }
+    }
+</style>
+
+<section class="summary-page">
+    <header class="summary-header">
+        <div>
+            <h1>PV portfolio summary</h1>
+            <p>Review the live status of safety cases, product complaints, safety signals and PSURs.</p>
+        </div>
+
+        <a class="back-link" href="{{ url_for('core.dashboard') }}">
+            ← Back to dashboard
+        </a>
+    </header>
+
+    <section class="summary-grid">
+        <article class="summary-card" id="cases">
+            <div class="summary-card-header">
+                <h2>Safety cases</h2>
+                <a href="{{ url_for('cases.case_list') }}">Open register</a>
+            </div>
+
+            {% if case_statuses %}
+                <div class="status-list">
+                    {% for item in case_statuses %}
+                        <div class="status-row">
+                            <span class="status-name">{{ item.status }}</span>
+                            <span class="status-total">{{ item.total }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">No safety cases recorded.</div>
+            {% endif %}
+        </article>
+
+        <article class="summary-card" id="complaints">
+            <div class="summary-card-header">
+                <h2>Product complaints</h2>
+                <a href="{{ url_for('complaints.complaint_list') }}">Open register</a>
+            </div>
+
+            {% if complaint_statuses %}
+                <div class="status-list">
+                    {% for item in complaint_statuses %}
+                        <div class="status-row">
+                            <span class="status-name">{{ item.status }}</span>
+                            <span class="status-total">{{ item.total }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">No product complaints recorded.</div>
+            {% endif %}
+        </article>
+
+        <article class="summary-card" id="signals">
+            <div class="summary-card-header">
+                <h2>Safety signals</h2>
+                <a href="{{ url_for('signals.signal_list') }}">Open register</a>
+            </div>
+
+            {% if signal_statuses %}
+                <div class="status-list">
+                    {% for item in signal_statuses %}
+                        <div class="status-row">
+                            <span class="status-name">{{ item.status }}</span>
+                            <span class="status-total">{{ item.total }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">No safety signals recorded.</div>
+            {% endif %}
+        </article>
+
+        <article class="summary-card" id="psurs">
+            <div class="summary-card-header">
+                <h2>PSURs</h2>
+                <a href="{{ url_for('psur.psur_list') }}">Open register</a>
+            </div>
+
+            {% if psur_statuses %}
+                <div class="status-list">
+                    {% for item in psur_statuses %}
+                        <div class="status-row">
+                            <span class="status-name">{{ item.status }}</span>
+                            <span class="status-total">{{ item.total }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">No PSUR records created.</div>
+            {% endif %}
+        </article>
+    </section>
+</section>
+{% endblock %}

@@ -59,13 +59,16 @@
 
     .metrics-grid {
         display: grid;
-        grid-template-columns: repeat(5, minmax(145px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
         gap: 16px;
         margin-bottom: 24px;
     }
 
-    .metric-card {
+.metric-card {
         position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         overflow: hidden;
         min-height: 145px;
         padding: 18px;
@@ -73,6 +76,14 @@
         border-radius: 14px;
         background: white;
         box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);
+        cursor: pointer;
+        text-align: center;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(40, 32, 55, 0.09);
     }
 
     .metric-card::after {
@@ -380,6 +391,17 @@
         <div class="metric-label">Reports due</div>
         <div class="metric-value">{{ metrics.reports_due }}</div>
     </article>
+    <article class="metric-card neutral">
+        <div class="metric-icon">P</div>
+        <div class="metric-label">Product complaints</div>
+        <div class="metric-value">{{ metrics.total_complaints }}</div>
+    </article>
+
+    <article class="metric-card">
+        <div class="metric-icon">R</div>
+        <div class="metric-label">PSUR records</div>
+        <div class="metric-value">{{ metrics.total_psurs }}</div>
+    </article>
 </section>
 
 <section class="attention-strip">
@@ -470,4 +492,11 @@
         </div>
     </article>
 </section>
+<script>
+    document.querySelectorAll(".metric-card").forEach((card) => {
+        card.addEventListener("click", () => {
+            window.location.href = "{{ url_for('core.portfolio_summary') }}";
+        });
+    });
+</script>
 {% endblock %}

@@ -5,120 +5,469 @@
 {% block page_title %}Product Complaint{% endblock %}
 
 {% block content %}
-<section class="page-heading">
-  <div>
-    <a class="back-link" href="{{ url_for('complaints.complaint_list') }}">← Back to product complaints</a>
-    <h1>{{ complaint.complaint_number }}</h1>
-    <p>Received {{ complaint.date_received.strftime("%d %B %Y") }}{% if complaint.country_name %} from {{ complaint.country_name }}{% endif %}.</p>
-  </div>
-  <div class="case-badges">
-    <span class="status-badge">{{ complaint.status }}</span>
-    <span class="priority-badge {% if complaint.severity in ('Serious', 'Critical') %}priority-serious{% endif %}">
-      {{ complaint.severity }}
-    </span>
-  </div>
+<style>
+    .complaint-detail-page {
+        max-width: 1160px;
+        margin: 0 auto;
+    }
+
+    .detail-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: flex-start;
+        margin-bottom: 24px;
+    }
+
+    .back-link {
+        display: inline-block;
+        margin-bottom: 14px;
+        color: #7656e8;
+        font-size: 13px;
+        font-weight: 800;
+        text-decoration: none;
+    }
+
+    .detail-header h1 {
+        margin: 0 0 7px;
+        color: #282037;
+        font-size: 29px;
+        letter-spacing: -0.6px;
+    }
+
+    .detail-header p {
+        margin: 0;
+        color: #746d7d;
+        font-size: 14px;
+    }
+
+    .header-badges {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+        padding-top: 4px;
+    }
+
+    .status-pill,
+    .severity-pill {
+        display: inline-block;
+        padding: 7px 11px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+    .status-pill {
+        background: #eee9ff;
+        color: #6745dc;
+    }
+
+    .severity-pill {
+        background: #f2edf1;
+        color: #6f6572;
+    }
+
+    .severity-serious {
+        background: #ffe8e5;
+        color: #c94f57;
+    }
+
+    .detail-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 310px;
+        gap: 20px;
+        align-items: start;
+    }
+
+    .detail-card,
+    .review-card,
+    .status-card {
+        overflow: hidden;
+        border: 1px solid #e9e2e8;
+        border-radius: 15px;
+        background: #ffffff;
+        box-shadow: 0 7px 18px rgba(50, 37, 67, 0.04);
+    }
+
+    .detail-card {
+        margin-bottom: 20px;
+    }
+
+    .card-heading {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 20px 22px 16px;
+        border-bottom: 1px solid #eee9ee;
+    }
+
+    .section-number {
+        width: 27px;
+        height: 27px;
+        display: grid;
+        place-items: center;
+        flex: 0 0 27px;
+        border-radius: 8px;
+        background: #eee9ff;
+        color: #6847dc;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .card-heading h2 {
+        margin: 3px 0 0;
+        color: #3a2d45;
+        font-size: 15px;
+    }
+
+    .card-content {
+        padding: 20px 22px 22px;
+    }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 20px 18px;
+    }
+
+    .detail-item span,
+    .narrative-box span {
+        display: block;
+        margin-bottom: 6px;
+        color: #998da1;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.7px;
+    }
+
+    .detail-item strong {
+        display: block;
+        color: #44374d;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
+
+    .narrative-box {
+        margin-top: 21px;
+        padding: 15px;
+        border: 1px solid #eee7ef;
+        border-radius: 10px;
+        background: #fdfcff;
+    }
+
+    .narrative-box p {
+        margin: 0;
+        color: #62576a;
+        font-size: 13px;
+        line-height: 1.65;
+        white-space: pre-wrap;
+    }
+
+    .detail-side {
+        display: grid;
+        gap: 20px;
+    }
+
+    .review-heading,
+    .status-heading {
+        margin: 0;
+        padding: 17px 19px;
+        border-bottom: 1px solid #eee8f1;
+        background: #faf8ff;
+        color: #493760;
+        font-size: 14px;
+    }
+
+    .review-form {
+        padding: 19px;
+    }
+
+    .field {
+        margin-bottom: 16px;
+    }
+
+    .field label {
+        display: block;
+        margin-bottom: 7px;
+        color: #514558;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 11px;
+        border: 1px solid #ded4e2;
+        border-radius: 9px;
+        outline: none;
+        background: #fffefe;
+        color: #342b3b;
+        font: inherit;
+        font-size: 13px;
+    }
+
+    .field textarea {
+        min-height: 108px;
+        resize: vertical;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+        border-color: #8a6aec;
+        box-shadow: 0 0 0 3px rgba(118, 86, 232, 0.12);
+    }
+
+    .save-button {
+        width: 100%;
+        padding: 12px 14px;
+        border: 0;
+        border-radius: 9px;
+        background: #7656e8;
+        color: #ffffff;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        box-shadow: 0 8px 16px rgba(118, 86, 232, 0.22);
+    }
+
+    .status-content {
+        padding: 4px 19px 12px;
+    }
+
+    .status-row {
+        padding: 14px 0;
+        border-bottom: 1px solid #eee9ee;
+    }
+
+    .status-row:last-child {
+        border-bottom: 0;
+    }
+
+    .status-row strong {
+        display: block;
+        margin-bottom: 4px;
+        color: #4c4055;
+        font-size: 13px;
+    }
+
+    .status-row span {
+        color: #817685;
+        font-size: 12px;
+    }
+
+    @media (max-width: 900px) {
+        .detail-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .detail-header {
+            flex-direction: column;
+        }
+
+        .header-badges {
+            justify-content: flex-start;
+        }
+    }
+
+    @media (max-width: 620px) {
+        .card-content {
+            padding: 18px;
+        }
+
+        .detail-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 430px) {
+        .detail-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<section class="complaint-detail-page">
+    <header class="detail-header">
+        <div>
+            <a class="back-link" href="{{ url_for('complaints.complaint_list') }}">
+                ← Back to product complaints
+            </a>
+
+            <h1>{{ complaint.complaint_number }}</h1>
+            <p>
+                Received {{ complaint.date_received.strftime("%d %B %Y") }}
+                {% if complaint.country_name %} from {{ complaint.country_name }}{% endif %}.
+            </p>
+        </div>
+
+        <div class="header-badges">
+            <span class="status-pill">{{ complaint.status }}</span>
+            <span class="severity-pill {% if complaint.severity in ('Serious', 'Critical') %}severity-serious{% endif %}">
+                {{ complaint.severity }}
+            </span>
+        </div>
+    </header>
+
+    <div class="detail-layout">
+        <main>
+            <section class="detail-card">
+                <div class="card-heading">
+                    <span class="section-number">1</span>
+                    <h2>Complaint receipt and reporter</h2>
+                </div>
+
+                <div class="card-content">
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span>DATE RECEIVED</span>
+                            <strong>{{ complaint.date_received.strftime("%d %b %Y") }}</strong>
+                        </div>
+
+                        <div class="detail-item">
+                            <span>COUNTRY</span>
+                            <strong>{{ complaint.country_name or "Not recorded" }}</strong>
+                        </div>
+
+                        <div class="detail-item">
+                            <span>REPORTER</span>
+                            <strong>{{ complaint.reporter_name or "Not recorded" }}</strong>
+                        </div>
+
+                        <div class="detail-item">
+                            <span>CONTACT</span>
+                            <strong>{{ complaint.reporter_contact or "Not recorded" }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="detail-card">
+                <div class="card-heading">
+                    <span class="section-number">2</span>
+                    <h2>Product and complaint details</h2>
+                </div>
+
+                <div class="card-content">
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span>PRODUCT</span>
+                            <strong>{{ complaint.product_name }}</strong>
+                        </div>
+
+                        <div class="detail-item">
+                            <span>BATCH NUMBER</span>
+                            <strong>{{ complaint.batch_number or "Not recorded" }}</strong>
+                        </div>
+
+                        <div class="detail-item">
+                            <span>CATEGORY</span>
+                            <strong>{{ complaint.complaint_category }}</strong>
+                        </div>
+
+                        <div class="detail-item">
+                            <span>MANUFACTURING DATE</span>
+                            <strong>{{ complaint.manufacturing_date.strftime("%d %b %Y") if complaint.manufacturing_date else "Not recorded" }}</strong>
+                        </div>
+
+                        <div class="detail-item">
+                            <span>EXPIRY DATE</span>
+                            <strong>{{ complaint.expiry_date.strftime("%d %b %Y") if complaint.expiry_date else "Not recorded" }}</strong>
+                        </div>
+                    </div>
+
+                    <div class="narrative-box">
+                        <span>COMPLAINT DESCRIPTION</span>
+                        <p>{{ complaint.complaint_description }}</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="detail-card">
+                <div class="card-heading">
+                    <span class="section-number">3</span>
+                    <h2>Investigation and closure</h2>
+                </div>
+
+                <div class="card-content">
+                    <div class="narrative-box" style="margin-top: 0;">
+                        <span>INVESTIGATION SUMMARY</span>
+                        <p>{{ complaint.investigation_summary or "Investigation has not been recorded." }}</p>
+                    </div>
+
+                    <div class="narrative-box">
+                        <span>CORRECTIVE ACTION</span>
+                        <p>{{ complaint.corrective_action or "No corrective action has been recorded." }}</p>
+                    </div>
+
+                    <div class="detail-grid" style="margin-top: 21px;">
+                        <div class="detail-item">
+                            <span>CLOSURE DATE</span>
+                            <strong>{{ complaint.closure_date.strftime("%d %b %Y") if complaint.closure_date else "Not closed" }}</strong>
+                        </div>
+
+                        <div class="detail-item">
+                            <span>RECORDED BY</span>
+                            <strong>{{ complaint.created_by_name or "System user" }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <aside class="detail-side">
+            <section class="review-card">
+                <h2 class="review-heading">Investigation update</h2>
+
+                <form method="post" action="{{ url_for('complaints.review_complaint', complaint_id=complaint.complaint_id) }}" class="review-form">
+                    {{ review_form.hidden_tag() }}
+
+                    <div class="field">
+                        <label>{{ review_form.status.label.text }}</label>
+                        {{ review_form.status() }}
+                    </div>
+
+                    <div class="field">
+                        <label>{{ review_form.investigation_summary.label.text }}</label>
+                        {{ review_form.investigation_summary(rows="5", placeholder="Record investigation findings.") }}
+                    </div>
+
+                    <div class="field">
+                        <label>{{ review_form.corrective_action.label.text }}</label>
+                        {{ review_form.corrective_action(rows="5", placeholder="Record the CAPA or other action.") }}
+                    </div>
+
+                    <div class="field">
+                        <label>{{ review_form.closure_date.label.text }}</label>
+                        {{ review_form.closure_date() }}
+                    </div>
+
+                    {{ review_form.submit(class_="save-button") }}
+                </form>
+            </section>
+
+            <section class="status-card">
+                <h2 class="status-heading">Complaint status</h2>
+
+                <div class="status-content">
+                    <div class="status-row">
+                        <strong>{{ complaint.status }}</strong>
+                        <span>Current workflow status</span>
+                    </div>
+
+                    <div class="status-row">
+                        <strong>{{ complaint.severity }}</strong>
+                        <span>Complaint severity</span>
+                    </div>
+                </div>
+            </section>
+        </aside>
+    </div>
 </section>
-
-<div class="case-detail-layout">
-  <div class="detail-main">
-    <section class="form-card">
-      <div class="section-title">
-        <span>1</span>
-        <div><h2>Complaint receipt and reporter</h2></div>
-      </div>
-
-      <div class="detail-grid">
-        <div><span>DATE RECEIVED</span><strong>{{ complaint.date_received.strftime("%d %b %Y") }}</strong></div>
-        <div><span>COUNTRY</span><strong>{{ complaint.country_name or "Not recorded" }}</strong></div>
-        <div><span>REPORTER</span><strong>{{ complaint.reporter_name or "Not recorded" }}</strong></div>
-        <div><span>CONTACT</span><strong>{{ complaint.reporter_contact or "Not recorded" }}</strong></div>
-      </div>
-    </section>
-
-    <section class="form-card">
-      <div class="section-title">
-        <span>2</span>
-        <div><h2>Product and complaint details</h2></div>
-      </div>
-
-      <div class="detail-grid">
-        <div><span>PRODUCT</span><strong>{{ complaint.product_name }}</strong></div>
-        <div><span>BATCH NUMBER</span><strong>{{ complaint.batch_number or "Not recorded" }}</strong></div>
-        <div><span>MANUFACTURING DATE</span><strong>{{ complaint.manufacturing_date.strftime("%d %b %Y") if complaint.manufacturing_date else "Not recorded" }}</strong></div>
-        <div><span>EXPIRY DATE</span><strong>{{ complaint.expiry_date.strftime("%d %b %Y") if complaint.expiry_date else "Not recorded" }}</strong></div>
-        <div><span>CATEGORY</span><strong>{{ complaint.complaint_category }}</strong></div>
-      </div>
-
-      <div class="narrative-box">
-        <span>COMPLAINT DESCRIPTION</span>
-        <p>{{ complaint.complaint_description }}</p>
-      </div>
-    </section>
-
-    <section class="form-card">
-      <div class="section-title">
-        <span>3</span>
-        <div><h2>Investigation and closure</h2></div>
-      </div>
-
-      <div class="narrative-box">
-        <span>INVESTIGATION SUMMARY</span>
-        <p>{{ complaint.investigation_summary or "Investigation has not been recorded." }}</p>
-      </div>
-
-      <div class="narrative-box">
-        <span>CORRECTIVE ACTION</span>
-        <p>{{ complaint.corrective_action or "No corrective action has been recorded." }}</p>
-      </div>
-
-      <div class="detail-grid">
-        <div><span>CLOSURE DATE</span><strong>{{ complaint.closure_date.strftime("%d %b %Y") if complaint.closure_date else "Not closed" }}</strong></div>
-        <div><span>RECORDED BY</span><strong>{{ complaint.created_by_name or "System user" }}</strong></div>
-      </div>
-    </section>
-  </div>
-
-  <aside class="detail-side">
-  <section class="panel">
-    <div class="panel-header"><h2>Investigation update</h2></div>
-
-    <form method="post" action="{{ url_for('complaints.review_complaint', complaint_id=complaint.complaint_id) }}" class="review-form">
-      {{ review_form.hidden_tag() }}
-
-      <div class="field">
-        <label>{{ review_form.status.label.text }}</label>
-        {{ review_form.status(class_="input") }}
-      </div>
-
-      <div class="field">
-        <label>{{ review_form.investigation_summary.label.text }}</label>
-        {{ review_form.investigation_summary(class_="input textarea", rows="5", placeholder="Record investigation findings.") }}
-      </div>
-
-      <div class="field">
-        <label>{{ review_form.corrective_action.label.text }}</label>
-        {{ review_form.corrective_action(class_="input textarea", rows="5", placeholder="Record the CAPA or other action.") }}
-      </div>
-
-      <div class="field">
-        <label>{{ review_form.closure_date.label.text }}</label>
-        {{ review_form.closure_date(class_="input") }}
-      </div>
-
-      {{ review_form.submit(class_="button button-full") }}
-    </form>
-  </section>
-    <section class="panel">
-      <div class="panel-header"><h2>Complaint status</h2></div>
-      <div class="activity-item">
-        <strong>{{ complaint.status }}</strong>
-        <span>Current workflow status</span>
-      </div>
-      <div class="activity-item">
-        <strong>{{ complaint.severity }}</strong>
-        <span>Complaint severity</span>
-      </div>
-    </section>
-  </aside>
-</div>
 {% endblock %}

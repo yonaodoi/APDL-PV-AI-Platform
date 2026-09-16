@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}Verify RSI Reactions | APDL PV{% endblock %}
+
+{% block page_title %}Verify RSI Reactions{% endblock %}
+
+{% block content %}
+<style>
+    .reaction-page {
+        max-width: 1050px;
+        margin: 0 auto;
+    }
+
+    .reaction-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-end;
+        margin-bottom: 24px;
+    }
+
+    .reaction-header h1 {
+        margin: 0 0 7px;
+        color: #282037;
+        font-size: 27px;
+    }
+
+    .reaction-header p {
+        margin: 0;
+        color: #746d7d;
+        font-size: 14px;
+    }
+
+    .back-link {
+        padding: 11px 15px;
+        border: 1px solid #e1d9e6;
+        border-radius: 9px;
+        background: white;
+        color: #6242d7;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .review-note {
+        margin-bottom: 20px;
+        padding: 14px 16px;
+        border: 1px solid #ead8ba;
+        border-radius: 10px;
+        background: #fff8ed;
+        color: #806337;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .reaction-register {
+        overflow: hidden;
+        border: 1px solid #e9e2e7;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);
+    }
+
+    .reaction-register-heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        padding: 17px 20px;
+        border-bottom: 1px solid #eee8ec;
+    }
+
+    .reaction-register-heading h2 {
+        margin: 0;
+        color: #403748;
+        font-size: 15px;
+    }
+
+    .reaction-register-heading span {
+        color: #8a818f;
+        font-size: 12px;
+    }
+
+    .reaction-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .reaction-table th {
+        padding: 13px 20px;
+        background: #fffdfe;
+        color: #918896;
+        font-size: 10px;
+        letter-spacing: 0.6px;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    .reaction-table td {
+        padding: 14px 20px;
+        border-top: 1px solid #f0ebee;
+        color: #5d5365;
+        font-size: 13px;
+        vertical-align: middle;
+    }
+
+    .reaction-term {
+        color: #44354f;
+        font-weight: bold;
+    }
+
+    .proposed-tag,
+    .verified-tag,
+    .excluded-tag {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: bold;
+    }
+
+    .proposed-tag {
+        background: #fff1dd;
+        color: #976c27;
+    }
+
+    .verified-tag {
+        background: #e6f6ef;
+        color: #27805f;
+    }
+
+    .excluded-tag {
+        background: #f1edf1;
+        color: #716674;
+    }
+
+    .action-row {
+        display: flex;
+        gap: 7px;
+    }
+
+    .action-button {
+        padding: 7px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .verify-button {
+        border: 1px solid #bde5d3;
+        background: #effaf4;
+        color: #27805f;
+    }
+
+    .exclude-button {
+        border: 1px solid #e4dce6;
+        background: white;
+        color: #746879;
+    }
+
+    .empty-state {
+        padding: 48px 20px;
+        color: #817786;
+        text-align: center;
+    }
+
+    @media (max-width: 680px) {
+        .reaction-header {
+            display: block;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 15px;
+        }
+
+        .reaction-table th:nth-child(3),
+        .reaction-table td:nth-child(3) {
+            display: none;
+        }
+    }
+</style>
+
+<section class="reaction-page">
+    <header class="reaction-header">
+        <div>
+            <h1>Verify extracted reaction terms</h1>
+            <p>
+                {{ document.product_name }}
+                {% if document.reference_product_name %} · {{ document.reference_product_name }}{% endif %}
+                · {{ document.document_type }}
+            </p>
+        </div>
+
+        <a class="back-link" href="{{ url_for('rsi.rsi_list') }}">
+            ← Back to reference library
+        </a>
+    </header>
+
+    <div class="review-note">
+        These terms were extracted automatically from the uploaded document. Verify only genuine adverse-reaction terms. Only <strong>Verified</strong> terms should be used for automated listedness suggestions.
+    </div>
+
+    <section class="reaction-register">
+        <div class="reaction-register-heading">
+            <h2>Extracted terms</h2>
+            <span>{{ reactions|length }} term(s)</span>
+        </div>
+
+        {% if reactions %}
+            <table class="reaction-table">
+                <thead>
+                    <tr>
+                        <th>Extracted term</th>
+                        <th>Review status</th>
+                        <th>Reviewer action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for reaction in reactions %}
+                        <tr>
+                            <td class="reaction-term">{{ reaction.reaction_term }}</td>
+                            <td>
+                                {% if reaction.review_status == "Verified" %}
+                                    <span class="verified-tag">Verified</span>
+                                {% elif reaction.review_status == "Excluded" %}
+                                    <span class="excluded-tag">Excluded</span>
+                                {% else %}
+                                    <span class="proposed-tag">Proposed</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="action-row">
+                                    <form method="post" action="{{ url_for('rsi.verify_reaction', reaction_id=reaction.reaction_id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="action-button verify-button" type="submit">Verify</button>
+                                    </form>
+
+                                    <form method="post" action="{{ url_for('rsi.exclude_reaction', reaction_id=reaction.reaction_id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="action-button exclude-button" type="submit">Exclude</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">
+                No reaction terms have been extracted yet.
+            </div>
+        {% endif %}
+    </section>
+</section>
+{% endblock %}

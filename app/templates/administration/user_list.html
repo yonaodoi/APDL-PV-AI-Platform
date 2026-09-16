@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block title %}Administration | APDL PV{% endblock %}
+
+{% block page_title %}Administration{% endblock %}
+
+{% block content %}
+<style>
+    .admin-page {
+        max-width: 1150px;
+        margin: 0 auto;
+    }
+
+    .admin-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-end;
+        margin-bottom: 24px;
+    }
+
+    .admin-kicker {
+        margin: 0 0 8px;
+        color: #7656e8;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 1px;
+    }
+
+    .admin-header h1 {
+        margin: 0 0 7px;
+        color: #282037;
+        font-size: 28px;
+    }
+
+    .admin-header p {
+        margin: 0;
+        color: #746d7d;
+        font-size: 14px;
+    }
+
+    .new-user-button {
+        padding: 12px 17px;
+        border-radius: 9px;
+        background: #7656e8;
+        color: white;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+        white-space: nowrap;
+        box-shadow: 0 7px 15px rgba(118, 86, 232, 0.2);
+    }
+
+    .summary-row {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .summary-chip {
+        padding: 9px 12px;
+        border: 1px solid #e5ddec;
+        border-radius: 9px;
+        background: white;
+        color: #706675;
+        font-size: 12px;
+    }
+
+    .summary-chip strong {
+        margin-right: 4px;
+        color: #6242d7;
+    }
+
+    .user-register {
+        overflow: hidden;
+        border: 1px solid #e9e2e7;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);
+    }
+
+    .register-heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        padding: 17px 20px;
+        border-bottom: 1px solid #eee8ec;
+    }
+
+    .register-heading h2 {
+        margin: 0;
+        color: #403748;
+        font-size: 15px;
+    }
+
+    .register-heading span {
+        color: #8a818f;
+        font-size: 12px;
+    }
+
+    .user-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .user-table th {
+        padding: 13px 20px;
+        background: #fffdfe;
+        color: #918896;
+        font-size: 10px;
+        letter-spacing: 0.6px;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    .user-table td {
+        padding: 15px 20px;
+        border-top: 1px solid #f0ebee;
+        color: #5d5365;
+        font-size: 13px;
+        vertical-align: middle;
+    }
+
+    .user-name {
+        color: #44354f;
+        font-weight: bold;
+    }
+
+    .user-email {
+        display: block;
+        margin-top: 4px;
+        color: #877c8c;
+        font-size: 12px;
+    }
+
+    .role-label,
+    .status-active,
+    .status-inactive {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: bold;
+    }
+
+    .role-label {
+        background: #f1edf5;
+        color: #5f5269;
+    }
+
+    .status-active {
+        background: #e6f6ef;
+        color: #248461;
+    }
+
+    .status-inactive {
+        background: #f4eef2;
+        color: #796c76;
+    }
+
+    .status-button {
+        padding: 7px 10px;
+        border: 1px solid #e1d8e5;
+        border-radius: 8px;
+        background: white;
+        color: #604d6d;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .empty-state {
+        padding: 48px 20px;
+        color: #817786;
+        text-align: center;
+    }
+
+    @media (max-width: 850px) {
+        .user-table th:nth-child(3),
+        .user-table td:nth-child(3),
+        .user-table th:nth-child(5),
+        .user-table td:nth-child(5) {
+            display: none;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .admin-header {
+            display: block;
+        }
+
+        .new-user-button {
+            display: inline-block;
+            margin-top: 16px;
+        }
+
+        .summary-row {
+            flex-wrap: wrap;
+        }
+    }
+</style>
+
+<section class="admin-page">
+    <header class="admin-header">
+        <div>
+            <p class="admin-kicker">SYSTEM ADMINISTRATION</p>
+            <h1>User access management</h1>
+            <p>Create authorised accounts and manage platform access.</p>
+        </div>
+
+        <a class="new-user-button" href="{{ url_for('administration.create_user') }}">
+            + Create user account
+        </a>
+    </header>
+
+    <div class="summary-row">
+        <div class="summary-chip"><strong>{{ users|length }}</strong> total user(s)</div>
+        <div class="summary-chip"><strong>{{ users|selectattr('is_active')|list|length }}</strong> active user(s)</div>
+    </div>
+
+    <section class="user-register">
+        <div class="register-heading">
+            <h2>Authorised platform users</h2>
+            <span>Access is controlled by system role</span>
+        </div>
+
+        {% if users %}
+            <table class="user-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>Last sign-in</th>
+                        <th>Account status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                        <tr>
+                            <td>
+                                <span class="user-name">{{ user.full_name }}</span>
+                                <span class="user-email">{{ user.username }} · {{ user.email }}</span>
+                            </td>
+                            <td><span class="role-label">{{ user.role_name }}</span></td>
+                            <td>
+                                {% if user.last_login_at %}
+                                    {{ user.last_login_at.strftime("%d %b %Y") }}
+                                {% else %}
+                                    Never
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.is_active %}
+                                    <span class="status-active">Active</span>
+                                {% else %}
+                                    <span class="status-inactive">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="post" action="{{ url_for('administration.toggle_user_status', user_id=user.user_id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="status-button" type="submit">
+                                        {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">No users have been created.</div>
+        {% endif %}
+    </section>
+</section>
+{% endblock %}

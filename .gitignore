@@ -7,3 +7,4 @@ instance/
 *.log
 .DS_Store
 Thumbs.db
+backups/

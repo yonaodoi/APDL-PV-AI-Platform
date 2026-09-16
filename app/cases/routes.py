@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, abort, flash, redirect, render_template, session, url_for
 
+from app.audit import write_audit_log
 from app.db import query_all, query_one, transaction
 from app.security import login_required
 from .forms import SafetyCaseForm
@@ -284,3 +285,257 @@ def create_case():
         return redirect(url_for("core.dashboard"))
 
     return render_template("cases/create_case.html", form=form)
+
+def populate_case_form(form, case, product):
+    form.icsr_case_id.data = case["case_number"]
+    form.received_date.data = case["received_date"]
+    form.country_id.data = case["country_id"]
+    form.source.data = case["source"]
+    form.report_type.data = case["report_type"]
+
+    form.reporter_name.data = case["reporter_name"]
+    form.reporter_profession.data = case["reporter_profession"]
+    form.reporter_organisation.data = case["reporter_organisation"]
+    form.reporter_phone.data = case["reporter_phone"]
+    form.reporter_email.data = case["reporter_email"]
+
+    form.patient_initials.data = case["patient_initials"]
+    form.patient_date_of_birth.data = case["patient_date_of_birth"]
+    form.patient_age_years.data = case["patient_age_years"]
+    form.patient_sex.data = case["patient_sex"]
+    form.patient_weight_kg.data = case["patient_weight_kg"]
+    form.patient_pregnancy_status.data = case["patient_pregnancy_status"]
+    form.patient_address.data = case["patient_address"]
+    form.patient_phone.data = case["patient_phone"]
+    form.medical_history.data = case["medical_history"]
+    form.concomitant_medicines.data = case["concomitant_medicines"]
+
+    form.product_name.data = product["product_name"]
+    form.generic_name.data = product["generic_name"]
+    form.strength.data = product["strength"]
+    form.dosage_form.data = product["dosage_form"]
+    form.batch_number.data = product["batch_number"]
+    form.expiry_date.data = product["expiry_date"]
+    form.dose.data = product["dose"]
+    form.route.data = product["route"]
+    form.frequency.data = product["frequency"]
+    form.indication.data = product["indication"]
+    form.therapy_start_date.data = product["therapy_start_date"]
+    form.therapy_end_date.data = product["therapy_end_date"]
+    form.action_taken.data = product["action_taken"]
+
+    form.event_description.data = case["event_description"]
+    form.treatment_given.data = case["treatment_given"]
+    form.event_onset_date.data = case["event_onset_date"]
+    form.event_onset_time.data = case["event_onset_time"]
+    form.event_end_date.data = case["event_end_date"]
+    form.laboratory_results.data = case["laboratory_results"]
+    form.event_outcome.data = case["event_outcome"]
+    form.seriousness.data = case["seriousness"]
+    form.seriousness_criteria.data = case["seriousness_criteria"]
+    form.causality_assessment.data = case["causality_assessment"]
+    form.case_narrative.data = case["case_narrative"]
+    form.follow_up_required.data = case["follow_up_required"]
+    form.follow_up_due_date.data = case["follow_up_due_date"]
+    form.report_title.data = case["report_title"]
+    form.form_id.data = case["form_id"]
+
+
+@bp.route("/<int:case_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_case(case_id):
+    case = query_one(
+        """
+        SELECT *
+        FROM pv.safety_cases
+        WHERE case_id = %s
+        """,
+        (case_id,),
+    )
+
+    if not case:
+        abort(404)
+
+    product = query_one(
+        """
+        SELECT *
+        FROM pv.case_products
+        WHERE case_id = %s
+        ORDER BY case_product_id
+        LIMIT 1
+        """,
+        (case_id,),
+    )
+
+    if not product:
+        abort(404)
+
+    form = SafetyCaseForm()
+
+    countries = query_all(
+        """
+        SELECT country_id, country_name
+        FROM pv.countries
+        ORDER BY country_name
+        """
+    )
+    form.country_id.choices = [(0, "Select country")] + [
+        (country["country_id"], country["country_name"])
+        for country in countries
+    ]
+
+    if form.validate_on_submit():
+        with transaction() as cursor:
+            cursor.execute(
+                """
+                UPDATE pv.safety_cases
+                SET
+                    received_date = %s,
+                    country_id = %s,
+                    source = %s,
+                    report_type = %s,
+                    reporter_name = %s,
+                    reporter_profession = %s,
+                    reporter_organisation = %s,
+                    reporter_phone = %s,
+                    reporter_email = %s,
+                    patient_initials = %s,
+                    patient_date_of_birth = %s,
+                    patient_age_years = %s,
+                    patient_sex = %s,
+                    patient_weight_kg = %s,
+                    patient_pregnancy_status = %s,
+                    patient_address = %s,
+                    patient_phone = %s,
+                    medical_history = %s,
+                    concomitant_medicines = %s,
+                    event_description = %s,
+                    treatment_given = %s,
+                    event_onset_date = %s,
+                    event_onset_time = %s,
+                    event_end_date = %s,
+                    laboratory_results = %s,
+                    event_outcome = %s,
+                    seriousness = %s,
+                    seriousness_criteria = %s,
+                    causality_assessment = %s,
+                    case_narrative = %s,
+                    follow_up_required = %s,
+                    follow_up_due_date = %s,
+                    report_title = %s,
+                    form_id = %s
+                WHERE case_id = %s
+                """,
+                (
+                    form.received_date.data,
+                    form.country_id.data,
+                    form.source.data,
+                    form.report_type.data,
+                    form.reporter_name.data or None,
+                    form.reporter_profession.data or None,
+                    form.reporter_organisation.data or None,
+                    form.reporter_phone.data or None,
+                    form.reporter_email.data or None,
+                    form.patient_initials.data or None,
+                    form.patient_date_of_birth.data,
+                    form.patient_age_years.data,
+                    form.patient_sex.data or None,
+                    form.patient_weight_kg.data or None,
+                    form.patient_pregnancy_status.data or None,
+                    form.patient_address.data or None,
+                    form.patient_phone.data or None,
+                    form.medical_history.data or None,
+                    form.concomitant_medicines.data or None,
+                    form.event_description.data,
+                    form.treatment_given.data or None,
+                    form.event_onset_date.data,
+                    form.event_onset_time.data,
+                    form.event_end_date.data,
+                    form.laboratory_results.data or None,
+                    form.event_outcome.data or None,
+                    form.seriousness.data,
+                    form.seriousness_criteria.data or None,
+                    form.causality_assessment.data or None,
+                    form.case_narrative.data or None,
+                    form.follow_up_required.data,
+                    form.follow_up_due_date.data,
+                    form.report_title.data or None,
+                    form.form_id.data or None,
+                    case_id,
+                ),
+            )
+
+            cursor.execute(
+                """
+                UPDATE pv.case_products
+                SET
+                    product_name = %s,
+                    generic_name = %s,
+                    strength = %s,
+                    dosage_form = %s,
+                    batch_number = %s,
+                    expiry_date = %s,
+                    dose = %s,
+                    route = %s,
+                    frequency = %s,
+                    indication = %s,
+                    therapy_start_date = %s,
+                    therapy_end_date = %s,
+                    action_taken = %s
+                WHERE case_id = %s
+                """,
+                (
+                    form.product_name.data,
+                    form.generic_name.data or None,
+                    form.strength.data or None,
+                    form.dosage_form.data or None,
+                    form.batch_number.data or None,
+                    form.expiry_date.data,
+                    form.dose.data or None,
+                    form.route.data or None,
+                    form.frequency.data or None,
+                    form.indication.data or None,
+                    form.therapy_start_date.data,
+                    form.therapy_end_date.data,
+                    form.action_taken.data or None,
+                    case_id,
+                ),
+            )
+
+            cursor.execute(
+                """
+                INSERT INTO pv.case_audit_log (
+                    case_id,
+                    action,
+                    details,
+                    performed_by
+                )
+                VALUES (%s, %s, %s, %s)
+                """,
+                (
+                    case_id,
+                    "Case updated",
+                    "Safety case information was edited.",
+                    session["user_id"],
+                ),
+            )
+
+        write_audit_log(
+            record_type="case",
+            record_id=case_id,
+            action="Safety case updated",
+            details=f"Safety case {case['case_number']} was edited.",
+            actor_user_id=session["user_id"],
+        )
+
+        flash("Safety case updated successfully.", "success")
+        return redirect(url_for("cases.case_detail", case_id=case_id))
+
+    populate_case_form(form, case, product)
+
+    return render_template(
+        "cases/create_case.html",
+        form=form,
+        editing=True,
+        case=case,
+    )

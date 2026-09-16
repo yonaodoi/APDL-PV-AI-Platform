@@ -62,7 +62,7 @@
 
 <section class="page-header">
     <div>
-        <h2>Create PSUR record</h2>
+        {% if editing %}Edit PSUR record{% else %}Create PSUR record{% endif %}
         <p>Capture the report information required for the approved APDL PSUR template.</p>
     </div>
     <span class="psur-label">Periodic safety report</span>

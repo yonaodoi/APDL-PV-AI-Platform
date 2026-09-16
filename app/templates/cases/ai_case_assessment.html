@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}AI Case Assessment | APDL PV{% endblock %}
+{% block page_title %}AI Case Assessment{% endblock %}
+
+{% block content %}
+<style>
+  .assessment-header {
+    display:flex;
+    justify-content:space-between;
+    gap:18px;
+    align-items:flex-start;
+    margin-bottom:22px;
+  }
+  .back-link {
+    color:#6242d7;
+    font-size:13px;
+    font-weight:bold;
+    text-decoration:none;
+  }
+  .assessment-header h2 {
+    margin:10px 0 7px;
+    color:#282037;
+    font-size:27px;
+  }
+  .assessment-header p {
+    margin:0;
+    color:#746d7d;
+    font-size:14px;
+  }
+  .generate-button {
+    padding:12px 16px;
+    border:0;
+    border-radius:9px;
+    background:#7656e8;
+    color:white;
+    font-size:14px;
+    font-weight:bold;
+    cursor:pointer;
+    box-shadow:0 7px 15px rgba(118,86,232,.2);
+  }
+  .notice {
+    margin-bottom:20px;
+    padding:13px 15px;
+    border:1px solid #eadfc5;
+    border-radius:10px;
+    background:#fcf7ee;
+    color:#7b613c;
+    font-size:13px;
+    line-height:1.5;
+  }
+  .report-card {
+    overflow:hidden;
+    border:1px solid #e9e2e7;
+    border-radius:14px;
+    background:white;
+    box-shadow:0 5px 12px rgba(40,32,55,.025);
+  }
+  .report-heading {
+    display:flex;
+    justify-content:space-between;
+    gap:15px;
+    align-items:center;
+    padding:17px 20px;
+    border-bottom:1px solid #eee8ec;
+  }
+  .report-heading h3 {
+    margin:0;
+    color:#403748;
+    font-size:15px;
+  }
+  .report-status {
+    padding:6px 10px;
+    border-radius:20px;
+    background:#eee9ff;
+    color:#6242d7;
+    font-size:11px;
+    font-weight:bold;
+  }
+  .report-meta {
+    padding:14px 20px;
+    border-bottom:1px solid #eee8ec;
+    color:#746d7d;
+    font-size:12px;
+  }
+  .report-text {
+    margin:0;
+    padding:22px;
+    color:#42394b;
+    font:14px/1.65 Arial, Helvetica, sans-serif;
+    white-space:pre-wrap;
+  }
+  .empty-report {
+    padding:50px 24px;
+    color:#746d7d;
+    text-align:center;
+    line-height:1.6;
+  }
+  @media (max-width:700px) {
+    .assessment-header { display:block; }
+    .generate-button { margin-top:16px; width:100%; }
+  }
+</style>
+
+<section class="assessment-header">
+  <div>
+    <a class="back-link" href="{{ url_for('cases.case_detail', case_id=case.case_id) }}">← Back to safety case</a>
+    <h2>AI case assessment report</h2>
+    <p>{{ case.case_number }}{% if product %} · {{ product.product_name }}{% endif %}</p>
+  </div>
+
+  <form method="post" action="{{ url_for('case_ai_reports.generate_ai_case_assessment', case_id=case.case_id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="generate-button" type="submit">Generate AI assessment</button>
+  </form>
+</section>
+
+<div class="notice">
+  The assessment is generated locally from the saved case, APDL Product Information,
+  innovator RSI and extracted reactions. It is an AI-generated draft and requires
+  QPPV or medical-reviewer approval before use as a final PV conclusion.
+</div>
+
+<section style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; margin-bottom:20px;">
+  <div style="padding:18px; border:1px solid #e6deeb; border-radius:12px; background:white;">
+    <div style="margin-bottom:7px; color:#403748; font-size:15px; font-weight:bold;">1. APDL Product Information</div>
+    <p style="margin:0 0 13px; color:#746d7d; font-size:13px; line-height:1.5;">Upload the current APDL label, package insert or approved product information.</p>
+    <a href="{{ url_for('rsi.create_rsi', document_source='apdl') }}" style="display:inline-block; padding:10px 12px; border-radius:8px; background:#f1edff; color:#5f3ed4; font-size:12px; font-weight:bold; text-decoration:none;">Upload APDL Product Information</a>
+  </div>
+
+  <div style="padding:18px; border:1px solid #e6deeb; border-radius:12px; background:white;">
+    <div style="margin-bottom:7px; color:#403748; font-size:15px; font-weight:bold;">2. Innovator Reference Safety Information</div>
+    <p style="margin:0 0 13px; color:#746d7d; font-size:13px; line-height:1.5;">Upload the current innovator label, SmPC or Reference Safety Information.</p>
+    <a href="{{ url_for('rsi.create_rsi', document_source='innovator') }}" style="display:inline-block; padding:10px 12px; border-radius:8px; background:#7656e8; color:white; font-size:12px; font-weight:bold; text-decoration:none;">Upload Innovator RSI</a>
+  </div>
+</section>
+
+<section class="report-card">
+  {% if report %}
+    <div class="report-heading">
+      <h3>Generated assessment report</h3>
+      <span class="report-status">{{ report.generation_status }}</span>
+    </div>
+    <div class="report-meta">
+      Generated {{ report.created_at.strftime("%d %B %Y %H:%M") }}
+      {% if report.generated_by_name %} by {{ report.generated_by_name }}{% endif %}
+      · Model: {{ report.model_name }}
+    </div>
+    <div class="report-text">{{ report.report_text }}</div>
+  {% else %}
+    <div class="empty-report">
+      No AI assessment report has been generated yet.<br>
+      Upload the APDL Product Information and innovator RSI, then select
+      <strong>Generate AI assessment</strong>.
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
