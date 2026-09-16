@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}PSUR Sections | APDL PV{% endblock %}
+{% block page_title %}PSUR Sections{% endblock %}
+
+{% block content %}
+<style>
+    .sections-header {
+        display:flex;
+        justify-content:space-between;
+        gap:20px;
+        align-items:flex-end;
+        margin-bottom:24px;
+    }
+
+    .back-link {
+        display:inline-block;
+        margin-bottom:10px;
+        color:#7656e8;
+        font-size:13px;
+        font-weight:bold;
+        text-decoration:none;
+    }
+
+    .sections-header h2 {
+        margin:0 0 7px;
+        color:#282037;
+        font-size:28px;
+    }
+
+    .sections-header p {
+        margin:0;
+        color:#746d7d;
+        font-size:14px;
+    }
+
+    .sections-layout {
+        display:grid;
+        grid-template-columns:minmax(0, 1fr) 330px;
+        gap:22px;
+        align-items:start;
+    }
+
+    .section-card {
+        overflow:hidden;
+        border:1px solid #e9e2e7;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(40,32,55,.025);
+    }
+
+    .card-heading {
+        padding:17px 19px;
+        border-bottom:1px solid #eee8ec;
+    }
+
+    .card-heading h3 {
+        margin:0 0 4px;
+        color:#403748;
+        font-size:16px;
+    }
+
+    .card-heading p {
+        margin:0;
+        color:#847b89;
+        font-size:12px;
+    }
+
+    .section-form {
+        padding:20px;
+    }
+
+    .field {
+        margin-bottom:18px;
+    }
+
+    .field label {
+        display:block;
+        margin-bottom:7px;
+        color:#554d5d;
+        font-size:12px;
+        font-weight:bold;
+    }
+
+    .input {
+        width:100%;
+        box-sizing:border-box;
+        padding:10px 11px;
+        border:1px solid #ddd5dc;
+        border-radius:8px;
+        background:#fffeff;
+        color:#322a3b;
+        font:inherit;
+        font-size:14px;
+    }
+
+    textarea.input {
+        min-height:340px;
+        resize:vertical;
+        line-height:1.55;
+    }
+
+    .input:focus {
+        outline:none;
+        border-color:#9f88ed;
+        box-shadow:0 0 0 3px #eee9ff;
+    }
+
+    .save-button {
+        padding:12px 18px;
+        border:0;
+        border-radius:9px;
+        background:#7656e8;
+        color:white;
+        font-size:14px;
+        font-weight:bold;
+        cursor:pointer;
+        box-shadow:0 7px 15px rgba(118,86,232,.2);
+    }
+
+    .saved-section {
+        padding:16px 18px;
+        border-bottom:1px solid #f0ebee;
+    }
+
+    .saved-section:last-child {
+        border-bottom:0;
+    }
+
+    .saved-section h4 {
+        margin:0 0 6px;
+        color:#49366d;
+        font-size:13px;
+    }
+
+    .saved-section p {
+        display:-webkit-box;
+        overflow:hidden;
+        margin:0;
+        color:#716877;
+        font-size:12px;
+        line-height:1.5;
+        -webkit-box-orient:vertical;
+        -webkit-line-clamp:4;
+    }
+
+    .saved-section time {
+        display:block;
+        margin-top:8px;
+        color:#9a909e;
+        font-size:11px;
+    }
+
+    .guide {
+        overflow:hidden;
+        border:1px solid #e9e2e7;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(40,32,55,.025);
+    }
+
+    .guide-heading {
+        padding:17px 18px;
+        background:#f7f4ff;
+        color:#493273;
+        font-size:14px;
+        font-weight:bold;
+    }
+
+    .guide-content {
+        padding:18px;
+        color:#736a78;
+        font-size:12px;
+        line-height:1.6;
+    }
+
+    .guide-content strong {
+        color:#4d4555;
+    }
+
+    @media (max-width:1000px) {
+        .sections-layout { grid-template-columns:1fr; }
+    }
+
+    @media (max-width:700px) {
+        .sections-header { display:block; }
+    }
+</style>
+
+<section class="sections-header">
+    <div>
+        <a class="back-link" href="{{ url_for('psur.psur_detail', psur_id=report.psur_id) }}">← Back to PSUR</a>
+        <h2>PSUR narrative sections</h2>
+        <p>{{ report.report_number }} · {{ report.product_name }}</p>
+    </div>
+</section>
+
+<div class="sections-layout">
+    <section class="section-card">
+        <div class="card-heading">
+            <h3>Add or update section</h3>
+            <p>Save verified report content. Saving the same section again updates it.</p>
+        </div>
+
+        <form method="post" class="section-form">
+            {{ form.hidden_tag() }}
+
+            <div class="field">
+                <label>{{ form.section_key.label.text }}</label>
+                {{ form.section_key(class_="input") }}
+            </div>
+
+            <div class="field">
+                <label>{{ form.content.label.text }}</label>
+                {{ form.content(class_="input", placeholder="Enter the verified PSUR narrative for this section.") }}
+                {% for error in form.content.errors %}
+                    <p style="color:#d85c54; font-size:12px;">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            {{ form.submit(class_="save-button") }}
+        </form>
+    </section>
+
+    <aside>
+        <section class="section-card">
+            <div class="card-heading">
+                <h3>Saved sections</h3>
+                <p>{{ sections|length }} section(s) recorded</p>
+            </div>
+
+            {% if sections %}
+                {% for section in sections %}
+                    <div class="saved-section">
+                        <h4>{{ section.section_title }}</h4>
+                        <p>{{ section.content }}</p>
+                        <time>Updated {{ section.updated_at.strftime("%d %b %Y %H:%M") }}</time>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="saved-section">
+                    <p>No PSUR narrative sections have been recorded.</p>
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="guide" style="margin-top:18px;">
+            <div class="guide-heading">Content control</div>
+            <div class="guide-content">
+                <strong>Use approved information only.</strong><br>
+                Enter the verified safety data, assessments and decisions for the reporting interval.
+            </div>
+        </section>
+    </aside>
+</div>
+{% endblock %}

@@ -317,6 +317,9 @@
         <div class="record-card">
     <strong>PSUR document</strong><br>
     Download a Word report using the approved APDL PSUR template.
+<a href="{{ url_for('psur_sections.manage_psur_sections', psur_id=report.psur_id) }}" style="display:block; margin-top:12px; padding:10px; border:1px solid #7656e8; border-radius:8px; color:#6242d7; font-weight:bold; text-align:center; text-decoration:none;">
+    Manage PSUR narrative sections
+</a>
     <a href="{{ url_for('psur_reports.download_psur_report', psur_id=report.psur_id) }}" style="display:block; margin-top:12px; padding:10px; border-radius:8px; background:#7656e8; color:white; font-weight:bold; text-align:center; text-decoration:none;">
         Download PSUR Word report
     </a>

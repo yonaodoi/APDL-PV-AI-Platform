@@ -3,7 +3,32 @@ from pathlib import Path
 import re
 
 from docx import Document
+from docx.oxml import OxmlElement
+from docx.text.paragraph import Paragraph
 from flask import current_app
+
+from app.db import query_all
+
+
+SECTION_HEADINGS = {
+    "executive_summary": "Executive summary",
+    "introduction": "Introduction",
+    "marketing_authorisation_status": (
+        "3.0 Worldwide marketing authorisation status"
+    ),
+    "safety_actions": (
+        "4.0 Action taken in the reporting interval for safety reasons"
+    ),
+    "reference_safety_information": (
+        "5.0 Changes to reference safety information"
+    ),
+    "exposure": "6.0 Estimated Exposure and Use Patterns",
+    "signals": "17. Signal and risk evaluation",
+    "benefit_risk": (
+        "19. Integrated benefit-risk analysis for authorised indications"
+    ),
+    "conclusion": "20.0 Conclusion and actions",
+}
 
 
 def _text(value, fallback="Not recorded"):
@@ -47,6 +72,19 @@ def _replace_paragraph_start(paragraph, label, value):
         return True
 
     return False
+
+
+def _insert_paragraph_after(paragraph, text):
+    new_paragraph_xml = OxmlElement("w:p")
+    paragraph._p.addnext(new_paragraph_xml)
+
+    new_paragraph = Paragraph(
+        new_paragraph_xml,
+        paragraph._parent,
+    )
+    new_paragraph.add_run(text)
+
+    return new_paragraph
 
 
 def _safe_filename(value):
@@ -117,6 +155,7 @@ def generate_psur_report(report):
             "Mechanism of action:",
             _text(report["mechanism_of_action"]),
         )
+
     if len(document.tables) >= 1:
         authorisation_table = document.tables[0]
 
@@ -151,6 +190,7 @@ def generate_psur_report(report):
 
     if len(document.tables) >= 3:
         serial_table = document.tables[2]
+
         if len(serial_table.rows) > 1:
             serial_table.cell(1, 0).text = _text(
                 report["serial_number"],
@@ -171,7 +211,33 @@ def generate_psur_report(report):
                     report["active_substances"]
                 )
                 country_table.cell(index, 1).text = country.strip()
-                country_table.cell(index, 2).text = "Not recorded"
+                country_table.cell(index, 2).text = _date(
+                    report["marketing_authorisation_date"]
+                )
+
+    saved_sections = query_all(
+        """
+        SELECT section_key, content
+        FROM pv.psur_section_entries
+        WHERE psur_id = %s
+        """,
+        (report["psur_id"],),
+    )
+
+    content_by_key = {
+        section["section_key"]: section["content"]
+        for section in saved_sections
+    }
+
+    for paragraph in list(document.paragraphs):
+        heading = paragraph.text.strip()
+
+        for section_key, template_heading in SECTION_HEADINGS.items():
+            content = content_by_key.get(section_key)
+
+            if content and heading == template_heading:
+                _insert_paragraph_after(paragraph, content)
+                break
 
     output_folder = (
         Path(current_app.config["UPLOAD_ROOT"]).resolve()

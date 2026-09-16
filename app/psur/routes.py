@@ -84,8 +84,11 @@ def create_psur():
                     created_by
                 )
                 VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s
                 )
                 """,
                 (
@@ -93,7 +96,6 @@ def create_psur():
                     form.serial_number.data.strip() or None,
                     form.product_name.data.strip(),
                     form.active_substances.data.strip() or None,
-                    form.atc_codes.data.strip() or None,
                     form.atc_codes.data.strip() or None,
                     form.marketing_authorisation_number.data.strip() or None,
                     form.marketing_authorisation_date.data,

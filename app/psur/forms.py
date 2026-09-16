@@ -139,3 +139,25 @@ class PsurReviewForm(FlaskForm):
         validators=[Optional(), Length(max=5000)],
     )
     submit = SubmitField("Save PSUR update")
+
+class PsurSectionForm(FlaskForm):
+    section_key = SelectField(
+        "PSUR section",
+        choices=[
+            ("executive_summary", "Executive summary"),
+            ("introduction", "Introduction"),
+            ("marketing_authorisation_status", "Worldwide marketing authorisation status"),
+            ("safety_actions", "Actions taken for safety reasons"),
+            ("reference_safety_information", "Changes to reference safety information"),
+            ("exposure", "Estimated exposure and use patterns"),
+            ("signals", "Signal and risk evaluation"),
+            ("benefit_risk", "Integrated benefit-risk analysis"),
+            ("conclusion", "Conclusion and actions"),
+        ],
+        validators=[DataRequired()],
+    )
+    content = TextAreaField(
+        "Section content",
+        validators=[DataRequired(), Length(max=15000)],
+    )
+    submit = SubmitField("Save PSUR section")

@@ -29,6 +29,7 @@ def create_app(config_class=Config):
     from .signals.routes import bp as signals_blueprint
     from .psur.routes import bp as psur_blueprint
     from .psur.report_routes import bp as psur_reports_blueprint
+    from .psur.section_routes import bp as psur_sections_blueprint
     from .core.routes import bp as core_blueprint
 
     app.register_blueprint(auth_blueprint)
@@ -39,6 +40,7 @@ def create_app(config_class=Config):
     app.register_blueprint(signals_blueprint)
     app.register_blueprint(psur_blueprint)
     app.register_blueprint(psur_reports_blueprint)
+    app.register_blueprint(psur_sections_blueprint)
     app.register_blueprint(core_blueprint)
 
     @app.before_request
