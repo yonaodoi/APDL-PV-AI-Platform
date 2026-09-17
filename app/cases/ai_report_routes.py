@@ -177,7 +177,7 @@ def generate_ai_case_assessment(case_id):
 
     online_reference = {}
 
-    if not innovator_document and product:
+    if False:
         product_for_lookup = (
             product.get("generic_name")
             or product.get("product_name")
@@ -203,14 +203,10 @@ def generate_ai_case_assessment(case_id):
         report_text = generate_case_assessment(
             case=dict(case),
             product=dict(product or {}),
-            apdl_product_information=document_with_reactions(
-                apdl_document
-            ),
-            innovator_rsi=(
-                document_with_reactions(innovator_document)
-                if innovator_document
-                else online_reference
-            ),            safety_assessment=dict(safety_assessment or {}),
+
+            apdl_product_information={},
+            innovator_rsi={},
+            safety_assessment=dict(safety_assessment or {}),
         )
     except Exception:
         flash(
@@ -224,10 +220,6 @@ def generate_ai_case_assessment(case_id):
                 case_id=case_id,
             )
         )
-    report_text = request.form.get(
-        "report_text",
-        "",
-    ).replace("*", "").strip()
 
     with transaction() as cursor:
         cursor.execute(
@@ -407,79 +399,6 @@ def preview_ai_case_assessment(case_id):
         report=report,
     )
 
-@bp.post("/cases/<int:case_id>/ai-assessment/signatories")
-@login_required
-def save_ai_case_assessment_signatories(case_id):
-    report = query_one(
-        """
-        SELECT ai_report_id
-        FROM pv.case_ai_assessment_reports
-        WHERE case_id = %s
-        ORDER BY created_at DESC
-        LIMIT 1
-        """,
-        (case_id,),
-    )
-
-    if not report:
-        abort(404)
-
-    report_text = request.form.get(
-        "report_text",
-        "",
-    ).replace("*", "").strip()
-
-    fields = (request.form.get("prepared_by_name", "").strip() or None,
-        request.form.get(
-            "prepared_by_designation",
-            "",
-        ).strip() or None,
-        request.form.get("reviewed_by_name", "").strip() or None,
-        request.form.get(
-            "reviewed_by_designation",
-            "",
-        ).strip() or None,
-        request.form.get("authorised_by_name", "").strip() or None,
-        request.form.get(
-            "authorised_by_designation",
-            "",
-        ).strip() or None,
-    )
-
-    with transaction() as cursor:
-        cursor.execute(
-            """
-            UPDATE pv.case_ai_assessment_reports
-            SET
-                report_text = %s,
-                prepared_by_name = %s,
-                prepared_by_designation = %s,
-                reviewed_by_name = %s,
-                reviewed_by_designation = %s,
-                authorised_by_name = %s,
-                authorised_by_designation = %s,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE ai_report_id = %s
-            """,
-            (report_text, *fields, report["ai_report_id"]),
-        )
-
-    write_audit_log(
-        "case",
-        case_id,
-        "AI case assessment report signatories updated",
-        session["user_id"],
-        "Signatory names or designations were amended.",
-    )
-
-    flash("AI report signatories saved.", "success")
-    return redirect(
-        url_for(
-            "case_ai_reports.preview_ai_case_assessment",
-            case_id=case_id,
-        )
-    )
-
 @bp.post("/cases/<int:case_id>/ai-assessment/approve")
 @roles_required("QPPV", "System Administrator")
 def approve_ai_case_assessment(case_id):
@@ -514,12 +433,83 @@ def approve_ai_case_assessment(case_id):
     write_audit_log(
         "case",
         case_id,
-        "AI case assessment report approved",
+        "AI case assessment approved",
         session["user_id"],
-        "Report marked as approved for controlled use.",
+        "QPPV or System Administrator approval recorded.",
     )
 
-    flash("AI case assessment report approved.", "success")
+    flash("AI case assessment approved successfully.", "success")
+    return redirect(
+        url_for(
+            "case_ai_reports.preview_ai_case_assessment",
+            case_id=case_id,
+        )
+    )
+
+@bp.post("/cases/<int:case_id>/ai-assessment/signatories")
+@login_required
+def save_ai_case_assessment_signatories(case_id):
+    report = query_one(
+        """
+        SELECT ai_report_id, report_text
+        FROM pv.case_ai_assessment_reports
+        WHERE case_id = %s
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        (case_id,),
+    )
+
+    if not report:
+        abort(404)
+
+    report_text = request.form.get("report_text", "").replace("*", "").strip()
+
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.case_ai_assessment_reports
+            SET
+                report_text = %s,
+                prepared_by_name = %s,
+                prepared_by_designation = %s,
+                reviewed_by_name = %s,
+                reviewed_by_designation = %s,
+                authorised_by_name = %s,
+                authorised_by_designation = %s,
+                generation_status = 'Generated',
+                approved_by = NULL,
+                approved_at = NULL,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE ai_report_id = %s
+            """,
+            (
+                report_text or report["report_text"],
+                request.form.get("prepared_by_name", "").strip() or None,
+                request.form.get(
+                    "prepared_by_designation", ""
+                ).strip() or None,
+                request.form.get("reviewed_by_name", "").strip() or None,
+                request.form.get(
+                    "reviewed_by_designation", ""
+                ).strip() or None,
+                request.form.get("authorised_by_name", "").strip() or None,
+                request.form.get(
+                    "authorised_by_designation", ""
+                ).strip() or None,
+                report["ai_report_id"],
+            ),
+        )
+
+    write_audit_log(
+        "case",
+        case_id,
+        "AI case assessment and signatories saved",
+        session["user_id"],
+        "Report text or signatory details updated; approval reset.",
+    )
+
+    flash("AI assessment report and signatories saved.", "success")
     return redirect(
         url_for(
             "case_ai_reports.preview_ai_case_assessment",

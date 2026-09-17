@@ -5,6 +5,9 @@ from uuid import uuid4
 from docx import Document
 from pypdf import PdfReader
 from app.services.rsi_lookup import automatic_dailymed_assessment
+from app.services.ai_case_assessment import (
+    generate_rsi_assessment_explanation,
+)
 
 from flask import (
     Blueprint,
@@ -105,6 +108,23 @@ def create_rsi():
 
             content_type = source_file.content_type
             file_size_bytes = output_path.stat().st_size
+    try:
+        assessment_rationale = generate_rsi_assessment_explanation(
+            event_term=case["event_description"],
+            listedness=result["listedness_status"],
+            expectedness=result["expectedness_status"],
+            frequency=result.get("frequency_assessment", "Not stated"),
+            evidence=result["evidence"],
+        )
+    except Exception:
+        assessment_rationale = (
+            "Automated reference-information assessment: "
+            f"the reported event was assessed as "
+            f"{result['listedness_status']} and "
+            f"{result['expectedness_status']}. "
+            f"Frequency: {result.get('frequency_assessment', 'Not stated')}. "
+            "QPPV or medical reviewer confirmation is required."
+        )
 
         with transaction() as cursor:
             cursor.execute(
@@ -754,6 +774,24 @@ def automatic_case_assessment(case_id):
         else "Non-serious"
     )
 
+
+    try:
+        assessment_rationale = generate_rsi_assessment_explanation(
+            event_term=case["event_description"],
+            listedness=result["listedness_status"],
+            expectedness=result["expectedness_status"],
+            frequency=result.get("frequency_assessment", "Not stated"),
+            evidence=result["evidence"],
+        )
+    except Exception:
+        assessment_rationale = (
+            "Automated reference-information assessment: "
+            f"the reported event was assessed as "
+            f"{result['listedness_status']} and "
+            f"{result['expectedness_status']}. "
+            f"Frequency: {result.get('frequency_assessment', 'Not stated')}. "
+            "QPPV or medical reviewer confirmation is required."
+        )
     with transaction() as cursor:
         cursor.execute(
             """
@@ -804,10 +842,7 @@ def automatic_case_assessment(case_id):
                     "frequency_evidence",
                     "Frequency was not stated in the source label.",
                 ),
-                (
-                    "Automatically assessed against "
-                    f"{result['source']}: {result['title']}"
-                ),
+               assessment_rationale,
                 session["user_id"],
             ),
         )
