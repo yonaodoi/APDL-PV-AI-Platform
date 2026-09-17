@@ -4,14 +4,20 @@ from flask import (
     flash,
     redirect,
     render_template,
+    request,
     session,
+    send_file,
     url_for,
 )
 
 from app.audit import write_audit_log
 from app.db import query_all, query_one, transaction
-from app.security import login_required
+from app.security import login_required, roles_required
 from app.services.ai_case_assessment import generate_case_assessment
+from app.services.rsi_lookup import automatic_dailymed_assessment
+from app.services.ai_case_assessment_docx import (
+    build_ai_case_assessment_docx,
+)
 
 
 bp = Blueprint("case_ai_reports", __name__)
@@ -169,18 +175,29 @@ def generate_ai_case_assessment(case_id):
         rsi_documents_for_product(product)
     )
 
-    if not documents:
-        flash(
-            "Upload APDL Product Information and innovator RSI for this "
-            "product before generating the AI assessment report.",
-            "error",
+    online_reference = {}
+
+    if not innovator_document and product:
+        product_for_lookup = (
+            product.get("generic_name")
+            or product.get("product_name")
+            or ""
         )
-        return redirect(
-            url_for(
-                "case_ai_reports.view_ai_case_assessment",
-                case_id=case_id,
-            )
-        )
+
+        if product_for_lookup:
+            try:
+                online_reference = automatic_dailymed_assessment(
+                    product_for_lookup,
+                    case["event_description"],
+                )
+            except Exception:
+                online_reference = {
+                    "source": "No online official label retrieved",
+                    "evidence": (
+                        "No suitable official online label could be "
+                        "retrieved for this product."
+                    ),
+                }
 
     try:
         report_text = generate_case_assessment(
@@ -189,10 +206,11 @@ def generate_ai_case_assessment(case_id):
             apdl_product_information=document_with_reactions(
                 apdl_document
             ),
-            innovator_rsi=document_with_reactions(
-                innovator_document
-            ),
-            safety_assessment=dict(safety_assessment or {}),
+            innovator_rsi=(
+                document_with_reactions(innovator_document)
+                if innovator_document
+                else online_reference
+            ),            safety_assessment=dict(safety_assessment or {}),
         )
     except Exception:
         flash(
@@ -206,6 +224,10 @@ def generate_ai_case_assessment(case_id):
                 case_id=case_id,
             )
         )
+    report_text = request.form.get(
+        "report_text",
+        "",
+    ).replace("*", "").strip()
 
     with transaction() as cursor:
         cursor.execute(
@@ -245,6 +267,262 @@ def generate_ai_case_assessment(case_id):
     return redirect(
         url_for(
             "case_ai_reports.view_ai_case_assessment",
+            case_id=case_id,
+        )
+    )
+
+@bp.post("/cases/<int:case_id>/ai-assessment/edit")
+@login_required
+def save_ai_case_assessment(case_id):
+    report = query_one(
+        """
+        SELECT ai_report_id
+        FROM pv.case_ai_assessment_reports
+        WHERE case_id = %s
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        (case_id,),
+    )
+
+    if not report:
+        abort(404)
+
+    report_text = request.form.get("report_text", "").strip()
+
+    if not report_text:
+        flash("The assessment report cannot be empty.", "error")
+        return redirect(
+            url_for(
+                "case_ai_reports.view_ai_case_assessment",
+                case_id=case_id,
+            )
+        )
+
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.case_ai_assessment_reports
+            SET
+                report_text = %s,
+                generation_status = 'Generated',
+                approved_by = NULL,
+                approved_at = NULL,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE ai_report_id = %s
+            """,
+            (report_text, report["ai_report_id"]),
+        )
+
+    write_audit_log(
+        "case",
+        case_id,
+        "AI case assessment report edited",
+        session["user_id"],
+        "Manual amendment saved; QPPV approval reset.",
+    )
+
+    flash("AI case assessment report changes saved.", "success")
+    return redirect(
+        url_for(
+            "case_ai_reports.view_ai_case_assessment",
+            case_id=case_id,
+        )
+    )
+
+@bp.get("/cases/<int:case_id>/ai-assessment/download")
+@login_required
+def download_ai_case_assessment(case_id):
+    case, product, _ = get_case_context(case_id)
+
+    report = query_one(
+        """
+        SELECT
+            r.*,
+            u.full_name AS generated_by_name
+        FROM pv.case_ai_assessment_reports AS r
+        LEFT JOIN pv.users AS u ON u.user_id = r.generated_by
+        WHERE r.case_id = %s
+        ORDER BY r.created_at DESC
+        LIMIT 1
+        """,
+        (case_id,),
+    )
+
+    if not report:
+        abort(404)
+
+    output = build_ai_case_assessment_docx(
+        dict(case),
+        dict(product or {}),
+        dict(report),
+    )
+
+    write_audit_log(
+        "case",
+        case_id,
+        "AI case assessment report downloaded",
+        session["user_id"],
+        "APDL-formatted Word report generated for download.",
+    )
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=(
+            f"AI_CASE_ASSESSMENT_{case['case_number']}.docx"
+        ),
+        mimetype=(
+            "application/vnd.openxmlformats-officedocument."
+            "wordprocessingml.document"
+        ),
+    )
+
+@bp.get("/cases/<int:case_id>/ai-assessment/preview")
+@login_required
+def preview_ai_case_assessment(case_id):
+    case, product, _ = get_case_context(case_id)
+
+    report = query_one(
+        """
+        SELECT
+            r.*,
+            u.full_name AS generated_by_name
+        FROM pv.case_ai_assessment_reports AS r
+        LEFT JOIN pv.users AS u ON u.user_id = r.generated_by
+        WHERE r.case_id = %s
+        ORDER BY r.created_at DESC
+        LIMIT 1
+        """,
+        (case_id,),
+    )
+
+    if not report:
+        abort(404)
+
+    return render_template(
+        "cases/ai_case_assessment_preview.html",
+        case=case,
+        product=product,
+        report=report,
+    )
+
+@bp.post("/cases/<int:case_id>/ai-assessment/signatories")
+@login_required
+def save_ai_case_assessment_signatories(case_id):
+    report = query_one(
+        """
+        SELECT ai_report_id
+        FROM pv.case_ai_assessment_reports
+        WHERE case_id = %s
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        (case_id,),
+    )
+
+    if not report:
+        abort(404)
+
+    report_text = request.form.get(
+        "report_text",
+        "",
+    ).replace("*", "").strip()
+
+    fields = (request.form.get("prepared_by_name", "").strip() or None,
+        request.form.get(
+            "prepared_by_designation",
+            "",
+        ).strip() or None,
+        request.form.get("reviewed_by_name", "").strip() or None,
+        request.form.get(
+            "reviewed_by_designation",
+            "",
+        ).strip() or None,
+        request.form.get("authorised_by_name", "").strip() or None,
+        request.form.get(
+            "authorised_by_designation",
+            "",
+        ).strip() or None,
+    )
+
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.case_ai_assessment_reports
+            SET
+                report_text = %s,
+                prepared_by_name = %s,
+                prepared_by_designation = %s,
+                reviewed_by_name = %s,
+                reviewed_by_designation = %s,
+                authorised_by_name = %s,
+                authorised_by_designation = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE ai_report_id = %s
+            """,
+            (report_text, *fields, report["ai_report_id"]),
+        )
+
+    write_audit_log(
+        "case",
+        case_id,
+        "AI case assessment report signatories updated",
+        session["user_id"],
+        "Signatory names or designations were amended.",
+    )
+
+    flash("AI report signatories saved.", "success")
+    return redirect(
+        url_for(
+            "case_ai_reports.preview_ai_case_assessment",
+            case_id=case_id,
+        )
+    )
+
+@bp.post("/cases/<int:case_id>/ai-assessment/approve")
+@roles_required("QPPV", "System Administrator")
+def approve_ai_case_assessment(case_id):
+    report = query_one(
+        """
+        SELECT ai_report_id
+        FROM pv.case_ai_assessment_reports
+        WHERE case_id = %s
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        (case_id,),
+    )
+
+    if not report:
+        abort(404)
+
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.case_ai_assessment_reports
+            SET
+                generation_status = 'Approved',
+                approved_by = %s,
+                approved_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE ai_report_id = %s
+            """,
+            (session["user_id"], report["ai_report_id"]),
+        )
+
+    write_audit_log(
+        "case",
+        case_id,
+        "AI case assessment report approved",
+        session["user_id"],
+        "Report marked as approved for controlled use.",
+    )
+
+    flash("AI case assessment report approved.", "success")
+    return redirect(
+        url_for(
+            "case_ai_reports.preview_ai_case_assessment",
             case_id=case_id,
         )
     )

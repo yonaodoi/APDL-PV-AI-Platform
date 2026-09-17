@@ -40,8 +40,11 @@ def generate_case_assessment(
 You are assisting a qualified pharmacovigilance team with a draft
 individual case safety report assessment.
 
-Use only the supplied case data and reference-document excerpts.
-Do not invent facts, dates, clinical findings, label information,
+Use the supplied case data as the primary source. Use uploaded or
+online reference information only when it is provided. Do not ask the
+user to upload documents. If reference information is unavailable,
+state that listedness, expectedness or frequency cannot be assessed
+from the available information.Do not invent facts, dates, clinical findings, label information,
 regulatory deadlines, or causality evidence.
 
 Prepare a professional pharmacovigilance case assessment report in
@@ -65,6 +68,12 @@ Rules:
 - Do not state that the product caused the event unless the supplied
   data supports that conclusion.
 - Do not replace the accountable QPPV or medical reviewer.
+- Apply standard pharmacovigilance principles: assess minimum case
+  validity, seriousness criteria, temporal relationship, dechallenge
+  and rechallenge where available, alternative causes, concomitant
+  medicines, listedness, expectedness, frequency and follow-up needs.
+- Do not invent a reporting deadline. State only whether regulatory
+  assessment is recommended based on the available case information.
 - End with this exact statement:
   "AI-generated draft — QPPV/medical reviewer approval required."
 
@@ -93,4 +102,4 @@ Supplied case and reference data:
             "The local AI model returned an empty assessment report."
         )
 
-    return report
+    return report.replace("*", "")

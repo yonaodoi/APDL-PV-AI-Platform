@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}AI Assessment Preview | APDL PV{% endblock %}
+{% block page_title %}AI Assessment Preview{% endblock %}
+
+{% block content %}
+<style>
+  .preview-actions {
+    display:flex;
+    justify-content:space-between;
+    gap:14px;
+    align-items:center;
+    margin-bottom:20px;
+  }
+  .back-link {
+    color:#6242d7;
+    font-size:13px;
+    font-weight:bold;
+    text-decoration:none;
+  }
+  .download-link {
+    padding:11px 15px;
+    border-radius:8px;
+    background:#7656e8;
+    color:white;
+    font-size:13px;
+    font-weight:bold;
+    text-decoration:none;
+  }
+  .report-sheet {
+    max-width:900px;
+    margin:0 auto;
+    padding:42px 50px 50px;
+    border:1px solid #ded8de;
+    background:white;
+    box-shadow:0 5px 16px rgba(40,32,55,.06);
+  }
+  .company-name {
+    margin:0;
+    color:#666;
+    font-size:21px;
+    font-weight:bold;
+    text-align:center;
+  }
+  .department {
+    margin:3px 0 18px;
+    color:#777;
+    font-size:14px;
+    text-align:center;
+  }
+  .control-table,
+  .case-table,
+  .signatory-table {
+    width:100%;
+    border-collapse:collapse;
+    margin-bottom:22px;
+  }
+  .control-table th,
+  .control-table td,
+  .case-table th,
+  .case-table td,
+  .signatory-table th,
+  .signatory-table td {
+    padding:9px 10px;
+    border:1px solid #bbb;
+    font-size:12px;
+    text-align:left;
+    vertical-align:top;
+  }
+  .control-table th,
+  .case-table th {
+    width:29%;
+    background:#eee9ff;
+    color:#5f3ed4;
+    font-size:10px;
+    letter-spacing:.5px;
+  }
+  .document-title {
+    margin:25px 0 22px;
+    color:#282037;
+    font-size:21px;
+    text-align:center;
+  }
+  .report-section {
+    margin:0 0 15px;
+    color:#302a36;
+    font-size:14px;
+    line-height:1.65;
+  }
+  .report-section.heading {
+    margin-top:22px;
+    margin-bottom:7px;
+    color:#3f2a69;
+    font-size:15px;
+    font-weight:bold;
+  }
+   .signatory-table {
+    margin-top:34px;
+    table-layout:fixed;
+  }
+  .signatory-table th:nth-child(1) { width:15%; }
+  .signatory-table th:nth-child(2) { width:18%; }
+  .signatory-table th:nth-child(3) { width:31%; }
+  .signatory-table th:nth-child(4) { width:18%; }
+  .signatory-table th:nth-child(5) { width:18%; }
+  .signatory-table th {
+    padding:10px;
+    background:#5f3ed4;
+    color:white;
+    font-size:11px;
+  }
+  .signatory-table td {
+    height:40px;
+  }
+  .draft-note {
+    margin-top:25px;
+    color:#666;
+    font-size:11px;
+    font-style:italic;
+    text-align:center;
+  }
+  @media print {
+    .sidebar, .topbar, .preview-actions { display:none !important; }
+    .content { padding:0 !important; }
+    .report-sheet { border:0; box-shadow:none; }
+  }
+</style>
+
+<div class="preview-actions">
+  <a class="back-link" href="{{ url_for('case_ai_reports.view_ai_case_assessment', case_id=case.case_id) }}">← Back to editable report</a>
+  <a class="download-link" href="{{ url_for('case_ai_reports.download_ai_case_assessment', case_id=case.case_id) }}">Download Word report</a>
+
+  {% if session.get("role") in ("QPPV", "System Administrator") and report.generation_status != "Approved" %}
+    <form method="post" action="{{ url_for('case_ai_reports.approve_ai_case_assessment', case_id=case.case_id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="download-link" style="border:0; cursor:pointer; background:#4f9b6e;">Approve report</button>
+    </form>
+  {% endif %}
+</div>
+<article class="report-sheet">
+  <p class="company-name">ABACUS PARENTERAL DRUGS LIMITED</p>
+  <p class="department">REGULATORY AFFAIRS DEPARTMENT</p>
+
+  <table class="control-table">
+    <tr><th>TITLE</th><td>AI CASE ASSESSMENT REPORT</td></tr>
+    <tr><th>DOCUMENT NO.</th><td>AI-CA/{{ case.case_number }}</td></tr>
+    <tr><th>REVISION STATUS</th><td>00</td></tr>
+    <tr><th>REPORT STATUS</th><td>{{ report.generation_status }}</td></tr>
+  </table>
+
+  <h1 class="document-title">AI CASE ASSESSMENT REPORT</h1>
+
+  <table class="case-table">
+    <tr><th>CASE NUMBER</th><td>{{ case.case_number }}</td></tr>
+    <tr><th>PRODUCT</th><td>{{ product.product_name if product else "Not recorded" }}</td></tr>
+    <tr><th>EVENT</th><td>{{ case.event_description }}</td></tr>
+    <tr><th>GENERATED</th><td>{{ report.created_at.strftime("%d %B %Y %H:%M") }}</td></tr>
+  </table>
+
+  <div id="report-body" contenteditable="true" style="padding:12px; border:1px dashed #cbbbea; border-radius:8px;">
+  {% for line in report.report_text.replace("*", "").splitlines() %}    {% set number = line.split(".", 1)[0] %}
+    {% if line.strip() %}
+      {% if number.isdigit() %}
+        <p class="report-section heading">{{ line }}</p>
+      {% else %}
+        <p class="report-section">{{ line }}</p>
+      {% endif %}
+    {% endif %}
+   {% endfor %}
+  </div>
+
+<form method="post" action="{{ url_for('case_ai_reports.save_ai_case_assessment_signatories', case_id=case.case_id) }}" onsubmit="document.getElementById('report_text_input').value = document.getElementById('report-body').innerText;">
+  <input type="hidden" name="report_text" id="report_text_input">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  
+<table class="signatory-table">
+    <thead>
+      <tr>
+        <th>Signatory</th>
+        <th>Name</th>
+        <th>Designation</th>
+        <th>Signature</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Prepared by</td>
+        <td><input name="prepared_by_name" value="{{ report.prepared_by_name or 'AMEKO CHARLES' }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
+        <td><input name="prepared_by_designation" value="{{ report.prepared_by_designation or 'DEPUTY Q.P.P.V.' }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>Reviewed by</td>
+        <td><input name="reviewed_by_name" value="{{ report.reviewed_by_name or 'YONA ODOI' }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
+        <td><input name="reviewed_by_designation" value="{{ report.reviewed_by_designation or 'Q.P.P.V.' }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>Authorised by</td>
+        <td><input name="authorised_by_name" value="{{ report.authorised_by_name or 'KEITH ARUHO' }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
+        <td><input name="authorised_by_designation" value="{{ report.authorised_by_designation or 'GROUP HEAD, RA & QUALITY' }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
+        <td></td>
+        <td></td>
+      </tr>
+    </tbody>  </table>
+
+
+  <button type="submit" class="download-link" style="border:0; cursor:pointer;">
+    Save signatory changes
+  </button>
+</form>
+
+  <p class="draft-note">AI-generated draft. QPPV or medical reviewer approval is required before final use.</p>
+</article>
+{% endblock %}
