@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block title %}Regulatory Reporting | APDL PV{% endblock %}
+{% block page_title %}Regulatory Reporting{% endblock %}
+
+{% block content %}
+<style>
+  .reporting-header {
+    display:flex;
+    justify-content:space-between;
+    gap:20px;
+    align-items:flex-end;
+    margin-bottom:22px;
+  }
+  .eyebrow {
+    margin:0 0 8px;
+    color:#7656e8;
+    font-size:11px;
+    font-weight:bold;
+    letter-spacing:.8px;
+  }
+  .reporting-header h2 {
+    margin:0 0 8px;
+    color:#282037;
+    font-size:28px;
+  }
+  .reporting-header p {
+    margin:0;
+    color:#746d7d;
+    font-size:14px;
+  }
+  .filter-card, .table-card {
+    margin-bottom:20px;
+    padding:20px;
+    border:1px solid #e9e2e7;
+    border-radius:14px;
+    background:white;
+    box-shadow:0 5px 12px rgba(40,32,55,.025);
+  }
+  .filter-grid {
+    display:grid;
+    grid-template-columns:2fr 1fr 1fr auto;
+    gap:13px;
+    align-items:end;
+  }
+  .field label {
+    display:block;
+    margin-bottom:7px;
+    color:#655c6a;
+    font-size:11px;
+    font-weight:bold;
+    letter-spacing:.4px;
+    text-transform:uppercase;
+  }
+  .input {
+    width:100%;
+    padding:10px 11px;
+    border:1px solid #ddd5dc;
+    border-radius:8px;
+    background:#fffeff;
+    color:#322a3b;
+    font:inherit;
+    font-size:13px;
+  }
+  .input:focus {
+    outline:none;
+    border-color:#9f88ed;
+    box-shadow:0 0 0 3px #eee9ff;
+  }
+  .button {
+    padding:11px 16px;
+    border:0;
+    border-radius:8px;
+    background:#7656e8;
+    color:white;
+    font-size:13px;
+    font-weight:bold;
+    cursor:pointer;
+  }
+  .filter-note {
+    margin:13px 0 0;
+    color:#827988;
+    font-size:12px;
+  }
+  .metric-grid {
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0, 1fr));
+    gap:14px;
+    margin-bottom:20px;
+  }
+  .metric-card {
+    min-height:112px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding:18px;
+    border:1px solid #e9e2e7;
+    border-radius:13px;
+    background:white;
+    text-align:center;
+    box-shadow:0 5px 12px rgba(40,32,55,.025);
+  }
+  .metric-value {
+    color:#5f3ed4;
+    font-size:30px;
+    font-weight:bold;
+  }
+  .metric-label {
+    margin-top:7px;
+    color:#746d7d;
+    font-size:12px;
+    font-weight:bold;
+  }
+  .section-heading {
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    align-items:center;
+    margin-bottom:15px;
+  }
+  .section-heading h3 {
+    margin:0;
+    color:#403748;
+    font-size:16px;
+  }
+  .section-heading span {
+    color:#8a818f;
+    font-size:12px;
+  }
+  .summary-table, .records-table {
+    width:100%;
+    border-collapse:collapse;
+  }
+  .summary-table th, .records-table th {
+    padding:11px 10px;
+    color:#918896;
+    background:#fffdfe;
+    font-size:10px;
+    letter-spacing:.5px;
+    text-align:left;
+    text-transform:uppercase;
+  }
+  .summary-table td, .records-table td {
+    padding:12px 10px;
+    border-top:1px solid #f0ebee;
+    color:#5c5365;
+    font-size:13px;
+    vertical-align:top;
+  }
+  .product-cell {
+    color:#49366d;
+    font-weight:bold;
+  }
+  .status-pill, .priority-pill {
+    display:inline-block;
+    padding:5px 8px;
+    border-radius:16px;
+    background:#eee9ff;
+    color:#6242d7;
+    font-size:11px;
+    font-weight:bold;
+  }
+  .priority-pill {
+    background:#ffe9e6;
+    color:#cc5149;
+  }
+  .trend-list {
+    display:grid;
+    gap:11px;
+  }
+  .trend-row {
+    display:grid;
+    grid-template-columns:100px 1fr 42px;
+    gap:12px;
+    align-items:center;
+    color:#5c5365;
+    font-size:13px;
+  }
+  .trend-bar {
+    overflow:hidden;
+    height:10px;
+    border-radius:20px;
+    background:#eee8f5;
+  }
+  .trend-fill {
+    height:100%;
+    border-radius:20px;
+    background:#7656e8;
+  }
+  .empty-state {
+    padding:35px 20px;
+    color:#827988;
+    text-align:center;
+  }
+  @media (max-width:850px) {
+    .filter-grid, .metric-grid { grid-template-columns:1fr 1fr; }
+  }
+  @media (max-width:620px) {
+    .reporting-header { display:block; }
+    .filter-grid, .metric-grid { grid-template-columns:1fr; }
+    .table-card { overflow-x:auto; }
+  }
+</style>
+
+<section class="reporting-header">
+  <div>
+    <p class="eyebrow">REGULATORY INTELLIGENCE</p>
+    <h2>Product reporting analytics</h2>
+    <p>Analyse safety cases, complaints, signals and PSURs by product and reporting period.</p>
+  </div>
+</section>
+<a href="{{ url_for('core.regulatory_reporting', product=selected_product, start_date=start_date.isoformat(), end_date=end_date.isoformat(), download='word') }}" style="display:inline-block; margin:0 10px 20px 0; padding:11px 15px; border-radius:8px; background:#5f3ed4; color:white; font-size:13px; font-weight:bold; text-decoration:none;">Download management report (Word)</a>
+<a href="{{ url_for('core.download_regulatory_reporting_csv', product=selected_product, start_date=start_date.isoformat(), end_date=end_date.isoformat()) }}" style="display:inline-block; margin:0 0 20px; padding:11px 15px; border-radius:8px; background:#7656e8; color:white; font-size:13px; font-weight:bold; text-decoration:none;">Download filtered data (CSV)</a>
+<section class="filter-card">
+  <form method="get" class="filter-grid">
+    <div class="field">
+      <label for="product">Product</label>
+      <select class="input" id="product" name="product">
+        <option value="">All products</option>
+        {% for product in products %}
+          <option value="{{ product.product_name }}" {% if selected_product == product.product_name %}selected{% endif %}>
+            {{ product.product_name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="start_date">From</label>
+      <input class="input" id="start_date" name="start_date" type="date" value="{{ start_date.isoformat() }}">
+    </div>
+
+    <div class="field">
+      <label for="end_date">To</label>
+      <input class="input" id="end_date" name="end_date" type="date" value="{{ end_date.isoformat() }}">
+    </div>
+
+    <button class="button" type="submit">Apply filters</button>
+  </form>
+
+  <p class="filter-note">
+    Showing {{ start_date.strftime("%d %b %Y") }} to {{ end_date.strftime("%d %b %Y") }}
+    {% if selected_product %} · {{ selected_product }}{% else %} · All products{% endif %}
+  </p>
+</section>
+
+<section class="metric-grid">
+  <div class="metric-card">
+    <div class="metric-value">{{ metrics.total_reports }}</div>
+    <div class="metric-label">Total records</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value">{{ metrics.safety_cases }}</div>
+    <div class="metric-label">Safety cases</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value">{{ metrics.complaints }}</div>
+    <div class="metric-label">Product complaints</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value">{{ metrics.signals }}</div>
+    <div class="metric-label">Safety signals</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value">{{ metrics.psurs }}</div>
+    <div class="metric-label">PSURs</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value">{{ metrics.high_priority_reports }}</div>
+    <div class="metric-label">Serious, critical or high-priority</div>
+  </div>
+</section>
+
+<section class="table-card">
+  <div class="section-heading">
+    <h3>Monthly reporting trend</h3>
+    <span>Selected period</span>
+  </div>
+
+  {% if monthly_trend %}
+    <div class="trend-list">
+      {% for row in monthly_trend %}
+        <div class="trend-row">
+          <span>{{ row.period_label }}</span>
+          <div class="trend-bar">
+            <div class="trend-fill" style="width: {% if metrics.total_reports %}{{ (row.total_reports / metrics.total_reports * 100)|round(0) }}{% else %}0{% endif %}%;"></div>
+          </div>
+          <strong>{{ row.total_reports }}</strong>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">No reporting records were found for the selected filters.</div>
+  {% endif %}
+</section>
+
+<section class="table-card">
+  <div class="section-heading">
+    <h3>Product-wise reporting summary</h3>
+    <span>{{ product_summary|length }} product(s)</span>
+  </div>
+
+  {% if product_summary %}
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Total</th>
+          <th>Safety cases</th>
+          <th>Complaints</th>
+          <th>Signals</th>
+          <th>PSURs</th>
+          <th>Priority</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in product_summary %}
+          <tr>
+            <td class="product-cell">{{ row.product_name }}</td>
+            <td>{{ row.total_reports }}</td>
+            <td>{{ row.safety_cases }}</td>
+            <td>{{ row.complaints }}</td>
+            <td>{{ row.signals }}</td>
+            <td>{{ row.psurs }}</td>
+            <td>{% if row.high_priority_reports %}<span class="priority-pill">{{ row.high_priority_reports }}</span>{% else %}0{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty-state">No product summary is available for the selected filters.</div>
+  {% endif %}
+</section>
+
+<section class="table-card">
+  <div class="section-heading">
+    <h3>Detailed reporting register</h3>
+    <span>Latest 250 records</span>
+  </div>
+
+  {% if detailed_records %}
+    <table class="records-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Product</th>
+          <th>Record type</th>
+          <th>Reference</th>
+          <th>Status</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in detailed_records %}
+          <tr>
+            <td>{{ row.report_date.strftime("%d %b %Y") }}</td>
+            <td class="product-cell">{{ row.product_name }}</td>
+            <td>{{ row.record_type }}</td>
+            <td>{{ row.record_number }}</td>
+            <td><span class="status-pill">{{ row.status }}</span></td>
+            <td>{{ row.description }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty-state">No detailed records were found for the selected filters.</div>
+  {% endif %}
+</section>
+{% endblock %}
