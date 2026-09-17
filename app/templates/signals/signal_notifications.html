@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Signal Notifications | APDL PV{% endblock %}
+{% block page_title %}Signal Notifications{% endblock %}
+
+{% block content %}
+<style>
+    .notification-panel {
+        overflow:hidden;
+        border:1px solid #e9e2e7;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(40,32,55,.035);
+    }
+
+    .notification-header {
+        padding:18px 20px;
+        border-bottom:1px solid #eee8ec;
+    }
+
+    .notification-header h2 {
+        margin:0 0 6px;
+        color:#282037;
+        font-size:22px;
+    }
+
+    .notification-header p {
+        margin:0;
+        color:#746d7d;
+        font-size:13px;
+    }
+
+    .notification-item {
+        display:block;
+        padding:17px 20px;
+        border-top:1px solid #f0ebee;
+        color:inherit;
+        text-decoration:none;
+    }
+
+    .notification-item:first-of-type {
+        border-top:0;
+    }
+
+    .notification-item:hover {
+        background:#fcfaff;
+    }
+
+    .notification-title {
+        margin:0 0 5px;
+        color:#49366d;
+        font-size:14px;
+        font-weight:bold;
+    }
+
+    .notification-message {
+        margin:0;
+        color:#655c6a;
+        font-size:13px;
+    }
+
+    .notification-meta {
+        display:block;
+        margin-top:7px;
+        color:#8a818f;
+        font-size:11px;
+    }
+
+    .empty-state {
+        padding:55px 25px;
+        color:#827988;
+        text-align:center;
+    }
+</style>
+
+<section class="notification-panel">
+    <div class="notification-header">
+        <h2>Potential safety signal notifications</h2>
+        <p>Open a notification to review the identified signal and its supporting ADR cases.</p>
+    </div>
+
+    {% if notifications %}
+        {% for notification in notifications %}
+            <a class="notification-item" href="{{ url_for('signals.signal_detail', signal_id=notification.signal_id) }}">
+                <p class="notification-title">
+                    {{ notification.signal_number }} — {{ notification.product_name }}
+                </p>
+                <p class="notification-message">{{ notification.message }}</p>
+                <span class="notification-meta">
+                    Detected {{ notification.created_at.strftime("%d %b %Y, %H:%M") }}
+                </span>
+            </a>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            No potential safety signal notifications yet.
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

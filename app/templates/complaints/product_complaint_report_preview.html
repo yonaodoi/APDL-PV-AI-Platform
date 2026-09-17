@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}Product Complaint Report Preview | APDL PV{% endblock %}
+{% block page_title %}Product Complaint Report Preview{% endblock %}
+
+{% block content %}
+<style>
+  .report-page {
+    max-width:1100px;
+    margin:0 auto;
+    padding:26px;
+    border:1px solid #e2dbe5;
+    background:white;
+    box-shadow:0 5px 18px rgba(40,32,55,.06);
+  }
+  .report-header, .report-title { text-align:center; }
+  .report-header strong { color:#666; font-size:14px; }
+  .report-header span {
+    display:block;
+    margin-top:4px;
+    color:#777;
+    font-size:12px;
+  }
+  .report-title {
+    margin:25px 0 18px;
+    color:#282037;
+    font-size:22px;
+  }
+  .control-table, .complaint-table, .signature-table {
+    width:100%;
+    border-collapse:collapse;
+  }
+  .control-table td, .complaint-table th, .complaint-table td,
+  .signature-table th, .signature-table td {
+    padding:10px;
+    border:1px solid #d9d0df;
+    font-size:12px;
+    vertical-align:top;
+  }
+  .control-table td:first-child {
+    width:190px;
+    color:#5f3ed4;
+    background:#eee9ff;
+    font-weight:bold;
+    font-size:11px;
+  }
+  .summary-grid {
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:12px;
+    margin:20px 0;
+  }
+  .summary-card {
+    padding:14px;
+    border:1px solid #d9d0df;
+    background:#eee9ff;
+    text-align:center;
+  }
+  .summary-card strong {
+    display:block;
+    color:#5f3ed4;
+    font-size:24px;
+  }
+  .summary-card span {
+    color:#5f3ed4;
+    font-size:10px;
+    font-weight:bold;
+  }
+  .section-title {
+    margin:23px 0 8px;
+    color:#5f3ed4;
+    font-size:15px;
+  }
+  .complaint-table th, .signature-table th {
+    color:white;
+    background:#5f3ed4;
+    font-size:10px;
+    text-align:left;
+    text-transform:uppercase;
+  }
+  .complaint-table td { color:#4f4755; }
+  .actions {
+    display:flex;
+    gap:10px;
+    margin-bottom:18px;
+  }
+  .action-button {
+    padding:10px 14px;
+    border:0;
+    border-radius:8px;
+    background:#5f3ed4;
+    color:white;
+    font-size:13px;
+    font-weight:bold;
+    text-decoration:none;
+    cursor:pointer;
+  }
+  .back-button {
+    background:#f1edf1;
+    color:#5f5661;
+  }
+  .footer-note {
+    margin-top:18px;
+    color:#777;
+    font-size:11px;
+    font-style:italic;
+    text-align:center;
+  }
+</style>
+
+<div class="actions">
+  <a class="action-button back-button" href="{{ url_for('complaints.complaint_list', product=report_filters.product, country=report_filters.country, status=report_filters.status, severity=report_filters.severity, start_date=report_filters.start_date, end_date=report_filters.end_date) }}">← Back to Product Complaints</a>
+
+  <a class="action-button" id="download-word-link" href="{{ url_for('complaints.download_product_complaint_reporting_summary', product=report_filters.product, country=report_filters.country, status=report_filters.status, severity=report_filters.severity, start_date=report_filters.start_date, end_date=report_filters.end_date) }}">Download Word report</a>
+
+  <button class="action-button" id="save-draft-button" type="button">Save editable draft</button>
+  <span id="save-draft-status" style="align-self:center; color:#5f5661; font-size:12px;"></span>
+</div>
+
+<section class="report-page">
+  <div class="report-header">
+    <strong>ABACUS PARENTERAL DRUGS LIMITED</strong>
+    <span>REGULATORY AFFAIRS DEPARTMENT</span>
+  </div>
+
+  <table class="control-table">
+    <tr><td>TITLE</td><td>PRODUCT COMPLAINT REPORTING SUMMARY</td></tr>
+    <tr><td>REPORTING PERIOD</td><td>{{ report_filters.reporting_period }}</td></tr>
+    <tr>
+      <td>APPLIED FILTERS</td>
+      <td>
+        Product: {{ report_filters.product or "All products" }} |
+        Country / market: {{ report_filters.country or "All countries / markets" }} |
+        Status: {{ report_filters.status or "All statuses" }} |
+        Severity: {{ report_filters.severity or "All severities" }}
+      </td>
+    </tr>
+    <tr><td>REPORT STATUS</td><td>System-generated filtered report</td></tr>
+  </table>
+
+  <h2 class="report-title" id="report-title" contenteditable="true">PRODUCT COMPLAINT REPORTING SUMMARY</h2>
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <strong>{{ complaints|length }}</strong>
+      <span>TOTAL COMPLAINTS</span>
+    </div>
+    <div class="summary-card">
+      <strong>{{ complaints|selectattr("severity", "equalto", "Serious")|list|length }}</strong>
+      <span>SERIOUS</span>
+    </div>
+    <div class="summary-card">
+      <strong>{{ complaints|selectattr("severity", "equalto", "Non-serious")|list|length }}</strong>
+      <span>NON-SERIOUS</span>
+    </div>
+  </div>
+
+  <h3 class="section-title">1. FILTERED PRODUCT COMPLAINT REGISTER</h3>
+
+  <table class="complaint-table" id="complaint-register">
+    <thead>
+      <tr>
+        <th>Complaint ID</th>
+        <th>Product</th>
+        <th>Batch</th>
+        <th>Country</th>
+        <th>Category</th>
+        <th>Status</th>
+        <th>Received</th>
+        <th>Severity</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for complaint in complaints %}
+        <tr>
+          <td>{{ complaint.complaint_number }}</td>
+          <td>{{ complaint.product_name or "Not recorded" }}</td>
+          <td>{{ complaint.batch_number or "Not recorded" }}</td>
+          <td>{{ complaint.country_name or "Not recorded" }}</td>
+          <td>{{ complaint.complaint_category or "Not recorded" }}</td>
+          <td>{{ complaint.status or "Not recorded" }}</td>
+          <td>{{ complaint.date_received.strftime("%d %b %Y") }}</td>
+          <td>{{ complaint.severity or "Not recorded" }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8">No product complaints match the selected filters.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3 class="section-title">2. REVIEW AND AUTHORISATION</h3>
+
+  <table class="signature-table" id="signature-register">
+    <thead>
+      <tr>
+        <th>Signatory</th>
+        <th>Name</th>
+        <th>Designation</th>
+        <th>Signature</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Prepared by</td><td>AMEKO CHARLES</td><td>DEPUTY Q.P.P.V.</td><td></td><td></td></tr>
+      <tr><td>Reviewed by</td><td>YONA ODOI</td><td>Q.P.P.V.</td><td></td><td></td></tr>
+      <tr><td>Authorised by</td><td>KEITH ARUHO</td><td>GROUP HEAD, RA &amp; QUALITY</td><td></td><td></td></tr>
+    </tbody>
+  </table>
+
+  <p class="footer-note">System-generated product complaint reporting summary</p>
+</section>
+
+<script>
+  const editableFields = document.querySelectorAll(
+    ".control-table td:not(:first-child), .summary-card strong, .section-title, #complaint-register td, #signature-register td, #report-title"
+  );
+
+  editableFields.forEach(function (field) {
+    field.contentEditable = "true";
+    field.style.outline = "1px dashed transparent";
+
+    field.addEventListener("focus", function () {
+      field.style.outline = "1px dashed #9f88ed";
+    });
+
+    field.addEventListener("blur", function () {
+      field.style.outline = "1px dashed transparent";
+    });
+  });
+
+  function tableRows(selector) {
+    return Array.from(document.querySelectorAll(selector + " tbody tr"))
+      .map(function (row) {
+        return Array.from(row.cells).map(function (cell) {
+          return cell.innerText.trim();
+        });
+      });
+  }
+
+  document.getElementById("save-draft-button").addEventListener(
+    "click",
+    async function () {
+      const button = document.getElementById("save-draft-button");
+      const status = document.getElementById("save-draft-status");
+
+      button.disabled = true;
+      status.textContent = "Saving draft...";
+
+      const reportContent = {
+        title: document.getElementById("report-title").innerText.trim(),
+        control_values: Array.from(
+          document.querySelectorAll(".control-table td:not(:first-child)")
+        ).map(function (cell) {
+          return cell.innerText.trim();
+        }),
+        summary_values: Array.from(
+          document.querySelectorAll(".summary-card strong")
+        ).map(function (cell) {
+          return cell.innerText.trim();
+        }),
+        section_titles: Array.from(
+          document.querySelectorAll(".section-title")
+        ).map(function (cell) {
+          return cell.innerText.trim();
+        }),
+        complaint_rows: tableRows("#complaint-register"),
+        signature_rows: tableRows("#signature-register"),
+      };
+
+      try {
+        const response = await fetch(
+          "{{ url_for('complaints.save_product_complaint_reporting_draft') }}",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+            },
+            body: new URLSearchParams({
+              csrf_token: "{{ csrf_token() }}",
+              filter_state: JSON.stringify({{ report_filters|tojson }}),
+              report_content: JSON.stringify(reportContent),
+            }),
+          }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.message || "Unable to save draft.");
+        }
+
+        const downloadLink = document.getElementById("download-word-link");
+        const downloadUrl = new URL(downloadLink.href);
+        downloadUrl.searchParams.set("draft_id", result.draft_id);
+        downloadLink.href = downloadUrl.toString();
+
+        status.textContent = "Draft saved.";
+      } catch (error) {
+        status.textContent = error.message;
+      } finally {
+        button.disabled = false;
+      }
+    }
+  );
+</script>
+{% endblock %}

@@ -345,4 +345,54 @@
         </div>
     </aside>
 </div>
+
+{% if supporting_cases %}
+<section style="margin-top:24px; overflow:hidden; border:1px solid #e9e2e7; border-radius:14px; background:white;">
+    <div style="padding:16px 20px; border-bottom:1px solid #eee8ec;">
+        <h3 style="margin:0 0 5px; color:#403748;">Supporting ADR cases</h3>
+        <p style="margin:0; color:#746d7d; font-size:13px;">
+            ADR cases linked by the automated signal-screening rule. Review before validating this potential signal.
+        </p>
+    </div>
+
+    <table style="width:100%; border-collapse:collapse;">
+        <thead>
+            <tr style="background:#fffdfe;">
+                <th style="padding:12px 16px; text-align:left; font-size:10px;">Case number</th>
+                <th style="padding:12px 16px; text-align:left; font-size:10px;">Country</th>
+                <th style="padding:12px 16px; text-align:left; font-size:10px;">Received</th>
+                <th style="padding:12px 16px; text-align:left; font-size:10px;">Event</th>
+                <th style="padding:12px 16px; text-align:left; font-size:10px;">Priority</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for supporting_case in supporting_cases %}
+            <tr>
+                <td style="padding:14px 16px; border-top:1px solid #f0ebee;">
+                    <a href="{{ url_for('cases.case_detail', case_id=supporting_case.case_id) }}" style="color:#5f3ed4; font-weight:bold; text-decoration:none;">
+                        {{ supporting_case.case_number }}
+                    </a>
+                </td>
+                <td style="padding:14px 16px; border-top:1px solid #f0ebee;">
+                    {{ supporting_case.country_name or "Not recorded" }}
+                </td>
+                <td style="padding:14px 16px; border-top:1px solid #f0ebee;">
+                    {{ supporting_case.received_date.strftime("%d %b %Y") }}
+                </td>
+                <td style="padding:14px 16px; border-top:1px solid #f0ebee;">
+                    {{ supporting_case.event_description }}
+                </td>
+                <td style="padding:14px 16px; border-top:1px solid #f0ebee;">
+                    {% if supporting_case.seriousness %}
+                        <span style="color:#cc5149; font-weight:bold;">Serious</span>
+                    {% else %}
+                        Routine
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
 {% endblock %}

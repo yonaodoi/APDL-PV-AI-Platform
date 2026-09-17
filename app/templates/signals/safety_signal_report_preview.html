@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Safety Signal Report Preview | APDL PV{% endblock %}
+{% block page_title %}Safety Signal Report Preview{% endblock %}
+
+{% block content %}
+<style>
+  .report-page { max-width:1100px; margin:0 auto; padding:26px; border:1px solid #e2dbe5; background:white; box-shadow:0 5px 18px rgba(40,32,55,.06); }
+  .report-header, .report-title { text-align:center; }
+  .report-header strong { color:#666; font-size:14px; }
+  .report-header span { display:block; margin-top:4px; color:#777; font-size:12px; }
+  .report-title { margin:25px 0 18px; color:#282037; font-size:22px; }
+  .control-table, .signal-table, .signature-table { width:100%; border-collapse:collapse; }
+  .control-table td, .signal-table th, .signal-table td, .signature-table th, .signature-table td { padding:10px; border:1px solid #d9d0df; font-size:12px; vertical-align:top; }
+  .control-table td:first-child { width:190px; color:#5f3ed4; background:#eee9ff; font-weight:bold; font-size:11px; }
+  .summary-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:20px 0; }
+  .summary-card { padding:14px; border:1px solid #d9d0df; background:#eee9ff; text-align:center; }
+  .summary-card strong { display:block; color:#5f3ed4; font-size:24px; }
+  .summary-card span { color:#5f3ed4; font-size:10px; font-weight:bold; }
+  .section-title { margin:23px 0 8px; color:#5f3ed4; font-size:15px; }
+  .signal-table th, .signature-table th { color:white; background:#5f3ed4; font-size:10px; text-align:left; text-transform:uppercase; }
+  .signal-table td { color:#4f4755; }
+  .actions { display:flex; gap:10px; margin-bottom:18px; }
+  .action-button { padding:10px 14px; border:0; border-radius:8px; background:#5f3ed4; color:white; font-size:13px; font-weight:bold; text-decoration:none; cursor:pointer; }
+  .back-button { background:#f1edf1; color:#5f5661; }
+  .footer-note { margin-top:18px; color:#777; font-size:11px; font-style:italic; text-align:center; }
+</style>
+
+<div class="actions">
+  <a class="action-button back-button" href="{{ url_for('signals.signal_list', product=report_filters.product, status=report_filters.status, priority=report_filters.priority, start_date=report_filters.start_date, end_date=report_filters.end_date) }}">← Back to Safety Signals</a>
+
+  <a class="action-button" id="download-word-link" href="{{ url_for('signals.download_safety_signal_reporting_summary', product=report_filters.product, status=report_filters.status, priority=report_filters.priority, start_date=report_filters.start_date, end_date=report_filters.end_date) }}">Download Word report</a>
+
+  <button class="action-button" id="save-draft-button" type="button">Save editable draft</button>
+  <span id="save-draft-status" style="align-self:center; color:#5f5661; font-size:12px;"></span>
+</div>
+
+<section class="report-page">
+  <div class="report-header">
+    <strong>ABACUS PARENTERAL DRUGS LIMITED</strong>
+    <span>REGULATORY AFFAIRS DEPARTMENT</span>
+  </div>
+
+  <table class="control-table">
+    <tr><td>TITLE</td><td>SAFETY SIGNAL REPORTING SUMMARY</td></tr>
+    <tr><td>REPORTING PERIOD</td><td>{{ report_filters.reporting_period }}</td></tr>
+    <tr>
+      <td>APPLIED FILTERS</td>
+      <td>
+        Product: {{ report_filters.product or "All products" }} |
+        Status: {{ report_filters.status or "All statuses" }} |
+        Priority: {{ report_filters.priority or "All priorities" }}
+      </td>
+    </tr>
+    <tr><td>REPORT STATUS</td><td>System-generated filtered report</td></tr>
+  </table>
+
+  <h2 class="report-title" id="report-title" contenteditable="true">SAFETY SIGNAL REPORTING SUMMARY</h2>
+
+  <div class="summary-grid">
+    <div class="summary-card"><strong>{{ signals|length }}</strong><span>TOTAL SIGNALS</span></div>
+    <div class="summary-card"><strong>{{ signals|selectattr("priority", "equalto", "High")|list|length + signals|selectattr("priority", "equalto", "Critical")|list|length }}</strong><span>HIGH / CRITICAL</span></div>
+    <div class="summary-card"><strong>{{ signals|selectattr("status", "equalto", "Under evaluation")|list|length }}</strong><span>UNDER EVALUATION</span></div>
+  </div>
+
+  <h3 class="section-title">1. FILTERED SAFETY SIGNAL REGISTER</h3>
+
+  <table class="signal-table" id="signal-register">
+    <thead>
+      <tr>
+        <th>Signal ID</th><th>Product</th><th>Safety concern</th><th>Source</th>
+        <th>Owner</th><th>Status</th><th>Detected</th><th>Priority</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for signal in signals %}
+        <tr>
+          <td>{{ signal.signal_number }}</td>
+          <td>{{ signal.product_name or "Not recorded" }}</td>
+          <td>{{ signal.event_term or "Not recorded" }}</td>
+          <td>{{ signal.signal_source or "Not recorded" }}</td>
+          <td>{{ signal.owner_name or "Not recorded" }}</td>
+          <td>{{ signal.status or "Not recorded" }}</td>
+          <td>{{ signal.date_detected.strftime("%d %b %Y") }}</td>
+          <td>{{ signal.priority or "Not recorded" }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8">No safety signals match the selected filters.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3 class="section-title">2. REVIEW AND AUTHORISATION</h3>
+
+  <table class="signature-table" id="signature-register">
+    <thead>
+      <tr><th>Signatory</th><th>Name</th><th>Designation</th><th>Signature</th><th>Date</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Prepared by</td><td>AMEKO CHARLES</td><td>DEPUTY Q.P.P.V.</td><td></td><td></td></tr>
+      <tr><td>Reviewed by</td><td>YONA ODOI</td><td>Q.P.P.V.</td><td></td><td></td></tr>
+      <tr><td>Authorised by</td><td>KEITH ARUHO</td><td>GROUP HEAD, RA &amp; QUALITY</td><td></td><td></td></tr>
+    </tbody>
+  </table>
+
+  <p class="footer-note">System-generated safety signal reporting summary</p>
+</section>
+
+<script>
+  const editableFields = document.querySelectorAll(
+    ".control-table td:not(:first-child), .summary-card strong, .section-title, #signal-register td, #signature-register td, #report-title"
+  );
+
+  editableFields.forEach(function (field) {
+    field.contentEditable = "true";
+    field.style.outline = "1px dashed transparent";
+    field.addEventListener("focus", function () {
+      field.style.outline = "1px dashed #9f88ed";
+    });
+    field.addEventListener("blur", function () {
+      field.style.outline = "1px dashed transparent";
+    });
+  });
+
+  function tableRows(selector) {
+    return Array.from(document.querySelectorAll(selector + " tbody tr"))
+      .map(function (row) {
+        return Array.from(row.cells).map(function (cell) {
+          return cell.innerText.trim();
+        });
+      });
+  }
+
+  document.getElementById("save-draft-button").addEventListener(
+    "click",
+    async function () {
+      const button = document.getElementById("save-draft-button");
+      const status = document.getElementById("save-draft-status");
+      button.disabled = true;
+      status.textContent = "Saving draft...";
+
+      const reportContent = {
+        title: document.getElementById("report-title").innerText.trim(),
+        control_values: Array.from(
+          document.querySelectorAll(".control-table td:not(:first-child)")
+        ).map(function (cell) {
+          return cell.innerText.trim();
+        }),
+        summary_values: Array.from(
+          document.querySelectorAll(".summary-card strong")
+        ).map(function (cell) {
+          return cell.innerText.trim();
+        }),
+        section_titles: Array.from(
+          document.querySelectorAll(".section-title")
+        ).map(function (cell) {
+          return cell.innerText.trim();
+        }),
+        signal_rows: tableRows("#signal-register"),
+        signature_rows: tableRows("#signature-register"),
+      };
+
+      try {
+        const response = await fetch(
+          "{{ url_for('signals.save_safety_signal_reporting_draft') }}",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+            },
+            body: new URLSearchParams({
+              csrf_token: "{{ csrf_token() }}",
+              filter_state: JSON.stringify({{ report_filters|tojson }}),
+              report_content: JSON.stringify(reportContent),
+            }),
+          }
+        );
+
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.message || "Unable to save draft.");
+        }
+
+        const downloadLink = document.getElementById("download-word-link");
+        const downloadUrl = new URL(downloadLink.href);
+        downloadUrl.searchParams.set("draft_id", result.draft_id);
+        downloadLink.href = downloadUrl.toString();
+
+        status.textContent = "Draft saved.";
+      } catch (error) {
+        status.textContent = error.message;
+      } finally {
+        button.disabled = false;
+      }
+    }
+  );
+</script>
+{% endblock %}

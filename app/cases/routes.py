@@ -1,11 +1,23 @@
 from datetime import datetime, timezone
 
-from flask import Blueprint, abort, flash, redirect, render_template, session, url_for
+from flask import (
+    Blueprint,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 
 from app.audit import write_audit_log
 from app.db import query_all, query_one, transaction
 from app.security import login_required
 from .forms import SafetyCaseForm
+from app.services.signal_detection import (
+    detect_potential_signals_for_case,
+)
 
 
 bp = Blueprint("cases", __name__, url_prefix="/cases")
@@ -14,8 +26,48 @@ bp = Blueprint("cases", __name__, url_prefix="/cases")
 @bp.get("/")
 @login_required
 def case_list():
+    selected_product = request.args.get("product", "").strip()
+    selected_country = request.args.get("country", "").strip()
+    selected_status = request.args.get("status", "").strip()
+    selected_priority = request.args.get("priority", "").strip()
+    start_date = request.args.get("start_date", "").strip()
+    end_date = request.args.get("end_date", "").strip()
+
+    filters = []
+    parameters = []
+
+    if selected_product:
+        filters.append("case_products.product_name = %s")
+        parameters.append(selected_product)
+
+    if selected_country:
+        filters.append("countries.country_name = %s")
+        parameters.append(selected_country)
+
+    if selected_status:
+        filters.append("safety_cases.workflow_status = %s")
+        parameters.append(selected_status)
+
+    if selected_priority == "Serious":
+        filters.append("safety_cases.seriousness = TRUE")
+
+    if selected_priority == "Routine":
+        filters.append("safety_cases.seriousness = FALSE")
+
+    if start_date:
+        filters.append("safety_cases.received_date >= %s")
+        parameters.append(start_date)
+
+    if end_date:
+        filters.append("safety_cases.received_date <= %s")
+        parameters.append(end_date)
+
+    where_clause = ""
+    if filters:
+        where_clause = "WHERE " + " AND ".join(filters)
+
     cases = query_all(
-        """
+        f"""
         SELECT
             safety_cases.case_id,
             safety_cases.case_number,
@@ -30,12 +82,52 @@ def case_list():
             ON countries.country_id = safety_cases.country_id
         LEFT JOIN pv.case_products AS case_products
             ON case_products.case_id = safety_cases.case_id
+        {where_clause}
         ORDER BY safety_cases.created_at DESC
+        """,
+        tuple(parameters),
+    )
+
+    products = query_all(
+        """
+        SELECT DISTINCT product_name
+        FROM pv.case_products
+        WHERE product_name IS NOT NULL
+          AND product_name <> ''
+        ORDER BY product_name
         """
     )
 
-    return render_template("cases/case_list.html", cases=cases)
+    countries = query_all(
+        """
+        SELECT country_name
+        FROM pv.countries
+        ORDER BY country_name
+        """
+    )
 
+    statuses = query_all(
+        """
+        SELECT DISTINCT workflow_status
+        FROM pv.safety_cases
+        WHERE workflow_status IS NOT NULL
+        ORDER BY workflow_status
+        """
+    )
+
+    return render_template(
+        "cases/case_list.html",
+        cases=cases,
+        products=products,
+        countries=countries,
+        statuses=statuses,
+        selected_product=selected_product,
+        selected_country=selected_country,
+        selected_status=selected_status,
+        selected_priority=selected_priority,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
 @bp.get("/<int:case_id>")
 @login_required
@@ -281,6 +373,25 @@ def create_case():
                 ),
             )
 
+        try:
+            detected_signals = detect_potential_signals_for_case(
+                case_id=case_id,
+                actor_user_id=session["user_id"],
+            )
+        except Exception:
+            detected_signals = []
+            flash(
+                "Safety case was saved, but automated signal "
+                "screening could not run.",
+                "warning",
+            )
+
+        if detected_signals:
+            flash(
+                "Potential safety signal detected from ADR case "
+                "screening. QPPV review is required.",
+                "warning",
+            )
         flash(f"Safety case {case_number} was created.", "success")
         return redirect(url_for("core.dashboard"))
 

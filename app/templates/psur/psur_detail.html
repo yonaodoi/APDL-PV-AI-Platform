@@ -219,6 +219,7 @@
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
     <a href="{{ url_for('psur.edit_psur', psur_id=report.psur_id) }}" style="padding:8px 11px; border:1px solid #dcd3e4; border-radius:8px; background:white; color:#6242d7; font-size:12px; font-weight:bold; text-decoration:none;">Edit PSUR record</a>
+    <a href="{{ url_for('psur_reports.preview_psur_report', psur_id=report.psur_id) }}" style="padding:8px 11px; border-radius:8px; background:#5f3ed4; color:white; font-size:12px; font-weight:bold; text-decoration:none;">Preview PSUR</a>
     <span class="status-pill">{{ report.status }}</span>
 </div>
 </section>

@@ -38,6 +38,53 @@
         white-space: nowrap;
         box-shadow: 0 7px 15px rgba(118, 86, 232, 0.2);
     }
+    .case-filter {
+        margin-bottom: 20px;
+        padding: 18px;
+        border: 1px solid #e9e2e7;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(40, 32, 55, 0.025);
+    }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: 1.5fr 1.2fr 1.15fr 1fr 1fr 1fr auto;
+        gap: 12px;
+        align-items: end;
+    }
+
+    .filter-field label {
+        display: block;
+        margin-bottom: 7px;
+        color: #655c6a;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+    }
+
+    .filter-input {
+        width: 100%;
+        padding: 10px 11px;
+        border: 1px solid #ddd5dc;
+        border-radius: 8px;
+        background: #fffeff;
+        color: #322a3b;
+        font: inherit;
+        font-size: 13px;
+    }
+
+    .filter-button {
+        padding: 11px 16px;
+        border: 0;
+        border-radius: 8px;
+        background: #7656e8;
+        color: white;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+    }
 
     .case-summary {
         display: flex;
@@ -223,6 +270,73 @@
         + Create safety case
     </a>
 </section>
+
+<section class="case-filter">
+    <form method="get" class="filter-grid">
+        <div class="filter-field">
+            <label for="product">Product</label>
+            <select class="filter-input" id="product" name="product">
+                <option value="">All products</option>
+                {% for product in products %}
+                    <option value="{{ product.product_name }}" {% if selected_product == product.product_name %}selected{% endif %}>
+                        {{ product.product_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="country">Country / market</label>
+            <select class="filter-input" id="country" name="country">
+                <option value="">All countries / markets</option>
+                {% for country in countries %}
+                    <option value="{{ country.country_name }}" {% if selected_country == country.country_name %}selected{% endif %}>
+                        {{ country.country_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="status">Status</label>
+            <select class="filter-input" id="status" name="status">
+                <option value="">All statuses</option>
+                {% for status in statuses %}
+                    <option value="{{ status.workflow_status }}" {% if selected_status == status.workflow_status %}selected{% endif %}>
+                        {{ status.workflow_status }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="priority">Priority</label>
+            <select class="filter-input" id="priority" name="priority">
+                <option value="">All priorities</option>
+                <option value="Serious" {% if selected_priority == "Serious" %}selected{% endif %}>Serious</option>
+                <option value="Routine" {% if selected_priority == "Routine" %}selected{% endif %}>Routine</option>
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="start_date">From</label>
+            <input class="filter-input" id="start_date" name="start_date" type="date" value="{{ start_date }}">
+        </div>
+
+        <div class="filter-field">
+            <label for="end_date">To</label>
+            <input class="filter-input" id="end_date" name="end_date" type="date" value="{{ end_date }}">
+        </div>
+
+        <button class="filter-button" type="submit">Apply filters</button>
+    </form>
+</section>
+
+<div style="margin:0 0 20px;">
+    <a href="{{ url_for('case_reports.preview_safety_case_reporting_summary', product=selected_product, country=selected_country, status=selected_status, priority=selected_priority, start_date=start_date, end_date=end_date) }}" style="display:inline-block; margin-right:10px; padding:11px 15px; border-radius:8px; background:#5f3ed4; color:white; font-size:13px; font-weight:bold; text-decoration:none;">Preview filtered report</a>
+
+    <a href="{{ url_for('case_reports.download_safety_case_reporting_summary', product=selected_product, country=selected_country, status=selected_status, priority=selected_priority, start_date=start_date, end_date=end_date) }}" style="display:inline-block; padding:11px 15px; border-radius:8px; background:#7656e8; color:white; font-size:13px; font-weight:bold; text-decoration:none;">Download report (Word)</a>
+</div>
 
 <section class="case-summary">
     <div class="summary-chip"><strong>{{ cases|length }}</strong> total case(s)</div>

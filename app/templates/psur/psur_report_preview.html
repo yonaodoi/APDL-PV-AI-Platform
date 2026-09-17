@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}PSUR Preview | APDL PV{% endblock %}
+{% block page_title %}PSUR Preview{% endblock %}
+
+{% block content %}
+<style>
+    .preview-header {
+        display:flex;
+        justify-content:space-between;
+        gap:20px;
+        align-items:flex-end;
+        margin-bottom:22px;
+    }
+
+    .back-link {
+        display:inline-block;
+        margin-bottom:10px;
+        color:#7656e8;
+        font-size:13px;
+        font-weight:bold;
+        text-decoration:none;
+    }
+
+    .preview-header h2 {
+        margin:0 0 7px;
+        color:#282037;
+        font-size:27px;
+    }
+
+    .preview-header p {
+        margin:0;
+        color:#746d7d;
+        font-size:14px;
+    }
+
+    .preview-actions a {
+        display:inline-block;
+        margin-left:8px;
+        padding:11px 14px;
+        border-radius:8px;
+        color:white;
+        font-size:13px;
+        font-weight:bold;
+        text-decoration:none;
+    }
+
+    .edit-action {
+        background:#5f3ed4;
+    }
+
+    .download-action {
+        background:#7656e8;
+    }
+
+    .control-card,
+    .section-card {
+        overflow:hidden;
+        margin-bottom:18px;
+        border:1px solid #e9e2e7;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(40,32,55,.025);
+    }
+
+    .control-card {
+        display:grid;
+        grid-template-columns:repeat(3, 1fr);
+    }
+
+    .control-item {
+        padding:16px 18px;
+        border-right:1px solid #eee8ec;
+    }
+
+    .control-item:last-child {
+        border-right:0;
+    }
+
+    .control-label {
+        display:block;
+        margin-bottom:5px;
+        color:#8a818f;
+        font-size:10px;
+        font-weight:bold;
+        letter-spacing:.5px;
+    }
+
+    .control-value {
+        color:#403748;
+        font-size:13px;
+        font-weight:bold;
+    }
+
+    .section-heading {
+        padding:16px 19px;
+        border-bottom:1px solid #eee8ec;
+        background:#faf8ff;
+    }
+
+    .section-heading h3 {
+        margin:0;
+        color:#493273;
+        font-size:15px;
+    }
+
+    .section-content {
+        padding:19px;
+        color:#514956;
+        font-size:14px;
+        line-height:1.65;
+        white-space:pre-wrap;
+    }
+
+    .empty-state {
+        padding:50px 25px;
+        border:1px dashed #dcd2e3;
+        border-radius:14px;
+        color:#827988;
+        text-align:center;
+    }
+
+    @media (max-width:850px) {
+        .preview-header {
+            display:block;
+        }
+
+        .preview-actions {
+            margin-top:15px;
+        }
+
+        .preview-actions a {
+            margin:0 8px 0 0;
+        }
+
+        .control-card {
+            grid-template-columns:1fr;
+        }
+
+        .control-item {
+            border-right:0;
+            border-bottom:1px solid #eee8ec;
+        }
+    }
+</style>
+
+<section class="preview-header">
+    <div>
+        <a class="back-link" href="{{ url_for('psur.psur_detail', psur_id=report.psur_id) }}">
+            ← Back to PSUR
+        </a>
+        <h2>Periodic Safety Update Report preview</h2>
+        <p>Review the combined evidence draft before Word download and QPPV approval.</p>
+    </div>
+
+    <div class="preview-actions">
+        <a class="edit-action" href="{{ url_for('psur_sections.manage_psur_sections', psur_id=report.psur_id) }}">
+            Edit narrative sections
+        </a>
+        <a class="download-action" href="{{ url_for('psur_reports.download_psur_report', psur_id=report.psur_id) }}">
+            Download Word
+        </a>
+    </div>
+</section>
+
+<section class="control-card">
+    <div class="control-item">
+        <span class="control-label">REPORT NUMBER</span>
+        <span class="control-value">{{ report.report_number }}</span>
+    </div>
+    <div class="control-item">
+        <span class="control-label">MEDICINAL PRODUCT</span>
+        <span class="control-value">{{ report.product_name }}</span>
+    </div>
+    <div class="control-item">
+        <span class="control-label">REPORTING PERIOD</span>
+        <span class="control-value">
+            {{ report.reporting_period_start.strftime("%d %b %Y") }}
+            to
+            {{ report.reporting_period_end.strftime("%d %b %Y") }}
+        </span>
+    </div>
+</section>
+
+{% if sections %}
+    {% for section in sections %}
+        <section class="section-card">
+            <div class="section-heading">
+                <h3>{{ section.section_title }}</h3>
+            </div>
+            <div class="section-content">{{ section.content }}</div>
+        </section>
+    {% endfor %}
+{% else %}
+    <section class="empty-state">
+        No narrative sections have been generated yet. Use
+        <strong>Edit narrative sections</strong>, then select
+        <strong>Generate evidence draft</strong>.
+    </section>
+{% endif %}
+{% endblock %}

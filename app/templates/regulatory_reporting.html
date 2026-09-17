@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Regulatory Reporting | APDL PV{% endblock %}
-{% block page_title %}Regulatory Reporting{% endblock %}
+{% block title %}PV & Regulatory Analytics | APDL PV{% endblock %}
+{% block page_title %}PV & Regulatory Analytics{% endblock %}
 
 {% block content %}
 <style>
@@ -39,7 +39,7 @@
   }
   .filter-grid {
     display:grid;
-    grid-template-columns:2fr 1fr 1fr auto;
+    grid-template-columns:1.5fr 1.15fr 1.15fr 1.15fr 1fr 1fr auto;
     gap:13px;
     align-items:end;
   }
@@ -205,14 +205,15 @@
 <section class="reporting-header">
   <div>
     <p class="eyebrow">REGULATORY INTELLIGENCE</p>
-    <h2>Product reporting analytics</h2>
+    <h2>PV & regulatory analytics</h2>
     <p>Analyse safety cases, complaints, signals and PSURs by product and reporting period.</p>
   </div>
 </section>
-<a href="{{ url_for('core.regulatory_reporting', product=selected_product, start_date=start_date.isoformat(), end_date=end_date.isoformat(), download='word') }}" style="display:inline-block; margin:0 10px 20px 0; padding:11px 15px; border-radius:8px; background:#5f3ed4; color:white; font-size:13px; font-weight:bold; text-decoration:none;">Download management report (Word)</a>
-<a href="{{ url_for('core.download_regulatory_reporting_csv', product=selected_product, start_date=start_date.isoformat(), end_date=end_date.isoformat()) }}" style="display:inline-block; margin:0 0 20px; padding:11px 15px; border-radius:8px; background:#7656e8; color:white; font-size:13px; font-weight:bold; text-decoration:none;">Download filtered data (CSV)</a>
+<a href="{{ url_for('core.regulatory_reporting', product=selected_product, start_date=start_date.isoformat(), end_date=end_date.isoformat(),country=selected_country, record_type=selected_record_type, status=selected_status, download='word') }}" style="display:inline-block; margin:0 10px 20px 0; padding:11px 15px; border-radius:8px; background:#5f3ed4; color:white; font-size:13px; font-weight:bold; text-decoration:none;">Download management report (Word)</a>
+<a href="{{ url_for('core.download_regulatory_reporting_csv', product=selected_product, start_date=start_date.isoformat(), end_date=end_date.isoformat(), country=selected_country, status=selected_status) }}" style="display:inline-block; margin:0 0 20px; padding:11px 15px; border-radius:8px; background:#7656e8; color:white; font-size:13px; font-weight:bold; text-decoration:none;">Download filtered data (CSV)</a>
 <section class="filter-card">
-  <form method="get" class="filter-grid">
+
+   <form method="get" class="filter-grid">
     <div class="field">
       <label for="product">Product</label>
       <select class="input" id="product" name="product">
@@ -220,6 +221,40 @@
         {% for product in products %}
           <option value="{{ product.product_name }}" {% if selected_product == product.product_name %}selected{% endif %}>
             {{ product.product_name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="country">Country / market</label>
+      <select class="input" id="country" name="country">
+        <option value="">All countries / markets</option>
+        {% for country in countries %}
+          <option value="{{ country.country_name }}" {% if selected_country == country.country_name %}selected{% endif %}>
+            {{ country.country_name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="record_type">Record type</label>
+      <select class="input" id="record_type" name="record_type">
+        <option value="">All record types</option>
+        <option value="Safety case" {% if selected_record_type == "Safety case" %}selected{% endif %}>Safety cases</option>
+        <option value="Product complaint" {% if selected_record_type == "Product complaint" %}selected{% endif %}>Product complaints</option>
+        <option value="Safety signal" {% if selected_record_type == "Safety signal" %}selected{% endif %}>Safety signals</option>
+        <option value="PSUR" {% if selected_record_type == "PSUR" %}selected{% endif %}>PSURs</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="status">Status</label>
+      <select class="input" id="status" name="status">
+        <option value="">All statuses</option>
+        {% for status in statuses %}
+          <option value="{{ status.status }}" {% if selected_status == status.status %}selected{% endif %}>
+            {{ status.status }}
           </option>
         {% endfor %}
       </select>
@@ -237,7 +272,6 @@
 
     <button class="button" type="submit">Apply filters</button>
   </form>
-
   <p class="filter-note">
     Showing {{ start_date.strftime("%d %b %Y") }} to {{ end_date.strftime("%d %b %Y") }}
     {% if selected_product %} · {{ selected_product }}{% else %} · All products{% endif %}

@@ -3,6 +3,7 @@ from flask import Blueprint, abort, flash, redirect, render_template, session, u
 from app.db import query_all, query_one, transaction
 from app.psur.forms import PsurSectionForm
 from app.security import login_required
+from app.services.psur_evidence import build_psur_evidence_sections
 
 bp = Blueprint("psur_sections", __name__, url_prefix="/psur")
 
@@ -18,6 +19,59 @@ SECTION_TITLES = {
     "conclusion": "Conclusion and actions",
 }
 
+@bp.post("/<int:psur_id>/build-evidence")
+@login_required
+def build_psur_evidence(psur_id):
+    report = query_one(
+        """
+        SELECT *
+        FROM pv.psur_reports
+        WHERE psur_id = %s
+        """,
+        (psur_id,),
+    )
+
+    if not report:
+        abort(404)
+
+    evidence_sections = build_psur_evidence_sections(report)
+
+    with transaction() as cursor:
+        for section_key, content in evidence_sections.items():
+            cursor.execute(
+                """
+                INSERT INTO pv.psur_section_entries (
+                    psur_id,
+                    section_key,
+                    section_title,
+                    content,
+                    updated_by,
+                    updated_at
+                )
+                VALUES (%s, %s, %s, %s, %s, NOW())
+                ON CONFLICT (psur_id, section_key)
+                DO UPDATE SET
+                    section_title = EXCLUDED.section_title,
+                    content = EXCLUDED.content,
+                    updated_by = EXCLUDED.updated_by,
+                    updated_at = NOW()
+                """,
+                (
+                    psur_id,
+                    section_key,
+                    SECTION_TITLES[section_key],
+                    content,
+                    session["user_id"],
+                ),
+            )
+
+    flash(
+        "PSUR evidence draft generated from ADRs, signals and complaints.",
+        "success",
+    )
+    return redirect(
+        url_for("psur_sections.manage_psur_sections", psur_id=psur_id)
+    )
 
 @bp.route("/<int:psur_id>/sections", methods=["GET", "POST"])
 @login_required

@@ -38,6 +38,53 @@
         box-shadow:0 7px 15px rgba(118,86,232,.2);
     }
 
+    .signal-filter {
+        margin-bottom:20px;
+        padding:18px;
+        border:1px solid #e9e2e7;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(40,32,55,.025);
+    }
+
+    .filter-grid {
+        display:grid;
+        grid-template-columns:1.6fr 1.25fr 1.1fr 1fr 1fr auto;
+        gap:12px;
+        align-items:end;
+    }
+
+    .filter-field label {
+        display:block;
+        margin-bottom:7px;
+        color:#655c6a;
+        font-size:11px;
+        font-weight:bold;
+        letter-spacing:.4px;
+        text-transform:uppercase;
+    }
+
+    .filter-input {
+        width:100%;
+        padding:10px 11px;
+        border:1px solid #ddd5dc;
+        border-radius:8px;
+        background:#fffeff;
+        color:#322a3b;
+        font:inherit;
+        font-size:13px;
+    }
+
+    .filter-button {
+        padding:11px 16px;
+        border:0;
+        border-radius:8px;
+        background:#7656e8;
+        color:white;
+        font-size:13px;
+        font-weight:bold;
+        cursor:pointer;
+    }
     .signal-summary {
         display:flex;
         gap:13px;
@@ -227,6 +274,64 @@
     </a>
 </section>
 
+<section class="signal-filter">
+    <form method="get" class="filter-grid">
+        <div class="filter-field">
+            <label for="product">Product</label>
+            <select class="filter-input" id="product" name="product">
+                <option value="">All products</option>
+                {% for product in products %}
+                    <option value="{{ product.product_name }}" {% if selected_product == product.product_name %}selected{% endif %}>
+                        {{ product.product_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="status">Status</label>
+            <select class="filter-input" id="status" name="status">
+                <option value="">All statuses</option>
+                {% for status in statuses %}
+                    <option value="{{ status.status }}" {% if selected_status == status.status %}selected{% endif %}>
+                        {{ status.status }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="priority">Priority</label>
+            <select class="filter-input" id="priority" name="priority">
+                <option value="">All priorities</option>
+                {% for priority in priorities %}
+                    <option value="{{ priority.priority }}" {% if selected_priority == priority.priority %}selected{% endif %}>
+                        {{ priority.priority }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="start_date">From</label>
+            <input class="filter-input" id="start_date" name="start_date" type="date" value="{{ start_date }}">
+        </div>
+
+        <div class="filter-field">
+            <label for="end_date">To</label>
+            <input class="filter-input" id="end_date" name="end_date" type="date" value="{{ end_date }}">
+        </div>
+
+        <button class="filter-button" type="submit">Apply filters</button>
+    </form>
+</section>
+
+<div style="margin:0 0 20px;">
+    <a href="{{ url_for('signals.preview_safety_signal_reporting_summary', product=selected_product, status=selected_status, priority=selected_priority, start_date=start_date, end_date=end_date) }}" style="display:inline-block; margin-right:10px; padding:11px 15px; border-radius:8px; background:#5f3ed4; color:white; font-size:13px; font-weight:bold; text-decoration:none;">Preview filtered report</a>
+
+    <a href="{{ url_for('signals.download_safety_signal_reporting_summary', product=selected_product, status=selected_status, priority=selected_priority, start_date=start_date, end_date=end_date) }}" style="display:inline-block; padding:11px 15px; border-radius:8px; background:#7656e8; color:white; font-size:13px; font-weight:bold; text-decoration:none;">Download report (Word)</a>
+</div>
+
 <section class="signal-summary">
     <div class="summary-chip"><strong>{{ signals|length }}</strong> total signal(s)</div>
     <div class="summary-chip"><strong>{{ signals|selectattr("status", "equalto", "New")|list|length }}</strong> new signal(s)</div>
@@ -263,6 +368,14 @@
                             <a href="{{ url_for('signals.signal_detail', signal_id=signal.signal_id) }}">
                                 {{ signal.signal_number }}
                             </a>
+                            {% if signal.auto_detected %}
+                                <span style="display:inline-block; margin-top:5px; padding:3px 7px; border-radius:12px; background:#fff0d8; color:#9a5c00; font-size:10px; font-weight:bold;">
+                                    Potential signal
+                                </span>
+                            {% endif %}
+        <a href="{{ url_for('signals.signal_notifications') }}" style="display:inline-block; margin-left:10px; padding:12px 17px; border-radius:9px; background:#eee9ff; color:#5f3ed4; font-size:14px; font-weight:bold; text-decoration:none;">
+        🔔 Notifications{% if unread_notification_count %} ({{ unread_notification_count }}){% endif %}
+    </a>
                         </td>
                         <td class="product-name">{{ signal.product_name }}</td>
                         <td class="signal-concern" title="{{ signal.event_term }}">{{ signal.event_term }}</td>

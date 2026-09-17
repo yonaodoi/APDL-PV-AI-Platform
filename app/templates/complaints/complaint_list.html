@@ -37,6 +37,53 @@
         white-space:nowrap;
         box-shadow:0 7px 15px rgba(118,86,232,.2);
     }
+    .complaint-filter {
+        margin-bottom:20px;
+        padding:18px;
+        border:1px solid #e9e2e7;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(40,32,55,.025);
+    }
+
+    .filter-grid {
+        display:grid;
+        grid-template-columns:1.5fr 1.2fr 1.15fr 1fr 1fr 1fr auto;
+        gap:12px;
+        align-items:end;
+    }
+
+    .filter-field label {
+        display:block;
+        margin-bottom:7px;
+        color:#655c6a;
+        font-size:11px;
+        font-weight:bold;
+        letter-spacing:.4px;
+        text-transform:uppercase;
+    }
+
+    .filter-input {
+        width:100%;
+        padding:10px 11px;
+        border:1px solid #ddd5dc;
+        border-radius:8px;
+        background:#fffeff;
+        color:#322a3b;
+        font:inherit;
+        font-size:13px;
+    }
+
+    .filter-button {
+        padding:11px 16px;
+        border:0;
+        border-radius:8px;
+        background:#7656e8;
+        color:white;
+        font-size:13px;
+        font-weight:bold;
+        cursor:pointer;
+    }
 
     .complaint-summary {
         display:flex;
@@ -221,8 +268,77 @@
     </a>
 </section>
 
-<section class="complaint-summary">
-    <div class="summary-chip"><strong>{{ complaints|length }}</strong> total complaint(s)</div>
+<section class="complaint-filter">
+    <form method="get" class="filter-grid">
+        <div class="filter-field">
+            <label for="product">Product</label>
+            <select class="filter-input" id="product" name="product">
+                <option value="">All products</option>
+                {% for product in products %}
+                    <option value="{{ product.product_name }}" {% if selected_product == product.product_name %}selected{% endif %}>
+                        {{ product.product_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="country">Country / market</label>
+            <select class="filter-input" id="country" name="country">
+                <option value="">All countries / markets</option>
+                {% for country in countries %}
+                    <option value="{{ country.country_name }}" {% if selected_country == country.country_name %}selected{% endif %}>
+                        {{ country.country_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="status">Status</label>
+            <select class="filter-input" id="status" name="status">
+                <option value="">All statuses</option>
+                {% for status in statuses %}
+                    <option value="{{ status.status }}" {% if selected_status == status.status %}selected{% endif %}>
+                        {{ status.status }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="severity">Severity</label>
+            <select class="filter-input" id="severity" name="severity">
+                <option value="">All severities</option>
+                {% for severity in severities %}
+                    <option value="{{ severity.severity }}" {% if selected_severity == severity.severity %}selected{% endif %}>
+                        {{ severity.severity }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="start_date">From</label>
+            <input class="filter-input" id="start_date" name="start_date" type="date" value="{{ start_date }}">
+        </div>
+
+        <div class="filter-field">
+            <label for="end_date">To</label>
+            <input class="filter-input" id="end_date" name="end_date" type="date" value="{{ end_date }}">
+        </div>
+
+        <button class="filter-button" type="submit">Apply filters</button>
+    </form>
+</section>
+
+<div style="margin:0 0 20px;">
+    <a href="{{ url_for('complaints.preview_product_complaint_reporting_summary', product=selected_product, country=selected_country, status=selected_status, severity=selected_severity, start_date=start_date, end_date=end_date) }}" style="display:inline-block; margin-right:10px; padding:11px 15px; border-radius:8px; background:#5f3ed4; color:white; font-size:13px; font-weight:bold; text-decoration:none;">Preview filtered report</a>
+
+    <a href="{{ url_for('complaints.download_product_complaint_reporting_summary', product=selected_product, country=selected_country, status=selected_status, severity=selected_severity, start_date=start_date, end_date=end_date) }}" style="display:inline-block; padding:11px 15px; border-radius:8px; background:#7656e8; color:white; font-size:13px; font-weight:bold; text-decoration:none;">Download report (Word)</a>
+</div>
+
+<section class="complaint-summary">    <div class="summary-chip"><strong>{{ complaints|length }}</strong> total complaint(s)</div>
     <div class="summary-chip"><strong>{{ complaints|selectattr("status", "equalto", "New")|list|length }}</strong> new complaint(s)</div>
     <div class="summary-chip"><strong>{{ complaints|selectattr("severity", "equalto", "Critical")|list|length }}</strong> critical complaint(s)</div>
 </section>

@@ -65,7 +65,6 @@ class ProductComplaintForm(FlaskForm):
         choices=[
             ("Non-serious", "Non-serious"),
             ("Serious", "Serious"),
-            ("Critical", "Critical"),
         ],
         validators=[DataRequired()],
     )
@@ -80,10 +79,8 @@ class ComplaintReviewForm(FlaskForm):
     status = SelectField(
         "Workflow status",
         choices=[
-            ("New", "New"),
             ("Under investigation", "Under investigation"),
-            ("Awaiting information", "Awaiting information"),
-            ("Closed", "Closed"),
+            ("Investigation complete", "Investigation complete"),
         ],
         validators=[DataRequired()],
     )

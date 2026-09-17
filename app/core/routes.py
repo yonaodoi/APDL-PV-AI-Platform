@@ -228,6 +228,20 @@ def regulatory_reporting():
         "product",
         "",
     ).strip()
+    selected_country = flask.request.args.get(
+        "country",
+        "",
+    ).strip()
+
+    selected_record_type = flask.request.args.get(
+        "record_type",
+        "",
+    ).strip()
+
+    selected_status = flask.request.args.get(
+        "status",
+        "",
+    ).strip()
 
     products = query_all(
         """
@@ -256,12 +270,47 @@ def regulatory_reporting():
         ORDER BY product_name
         """
     )
+    countries = query_all(
+        """
+        SELECT country_id, country_name
+        FROM pv.countries
+        ORDER BY country_name
+        """
+    )
+    statuses = query_all(
+        """
+        SELECT status
+        FROM (
+            SELECT workflow_status AS status
+            FROM pv.safety_cases
+
+            UNION
+
+            SELECT status
+            FROM pv.product_complaints
+
+            UNION
+
+            SELECT status
+            FROM pv.safety_signals
+
+            UNION
+
+            SELECT status
+            FROM pv.psur_reports
+        ) AS statuses
+        ORDER BY status
+        """
+    )
+
 
     reporting_records = """
         WITH report_records AS (
             SELECT
                 COALESCE(cp.product_name, 'Not recorded')
                     AS product_name,
+                COALESCE(c.country_name, 'Not recorded')
+                    AS country_name,
                 sc.received_date AS report_date,
                 'Safety case' AS record_type,
                 sc.case_number AS record_number,
@@ -271,11 +320,15 @@ def regulatory_reporting():
             FROM pv.safety_cases AS sc
             LEFT JOIN pv.case_products AS cp
                 ON cp.case_id = sc.case_id
+            LEFT JOIN pv.countries AS c
+                ON c.country_id = sc.country_id
 
             UNION ALL
 
             SELECT
                 pc.product_name,
+                COALESCE(c.country_name, 'Not recorded')
+                    AS country_name,
                 pc.date_received,
                 'Product complaint',
                 pc.complaint_number,
@@ -283,11 +336,14 @@ def regulatory_reporting():
                 pc.severity IN ('Serious', 'Critical'),
                 pc.complaint_description
             FROM pv.product_complaints AS pc
+            LEFT JOIN pv.countries AS c
+                ON c.country_id = pc.country_id
 
             UNION ALL
 
             SELECT
                 ss.product_name,
+                'Not recorded' AS country_name,
                 ss.date_detected,
                 'Safety signal',
                 ss.signal_number,
@@ -300,6 +356,7 @@ def regulatory_reporting():
 
             SELECT
                 pr.product_name,
+                'Not recorded' AS country_name,
                 pr.reporting_period_end,
                 'PSUR',
                 pr.report_number,
@@ -313,6 +370,9 @@ def regulatory_reporting():
     filters = """
         WHERE report_date BETWEEN %s AND %s
           AND (%s = '' OR product_name = %s)
+          AND (%s = '' OR country_name = %s)
+          AND (%s = '' OR record_type = %s)
+          AND (%s = '' OR status = %s)
     """
 
     filter_values = (
@@ -320,6 +380,12 @@ def regulatory_reporting():
         end_date,
         selected_product,
         selected_product,
+        selected_country,
+        selected_country,
+        selected_record_type,
+        selected_record_type,
+        selected_status,
+        selected_status,
     )
 
     metrics = query_one(
@@ -450,6 +516,11 @@ def regulatory_reporting():
     return flask.render_template(
         "regulatory_reporting.html",
         products=products,
+        countries=countries,
+        selected_country=selected_country,
+        selected_record_type=selected_record_type,
+        statuses=statuses,
+        selected_status=selected_status,
         selected_product=selected_product,
         start_date=start_date,
         end_date=end_date,
@@ -492,6 +563,23 @@ def download_regulatory_reporting_csv():
         "product",
         "",
     ).strip()
+    selected_country = flask.request.args.get(
+        "country",
+        "",
+    ).strip()
+    selected_record_type = flask.request.args.get(
+        "record_type",
+        "",
+    ).strip()
+    selected_record_type = flask.request.args.get(
+        "record_type",
+        "",
+    ).strip()
+
+    selected_status = flask.request.args.get(
+        "status",
+        "",
+    ).strip()
 
     records = query_all(
         """
@@ -499,6 +587,8 @@ def download_regulatory_reporting_csv():
             SELECT
                 COALESCE(cp.product_name, 'Not recorded')
                     AS product_name,
+                COALESCE(c.country_name, 'Not recorded')
+                    AS country_name,
                 sc.received_date AS report_date,
                 'Safety case' AS record_type,
                 sc.case_number AS record_number,
@@ -508,11 +598,15 @@ def download_regulatory_reporting_csv():
             FROM pv.safety_cases AS sc
             LEFT JOIN pv.case_products AS cp
                 ON cp.case_id = sc.case_id
+            LEFT JOIN pv.countries AS c
+                ON c.country_id = sc.country_id
 
             UNION ALL
 
             SELECT
                 pc.product_name,
+                COALESCE(c.country_name, 'Not recorded')
+                    AS country_name,
                 pc.date_received,
                 'Product complaint',
                 pc.complaint_number,
@@ -520,11 +614,14 @@ def download_regulatory_reporting_csv():
                 pc.severity IN ('Serious', 'Critical'),
                 pc.complaint_description
             FROM pv.product_complaints AS pc
+            LEFT JOIN pv.countries AS c
+                ON c.country_id = pc.country_id
 
             UNION ALL
 
             SELECT
                 ss.product_name,
+                'Not recorded' AS country_name,
                 ss.date_detected,
                 'Safety signal',
                 ss.signal_number,
@@ -537,6 +634,7 @@ def download_regulatory_reporting_csv():
 
             SELECT
                 pr.product_name,
+                'Not recorded' AS country_name,
                 pr.reporting_period_end,
                 'PSUR',
                 pr.report_number,
@@ -556,6 +654,9 @@ def download_regulatory_reporting_csv():
         FROM report_records
         WHERE report_date BETWEEN %s AND %s
           AND (%s = '' OR product_name = %s)
+          AND (%s = '' OR country_name = %s)
+          AND (%s = '' OR record_type = %s)
+          AND (%s = '' OR status = %s)
         ORDER BY report_date DESC, record_number DESC
         """,
         (
@@ -563,6 +664,12 @@ def download_regulatory_reporting_csv():
             end_date,
             selected_product,
             selected_product,
+            selected_country,
+            selected_country,
+            selected_record_type,
+            selected_record_type,
+            selected_status,
+            selected_status,
         ),
     )
 
