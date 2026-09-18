@@ -8,27 +8,70 @@ from docx.text.paragraph import Paragraph
 from flask import current_app
 
 from app.db import query_all
+from app.psur.section_definitions import PSUR_SECTION_TITLES
+DEFAULT_TEMPLATE_SECTION_HEADINGS = (
+    "Executive summary",
+    "Introduction",
+    "2.0 Use in special population:",
+    "3.0 Worldwide marketing authorisation status",
+    "4.0 Action taken in the reporting interval for safety reasons",
+    "5.0 Changes to reference safety information",
+    "6.0 Estimated Exposure and Use Patterns",
+    "6.1 Cumulative Subject Exposure in Clinical Trials",
+    "6.2 Cumulative and Interval Patient Exposure from Marketing Experience",
+    "6.2.1. Post-approval (non-clinical trial) exposure",
+    "6.2.2. Post-Authorisation uses in special populations",
+    "6.2.3. Other post-authorisation use",
+    "Off-label use:",
+    "Overdose:",
+    "Drug abuse and misuse:",
+    "Data in Summary Tabulations",
+    "7.1 Reference Information",
+    "7.2 Cumulative Summary Tabulations of Serious Adverse Events from Clinical Trials",
+    "7.3 Cumulative and Interval Summary Tabulations form Post-Marketing Data Sources",
+    "Summaries of significant findings from Clinical Trials in the reporting interval",
+    "8.1 Completed clinical trials",
+    "8.2 Ongoing clinical trials",
+    "8.3 Long-term follow-up",
+    "8.4 Other Therapeutic use of medicinal product",
+    "8.5 New safety data related to fixed combination therapies",
+    "9.0 Findings from non-interventional studies",
+    "10. Information from other clinical trials and sources",
+    "10.1 Other clinical trials",
+    "10.2 Medication error",
+    "10.3 Analysis of other events",
+    "11. Non-Clinical Data",
+    "12. Literature",
+    "12.1 Literature publications on lack of efficacy",
+    "12.2 Literature publications on overdose, abuse or misuse",
+    "12.3 Literature publications with compassionate supply, named patient use",
+    "12.4 Literature publications with medication error where no adverse events occurred",
+    "12.5 Literature publications on pregnancy outcomes (including termination) with/without adverse outcomes",
+    "12.6 Literature publications with use in paediatric populations",
+    "12.7 Literature publications with important non-clinical safety results",
+    "12.8 Other relevant literature publications",
+    "13.0 Other periodic reports",
+    "14.0 Lack of efficacy in controlled Clinical Trials",
+    "15.0 Late breaking information",
+    "16.0 Overview of signals: New, ongoing or closed",
+    "17. Signal and risk evaluation",
+    "17.1 Summary of safety concerns",
+    "17.2 Signal evaluation",
+    "17.3 Evaluation of risks and new information",
+    "17.4 Characterisation of risks",
+    "17.5 Effectiveness of Risk Minimisation",
+    "18.0 Benefit evaluation",
+    "18.1 Important baseline efficacy and effectiveness information",
+    "18.2 Newly identified information on efficacy and effectiveness",
+    "18.3 Characterisation of benefits",
+    "19. Integrated benefit-risk analysis for authorised indications",
+    "19.1 Benefit-risk context – medical need and important alternatives",
+    "19.2 Benefit-Risk analysis evaluation",
+    "20.0 Conclusion and actions",
+    "21.0 Appendices",
+)
 
-
-SECTION_HEADINGS = {
-    "executive_summary": "Executive summary",
-    "introduction": "Introduction",
-    "marketing_authorisation_status": (
-        "3.0 Worldwide marketing authorisation status"
-    ),
-    "safety_actions": (
-        "4.0 Action taken in the reporting interval for safety reasons"
-    ),
-    "reference_safety_information": (
-        "5.0 Changes to reference safety information"
-    ),
-    "exposure": "6.0 Estimated Exposure and Use Patterns",
-    "signals": "17. Signal and risk evaluation",
-    "benefit_risk": (
-        "19. Integrated benefit-risk analysis for authorised indications"
-    ),
-    "conclusion": "20.0 Conclusion and actions",
-}
+SECTION_HEADINGS = PSUR_SECTION_TITLES
 
 
 def _text(value, fallback="Not recorded"):
@@ -90,7 +133,155 @@ def _insert_paragraph_after(paragraph, text):
 def _safe_filename(value):
     return re.sub(r"[^A-Za-z0-9._-]+", "_", value)
 
+def _section_default_content(section_key, report):
+    product_name = _text(report["product_name"])
+    period = (
+        f"{_date(report['reporting_period_start'])} to "
+        f"{_date(report['reporting_period_end'])}"
+    )
 
+    if section_key == "special_populations":
+        return (
+            f"The APDL PV records for {product_name} were reviewed "
+            f"for the period {period}. No completed analysis by "
+            "special population was available in the platform. "
+            "Individual ADR cases should be reviewed for pregnancy, "
+            "paediatric use, elderly patients and other clinically "
+            "relevant populations where this information is available."
+        )
+
+    if section_key in (
+        "exposure",
+        "clinical_trial_exposure",
+        "marketing_exposure",
+        "post_approval_exposure",
+        "special_population_exposure",
+        "other_post_authorisation_use",
+    ):
+        return (
+            "No validated sales, distribution, prescription or "
+            "patient-exposure denominator was available in the APDL "
+            "PV platform for this reporting interval. Reporting "
+            "rates and exposure-adjusted comparisons have therefore "
+            "not been calculated. Verified exposure data should be "
+            "obtained from the relevant commercial or supply records."
+        )
+
+    if section_key in (
+        "off_label_use",
+        "overdose",
+        "abuse_and_misuse",
+        "medication_error",
+    ):
+        return (
+            "The APDL PV records did not contain a completed, "
+            "section-specific review for this topic during the "
+            "reporting interval. The QPPV should confirm the position "
+            "from case narratives, complaint investigations, medical "
+            "information and any other relevant source before "
+            "finalising the PBRER."
+        )
+
+    if section_key in (
+        "clinical_trial_serious_events",
+        "clinical_trial_findings",
+        "completed_clinical_trials",
+        "ongoing_clinical_trials",
+        "long_term_follow_up",
+        "other_therapeutic_use",
+        "combination_therapy_safety",
+        "other_trials_and_sources",
+        "other_clinical_trials",
+        "lack_of_efficacy",
+    ):
+        return (
+            "No APDL-sponsored clinical-trial information relevant to "
+            "this section was available in the PV platform for the "
+            "reporting interval. This section should be completed "
+            "from verified clinical-development records where such "
+            "studies apply."
+        )
+
+    if section_key == "non_interventional_studies":
+        return (
+            "No findings from non-interventional studies were entered "
+            "in the APDL PV platform for this reporting interval. The "
+            "QPPV should confirm whether any post-authorisation safety "
+            "study, observational study or other real-world evidence "
+            "source applies to this product."
+        )
+
+    if section_key in (
+        "non_clinical_data",
+        "literature",
+        "literature_lack_of_efficacy",
+        "literature_overdose_abuse",
+        "literature_compassionate_supply",
+        "literature_medication_error",
+        "literature_pregnancy",
+        "literature_paediatric",
+        "literature_non_clinical",
+        "other_relevant_literature",
+    ):
+        return (
+            "No verified information for this section was available "
+            "from the APDL PV platform during the reporting interval. "
+            "Relevant literature-screening, non-clinical or medical "
+            "information records should be reviewed and entered here "
+            "before the PBRER is finalised."
+        )
+
+    if section_key in (
+        "other_periodic_reports",
+        "late_breaking_information",
+        "appendices",
+    ):
+        return (
+            "No information applicable to this section was entered in "
+            "the APDL PV platform for the reporting interval. The "
+            "QPPV should confirm this against the applicable "
+            "regulatory, safety and quality records before approval."
+        )
+
+    if section_key in (
+        "signals_overview",
+        "safety_concerns",
+        "signal_evaluation",
+        "risk_evaluation",
+        "risk_characterisation",
+        "risk_minimisation_effectiveness",
+    ):
+        return (
+            "The safety signal and risk-evaluation position should be "
+            "determined from the integrated review of ADR cases, "
+            "signal-screening results, market complaints, reference "
+            "safety information and any external evidence. Complete "
+            "the evaluation and record the medical/QPPV conclusion."
+        )
+
+    if section_key in (
+        "benefit_evaluation",
+        "baseline_efficacy",
+        "new_efficacy_information",
+        "benefit_characterisation",
+        "benefit_risk_context",
+        "benefit_risk_evaluation",
+    ):
+        return (
+            "No product-specific efficacy or effectiveness evidence "
+            "for this section was recorded in the APDL PV platform "
+            "during the reporting interval. The benefit assessment "
+            "should be completed from the approved product "
+            "information, relevant clinical evidence and current "
+            "medical knowledge."
+        )
+
+    return (
+        "Review of the APDL pharmacovigilance records did not identify "
+        "information applicable to this section during the reporting "
+        "interval. The QPPV should confirm this against other relevant "
+        "data sources before the PBRER is finalised."
+    )
 def generate_psur_report(report):
     template_path = Path(current_app.config["PSUR_TEMPLATE_PATH"])
 
@@ -135,7 +326,14 @@ def generate_psur_report(report):
             "QPPV: " + _text(report["qppv_name"])
         ),
     }
-
+    qppv_name = _text(
+        report["qppv_name"],
+        "YONA ODOI",
+    )
+    group_head_name = _text(
+        report["approved_by"],
+        "KEITH ARUHO",
+    )
     for paragraph in document.paragraphs:
         for old_text, new_text in replacements.items():
             _replace_in_paragraph(paragraph, old_text, new_text)
@@ -145,17 +343,86 @@ def generate_psur_report(report):
             "MEDICINAL PRODUCTS COVERED:",
             _text(report["product_name"]),
         )
-        _replace_paragraph_start(
-            paragraph,
-            "Therapeutic Indication:",
-            _text(report["therapeutic_indication"]),
-        )
-        _replace_paragraph_start(
-            paragraph,
-            "Mechanism of action:",
-            _text(report["mechanism_of_action"]),
-        )
 
+    contact_person_section = False
+    reviewer_section = False
+
+    for paragraph in document.paragraphs:
+        text = paragraph.text.strip()
+        if text.startswith("QPPV"):
+            paragraph.text = f"QPPV: {qppv_name}"
+            continue
+
+        if text.startswith("Contact person for the PBRER:"):
+            contact_person_section = True
+            reviewer_section = False
+            continue
+
+        if text.startswith("REVIEWER (A):"):
+            reviewer_section = True
+            contact_person_section = False
+            continue
+
+        if contact_person_section and text == "Name:":
+            paragraph.text = f"Name: {qppv_name}"
+            continue
+
+        if contact_person_section and text == "Position:":
+            paragraph.text = "Position: QPPV"
+            contact_person_section = False
+            continue
+
+        if reviewer_section and text == "Name:":
+            paragraph.text = f"Name: {group_head_name}"
+            continue
+
+        if reviewer_section and text == "Position:":
+            paragraph.text = "Position: GROUP HEAD, RA & QUALITY"
+            reviewer_section = False
+    introduction_seen = False
+
+    for paragraph in list(document.paragraphs):
+        heading = paragraph.text.strip()
+
+        if heading == "Introduction":
+            introduction_seen = True
+            continue
+
+        if (
+            introduction_seen
+            and heading in (
+                "Therapeutic Indication:",
+                "Mechanism of action",
+            )
+        ):
+            paragraph._element.getparent().remove(
+                paragraph._element
+            )
+    therapeutic_indication_added = False
+    mechanism_of_action_added = False
+
+    for paragraph in list(document.paragraphs):
+        heading = paragraph.text.strip()
+
+        if (
+            heading == "Therapeutic Indication:"
+            and not therapeutic_indication_added
+        ):
+            _insert_paragraph_after(
+                paragraph,
+                _text(report["therapeutic_indication"]),
+            )
+            therapeutic_indication_added = True
+
+        if (
+            heading == "Mechanism of action:"
+            and not mechanism_of_action_added
+        ):
+            _insert_paragraph_after(
+                paragraph,
+                _text(report["mechanism_of_action"]),
+            )
+            mechanism_of_action_added = True
     if len(document.tables) >= 1:
         authorisation_table = document.tables[0]
 
@@ -231,13 +498,27 @@ def generate_psur_report(report):
 
     for paragraph in list(document.paragraphs):
         heading = paragraph.text.strip()
+        section_key = None
 
-        for section_key, template_heading in SECTION_HEADINGS.items():
-            content = content_by_key.get(section_key)
-
-            if content and heading == template_heading:
-                _insert_paragraph_after(paragraph, content)
+        for key, template_heading in SECTION_HEADINGS.items():
+            if heading == template_heading:
+                section_key = key
                 break
+
+        content = content_by_key.get(section_key)
+
+        if content:
+            _insert_paragraph_after(paragraph, content)
+        elif section_key:
+            _insert_paragraph_after(
+                paragraph,
+                _section_default_content(section_key, report),
+            )
+        elif heading in DEFAULT_TEMPLATE_SECTION_HEADINGS:
+            _insert_paragraph_after(
+                paragraph,
+                _section_default_content(None, report),
+            )
 
     output_folder = (
         Path(current_app.config["UPLOAD_ROOT"]).resolve()

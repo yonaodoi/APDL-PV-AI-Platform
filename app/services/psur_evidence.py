@@ -10,52 +10,57 @@ def _display_date(value):
 
 def _case_lines(cases):
     if not cases:
-        return "No ADR cases were recorded for this product and period."
+        return (
+            "No ADR cases for this product were recorded in the "
+            "APDL PV platform during the reporting interval."
+        )
 
-    return "\n".join(
+    return "\n\n".join(
         (
-            f"- {case['case_number']} | "
-            f"{_display_date(case['received_date'])} | "
-            f"{'Serious' if case['seriousness'] else 'Non-serious'} | "
-            f"{case['workflow_status']} | "
-            f"{case['event_description']}"
+            f"ADR case {case['case_number']} was received on "
+            f"{_display_date(case['received_date'])}. The reported "
+            f"event was {case['event_description']}. The case was "
+            f"classified as "
+            f"{'serious' if case['seriousness'] else 'non-serious'} "
+            f"and its current workflow status is "
+            f"{case['workflow_status']}."
         )
         for case in cases
     )
 
-
 def _complaint_lines(complaints):
     if not complaints:
         return (
-            "No market complaints were recorded for this product "
-            "and period."
+            "No product complaints for this product were recorded "
+            "in the APDL PV platform during the reporting interval."
         )
 
-    return "\n".join(
+    return "\n\n".join(
         (
-            f"- {complaint['complaint_number']} | "
-            f"{_display_date(complaint['date_received'])} | "
-            f"{complaint['severity']} | "
-            f"{complaint['status']} | "
-            f"{complaint['complaint_description']}"
+            f"Complaint {complaint['complaint_number']} was received "
+            f"on {_display_date(complaint['date_received'])}. It was "
+            f"classified as {complaint['severity']} and is currently "
+            f"recorded as {complaint['status']}. The complaint "
+            f"description was: {complaint['complaint_description']}."
         )
         for complaint in complaints
     )
 
-
 def _signal_lines(signals):
     if not signals:
         return (
-            "No safety signals were recorded for this product "
-            "and period."
+            "No safety signals for this product were recorded in the "
+            "APDL PV platform during the reporting interval."
         )
 
-    return "\n".join(
+    return "\n\n".join(
         (
-            f"- {signal['signal_number']} | "
-            f"{signal['priority']} | {signal['status']} | "
-            f"{signal['event_term']} | "
-            f"{signal['supporting_case_count']} supporting ADR case(s)"
+            f"Safety signal {signal['signal_number']} concerns "
+            f"{signal['event_term']}. It is classified as "
+            f"{signal['priority']} priority and is currently "
+            f"{signal['status']}. The signal is linked to "
+            f"{signal['supporting_case_count']} supporting ADR "
+            f"case(s)."
         )
         for signal in signals
     )
@@ -271,6 +276,28 @@ def build_psur_evidence_sections(report):
 
     return {
         "executive_summary": executive_summary,
+        "introduction": (
+            f"This Periodic Benefit-Risk Evaluation Report presents "
+            f"the cumulative and interval safety evaluation for "
+            f"{product_name} for the reporting period {period}. "
+            f"The product is used for "
+            f"{report['therapeutic_indication'] or 'the authorised indication recorded in the product dossier'}. "
+            f"The assessment integrates ADR cases, safety-signal "
+            f"screening outcomes, market complaints and reference "
+            f"safety information available in the APDL PV platform."
+        ),
+        "marketing_authorisation_status": (
+            f"During the reporting interval, {product_name} was "
+            f"recorded in the APDL PV platform with marketing "
+            f"authorisation number "
+            f"{report['marketing_authorisation_number'] or 'not recorded'} "
+            f"and marketing authorisation procedure "
+            f"{report['marketing_authorisation_procedure'] or 'not recorded'}. "
+            f"The markets recorded for this PSUR are "
+            f"{report['countries_covered'] or 'not recorded'}. "
+            "The Regulatory Affairs team should confirm the current "
+            "authorisation status in each market before approval."
+        ),
         "safety_actions": safety_actions,
         "reference_safety_information": (
             reference_safety_information

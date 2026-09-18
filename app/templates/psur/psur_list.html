@@ -160,7 +160,58 @@
         margin: 0;
         font-size: 13px;
     }
+    .psur-filter {
+        margin-bottom:20px;
+        padding:17px;
+        border:1px solid #e9e2e7;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(40,32,55,.025);
+    }
 
+    .filter-grid {
+        display:grid;
+        grid-template-columns:1.6fr 1.2fr 1fr 1fr auto;
+        gap:12px;
+        align-items:end;
+    }
+
+    .filter-field label {
+        display:block;
+        margin-bottom:6px;
+        color:#554d5d;
+        font-size:11px;
+        font-weight:bold;
+    }
+
+    .filter-input {
+        width:100%;
+        box-sizing:border-box;
+        padding:10px;
+        border:1px solid #ddd5dc;
+        border-radius:8px;
+        background:#fffeff;
+        color:#322a3b;
+        font:inherit;
+        font-size:13px;
+    }
+
+    .filter-button {
+        padding:11px 15px;
+        border:0;
+        border-radius:8px;
+        background:#5f3ed4;
+        color:white;
+        font-size:13px;
+        font-weight:bold;
+        cursor:pointer;
+    }
+
+    @media (max-width:1000px) {
+        .filter-grid {
+            grid-template-columns:repeat(2, minmax(0, 1fr));
+        }
+    }
     @media (max-width: 900px) {
         .psur-table th:nth-child(4),
         .psur-table td:nth-child(4) {
@@ -205,6 +256,45 @@
     <div class="summary-chip"><strong>{{ reports|selectattr("status", "equalto", "Draft")|list|length }}</strong> draft PSUR(s)</div>
     <div class="summary-chip"><strong>{{ reports|selectattr("status", "equalto", "Finalised")|list|length }}</strong> finalised PSUR(s)</div>
 </section>
+<section class="psur-filter">
+    <form method="get" class="filter-grid">
+        <div class="filter-field">
+            <label for="product">Product</label>
+            <select class="filter-input" id="product" name="product">
+                <option value="">All products</option>
+                {% for product in products %}
+                    <option value="{{ product.product_name }}" {% if selected_product == product.product_name %}selected{% endif %}>
+                        {{ product.product_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="status">Status</label>
+            <select class="filter-input" id="status" name="status">
+                <option value="">All statuses</option>
+                {% for status in statuses %}
+                    <option value="{{ status.status }}" {% if selected_status == status.status %}selected{% endif %}>
+                        {{ status.status }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="start_date">Period from</label>
+            <input class="filter-input" id="start_date" name="start_date" type="date" value="{{ start_date }}">
+        </div>
+
+        <div class="filter-field">
+            <label for="end_date">Period to</label>
+            <input class="filter-input" id="end_date" name="end_date" type="date" value="{{ end_date }}">
+        </div>
+
+        <button class="filter-button" type="submit">Apply filters</button>
+    </form>
+</section>
 
 <section class="psur-register">
     <div class="register-toolbar">
@@ -227,7 +317,11 @@
             <tbody>
                 {% for report in reports %}
                     <tr>
-                        <td class="psur-number"><a href="{{ url_for('psur.psur_detail', psur_id=report.psur_id) }}" style="color: inherit; text-decoration: none;">{{ report.report_number }}</a></td>
+                        <td class="psur-number">
+                            <a href="{{ url_for('psur.psur_detail', psur_id=report.psur_id) }}" style="color: inherit; text-decoration: none;">
+                                {{ report.report_number }}
+                            </a>
+                        </td>
                         <td class="product-name">{{ report.product_name }}</td>
                         <td class="period-cell">
                             {{ report.reporting_period_start.strftime("%d %b %Y") }}

@@ -1,3 +1,5 @@
+import flask
+
 from flask import Blueprint, abort, flash, redirect, render_template, session, url_for
 
 from app.db import query_all, query_one, transaction
@@ -87,8 +89,48 @@ def reporting_dates_are_valid(form):
 @bp.get("/")
 @login_required
 def psur_list():
+    selected_product = flask.request.args.get(
+        "product",
+        "",
+    ).strip()
+    selected_status = flask.request.args.get(
+        "status",
+        "",
+    ).strip()
+    start_date = flask.request.args.get(
+        "start_date",
+        "",
+    ).strip()
+    end_date = flask.request.args.get(
+        "end_date",
+        "",
+    ).strip()
+
+    filters = []
+    parameters = []
+
+    if selected_product:
+        filters.append("product_name = %s")
+        parameters.append(selected_product)
+
+    if selected_status:
+        filters.append("status = %s")
+        parameters.append(selected_status)
+
+    if start_date:
+        filters.append("reporting_period_end >= %s")
+        parameters.append(start_date)
+
+    if end_date:
+        filters.append("reporting_period_start <= %s")
+        parameters.append(end_date)
+
+    where_clause = ""
+    if filters:
+        where_clause = "WHERE " + " AND ".join(filters)
+
     reports = query_all(
-        """
+        f"""
         SELECT
             psur_id,
             report_number,
@@ -99,12 +141,42 @@ def psur_list():
             status,
             prepared_by
         FROM pv.psur_reports
+        {where_clause}
         ORDER BY reporting_period_end DESC, psur_id DESC
+        """,
+        tuple(parameters),
+    )
+
+    products = query_all(
+        """
+        SELECT DISTINCT product_name
+        FROM pv.psur_reports
+        WHERE product_name IS NOT NULL
+          AND product_name <> ''
+        ORDER BY product_name
         """
     )
-    return render_template("psur/psur_list.html", reports=reports)
 
+    statuses = query_all(
+        """
+        SELECT DISTINCT status
+        FROM pv.psur_reports
+        WHERE status IS NOT NULL
+          AND status <> ''
+        ORDER BY status
+        """
+    )
 
+    return render_template(
+        "psur/psur_list.html",
+        reports=reports,
+        products=products,
+        statuses=statuses,
+        selected_product=selected_product,
+        selected_status=selected_status,
+        start_date=start_date,
+        end_date=end_date,
+    )
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
 def create_psur():

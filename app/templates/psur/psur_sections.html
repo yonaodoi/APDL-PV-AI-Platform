@@ -17,7 +17,7 @@
         display:inline-block;
         margin-bottom:10px;
         color:#7656e8;
-        font-size:13px;
+        font-size:15px;
         font-weight:bold;
         text-decoration:none;
     }
@@ -36,7 +36,7 @@
 
     .sections-layout {
         display:grid;
-        grid-template-columns:minmax(0, 1fr) 330px;
+        grid-template-columns:minmax(0, 1fr);
         gap:22px;
         align-items:start;
     }
@@ -134,16 +134,12 @@
     }
 
     .saved-section p {
-        display:-webkit-box;
-        overflow:hidden;
         margin:0;
-        color:#716877;
-        font-size:12px;
-        line-height:1.5;
-        -webkit-box-orient:vertical;
-        -webkit-line-clamp:4;
+        color:#514956;
+        font-size:13px;
+        line-height:1.75;
+        white-space:pre-wrap;
     }
-
     .saved-section time {
         display:block;
         margin-top:8px;
@@ -235,6 +231,9 @@
                         <h4>{{ section.section_title }}</h4>
                         <p>{{ section.content }}</p>
                         <time>Updated {{ section.updated_at.strftime("%d %b %Y %H:%M") }}</time>
+<a href="{{ url_for('psur_sections.manage_psur_sections', psur_id=report.psur_id, section_key=section.section_key) }}" style="display:inline-block; margin-top:10px; color:#5f3ed4; font-size:12px; font-weight:bold; text-decoration:none;">
+    Edit this section
+</a>
                     </div>
                 {% endfor %}
             {% else %}

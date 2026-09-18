@@ -3,6 +3,7 @@ from datetime import date
 from flask_wtf import FlaskForm
 from wtforms import DateField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, Optional
+from app.psur.section_definitions import PSUR_SECTION_CHOICES
 
 
 class PsurReportForm(FlaskForm):
@@ -143,17 +144,7 @@ class PsurReviewForm(FlaskForm):
 class PsurSectionForm(FlaskForm):
     section_key = SelectField(
         "PSUR section",
-        choices=[
-            ("executive_summary", "Executive summary"),
-            ("introduction", "Introduction"),
-            ("marketing_authorisation_status", "Worldwide marketing authorisation status"),
-            ("safety_actions", "Actions taken for safety reasons"),
-            ("reference_safety_information", "Changes to reference safety information"),
-            ("exposure", "Estimated exposure and use patterns"),
-            ("signals", "Signal and risk evaluation"),
-            ("benefit_risk", "Integrated benefit-risk analysis"),
-            ("conclusion", "Conclusion and actions"),
-        ],
+        choices=PSUR_SECTION_CHOICES,
         validators=[DataRequired()],
     )
     content = TextAreaField(
