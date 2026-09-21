@@ -181,25 +181,40 @@
             <div class="section-title">
                 <span class="section-number">3</span>
                 <div>
-                    <h3>Marketing authorisation holder and QPPV</h3>
-                    <p>These details appear in the report-cover information.</p>
+                    <h3>PSUR contacts and signatories</h3>
+                    <p>Enter each person once. The same details are used on the cover page and in the final signatories table.</p>
                 </div>
             </div>
 
             <div class="grid">
                 <div class="field full">
                     <label>{{ form.marketing_authorisation_holder_name.label.text }}</label>
-                    {{ form.marketing_authorisation_holder_name(class_="input", placeholder="For example: Abacus Parenteral Drugs Limited") }}
+                    {{ form.marketing_authorisation_holder_name(
+                        class_="input",
+                        placeholder="For example: Abacus Parenteral Drugs Limited"
+                    ) }}
                 </div>
 
                 <div class="field full">
                     <label>{{ form.marketing_authorisation_holder_address.label.text }}</label>
-                    {{ form.marketing_authorisation_holder_address(class_="input", rows="3", placeholder="Marketing authorisation holder address") }}
+                    {{ form.marketing_authorisation_holder_address(
+                        class_="input",
+                        rows="3",
+                        placeholder="Marketing authorisation holder address"
+                    ) }}
                 </div>
 
                 <div class="field">
                     <label>{{ form.qppv_name.label.text }}</label>
-                    {{ form.qppv_name(class_="input") }}
+                    {{ form.qppv_name(
+                        class_="input",
+                        placeholder="QPPV full name"
+                    ) }}
+                </div>
+
+                <div class="field">
+                    <label>QPPV position</label>
+                    <input class="input" type="text" value="QPPV" readonly>
                 </div>
 
                 <div class="field">
@@ -212,17 +227,62 @@
                     {{ form.qppv_email(class_="input", type="email") }}
                 </div>
 
-                <div class="field">
-                    <label>{{ form.prepared_by.label.text }}</label>
-                    {{ form.prepared_by(class_="input") }}
+                <div class="field full">
+                    <div style="margin:5px 0 1px; padding-top:15px; border-top:1px solid #eee8ec;">
+                        <strong style="color:#403748; font-size:14px;">PBRER contact and document signatories</strong>
+                    </div>
                 </div>
 
                 <div class="field">
-                    <label>{{ form.approved_by.label.text }}</label>
-                    {{ form.approved_by(class_="input") }}
+                    <label>{{ form.pbrer_contact_name.label.text }}</label>
+                    {{ form.pbrer_contact_name(
+                        class_="input",
+                        placeholder="PBRER contact full name"
+                    ) }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.pbrer_contact_position.label.text }}</label>
+                    {{ form.pbrer_contact_position(
+                        class_="input",
+                        placeholder="For example: QPPV"
+                    ) }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.reviewer_a_name.label.text }}</label>
+                    {{ form.reviewer_a_name(
+                        class_="input",
+                        placeholder="Reviewer full name"
+                    ) }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.reviewer_a_position.label.text }}</label>
+                    {{ form.reviewer_a_position(
+                        class_="input",
+                        placeholder="For example: Group Head, RA and Quality"
+                    ) }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.prepared_by.label.text }}</label>
+                    {{ form.prepared_by(
+                        class_="input",
+                        placeholder="Prepared by full name"
+                    ) }}
+                </div>
+
+                <div class="field">
+                    <label>{{ form.prepared_by_position.label.text }}</label>
+                    {{ form.prepared_by_position(
+                        class_="input",
+                        placeholder="For example: Pharmacovigilance Officer"
+                    ) }}
                 </div>
             </div>
-        </section>
+        </section>  
+
 
         <section class="section">
             <div class="section-title">

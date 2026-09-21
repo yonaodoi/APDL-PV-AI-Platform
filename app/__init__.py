@@ -34,6 +34,7 @@ def create_app(config_class=Config):
     from .psur.routes import bp as psur_blueprint
     from .psur.report_routes import bp as psur_reports_blueprint
     from .psur.section_routes import bp as psur_sections_blueprint
+    from .psur.builder_routes import bp as psur_builder_blueprint
     from .core.routes import bp as core_blueprint
 
     app.register_blueprint(administration_blueprint)
@@ -48,6 +49,7 @@ def create_app(config_class=Config):
     app.register_blueprint(psur_blueprint)
     app.register_blueprint(psur_reports_blueprint)
     app.register_blueprint(psur_sections_blueprint)
+    app.register_blueprint(psur_builder_blueprint)
     app.register_blueprint(core_blueprint)
     app.register_blueprint(case_ai_reports_blueprint)
 

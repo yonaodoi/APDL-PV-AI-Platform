@@ -272,7 +272,17 @@
             <a class="nav-link {% if request.endpoint in ('complaints.complaint_list', 'complaints.create_complaint', 'complaints.complaint_detail') %}active{% endif %}" href="{{ url_for('complaints.complaint_list') }}">Product Complaints</a>
 
             <div class="nav-label">SAFETY MANAGEMENT</div>
-            <a class="nav-link {% if request.endpoint == 'core.regulatory_reporting' %}active{% endif %}" href="{{ url_for('core.regulatory_reporting') }}">PV & Regulatory Analytics</a>
+          <a
+    class="nav-link {% if request.endpoint in (
+        'core.analytics_home',
+        'core.analytics_metric_detail',
+        'core.regulatory_reporting'
+    ) %}active{% endif %}"
+    href="{{ url_for('core.analytics_home') }}"
+>
+    PV & Regulatory Analytics
+</a>
+
             <a class="nav-link {% if request.endpoint in ('signals.signal_list', 'signals.create_signal', 'signals.signal_detail') %}active{% endif %}" href="{{ url_for('signals.signal_list') }}">Safety Signals</a>
 
             <a class="nav-link {% if request.endpoint in ('psur.psur_list', 'psur.create_psur', 'psur.psur_detail', 'psur.edit_psur', 'psur_sections.manage_psur_sections') %}active{% endif %}" href="{{ url_for('psur.psur_list') }}">PSURs</a>

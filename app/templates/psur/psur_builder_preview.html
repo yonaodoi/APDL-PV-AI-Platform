@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}PSUR Builder Preview | APDL PV{% endblock %}
+{% block page_title %}PSUR Builder Preview{% endblock %}
+
+{% block content %}
+<style>
+    .preview-page {
+        max-width:950px;
+        margin:0 auto;
+    }
+
+    .preview-header {
+        display:flex;
+        justify-content:space-between;
+        gap:18px;
+        align-items:flex-start;
+        margin-bottom:22px;
+    }
+
+    .back-link {
+        display:inline-block;
+        margin-bottom:10px;
+        color:#7656e8;
+        font-size:13px;
+        font-weight:bold;
+        text-decoration:none;
+    }
+
+    .preview-header h2 {
+        margin:0 0 7px;
+        color:#282037;
+        font-size:28px;
+    }
+
+    .preview-header p {
+        margin:0;
+        color:#746d7d;
+        font-size:14px;
+        line-height:1.5;
+    }
+
+    .download-button {
+        display:inline-block;
+        padding:11px 15px;
+        border-radius:8px;
+        background:#5f3ed4;
+        color:white;
+        font-size:13px;
+        font-weight:bold;
+        text-decoration:none;
+        white-space:nowrap;
+    }
+
+    .preview-summary {
+        display:flex;
+        gap:12px;
+        flex-wrap:wrap;
+        margin-bottom:20px;
+    }
+
+    .summary-chip {
+        padding:9px 12px;
+        border:1px solid #e6deeb;
+        border-radius:9px;
+        background:white;
+        color:#655c6a;
+        font-size:12px;
+    }
+
+    .summary-chip strong {
+        color:#5f3ed4;
+    }
+
+    .preview-section {
+        margin-bottom:16px;
+        padding:20px 22px;
+        border:1px solid #e9e2e7;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(40,32,55,.025);
+    }
+
+    .preview-section-heading {
+        display:flex;
+        justify-content:space-between;
+        gap:14px;
+        align-items:center;
+        margin-bottom:13px;
+    }
+
+    .preview-section-heading h3 {
+        margin:0;
+        color:#403748;
+        font-size:16px;
+        line-height:1.4;
+    }
+
+    .edit-link {
+        flex-shrink:0;
+        color:#6242d7;
+        font-size:12px;
+        font-weight:bold;
+        text-decoration:none;
+    }
+
+    .preview-content {
+        margin:0;
+        color:#3f3747;
+        font:15px/1.75 Georgia, "Times New Roman", serif;
+        white-space:pre-wrap;
+    }
+
+    .empty-preview {
+        padding:55px 25px;
+        border:1px solid #e9e2e7;
+        border-radius:14px;
+        background:white;
+        color:#766d7b;
+        text-align:center;
+    }
+
+    @media (max-width:700px) {
+        .preview-header { display:block; }
+        .download-button { margin-top:15px; }
+    }
+</style>
+
+<section class="preview-page">
+    <header class="preview-header">
+        <div>
+            <a class="back-link" href="{{ url_for('psur_builder.psur_builder_home', psur_id=report.psur_id) }}">← Back to PSUR Builder</a>
+            <h2>Full PSUR preview</h2>
+            <p>
+                {{ report.report_number }} · {{ report.product_name }} ·
+                {{ report.reporting_period_start.strftime("%d %b %Y") }}
+                to {{ report.reporting_period_end.strftime("%d %b %Y") }}
+            </p>
+        </div>
+
+        <a class="download-button" href="{{ url_for('psur_builder.download_psur_builder_report', psur_id=report.psur_id) }}">
+            Download Word report
+        </a>
+    </header>
+
+    <section class="preview-summary">
+        <div class="summary-chip">
+            <strong>{{ sections|length }}</strong> section(s) ready for export
+        </div>
+    </section>
+
+    {% if sections %}
+        {% for section in sections %}
+            <section class="preview-section">
+                <div class="preview-section-heading">
+                    <h3>{{ section.section_title }}</h3>
+
+                    <a class="edit-link" href="{{ url_for('psur_builder.psur_builder_section', psur_id=report.psur_id, section_key=section.section_key) }}">
+                        Edit section
+                    </a>
+                </div>
+
+                <p class="preview-content">{{ section.final_content }}</p>
+            </section>
+        {% endfor %}
+    {% else %}
+        <section class="empty-preview">
+            No PSUR section content has been saved yet.
+        </section>
+    {% endif %}
+</section>
+{% endblock %}

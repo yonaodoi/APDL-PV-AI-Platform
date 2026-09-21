@@ -1,79 +1,275 @@
 {% extends "base.html" %}
 
-{% block title %}PV & Regulatory Analytics | APDL PV{% endblock %}
-{% block page_title %}PV & Regulatory Analytics{% endblock %}
+{% block title %}Analytics Centre | APDL PV{% endblock %}
+{% block page_title %}Analytics Centre{% endblock %}
 
 {% block content %}
 <style>
-  .analytics-page { max-width:1150px; margin:0 auto; }
-  .analytics-header { margin-bottom:24px; }
-  .analytics-header h2 { margin:0 0 7px; color:#282037; font-size:28px; }
-  .analytics-header p { margin:0; color:#746d7d; font-size:14px; }
+    .analytics-page {
+        max-width: 1180px;
+        margin: 0 auto;
+    }
 
-  .metric-grid {
-    display:grid;
-    grid-template-columns:repeat(3, minmax(0, 1fr));
-    gap:16px;
-  }
+    .analytics-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 22px;
+        align-items: flex-start;
+        margin-bottom: 25px;
+    }
 
-  .metric-card {
-    display:block; padding:21px; border:1px solid #e8e0ea; border-radius:14px;
-    background:white; color:inherit; text-decoration:none;
-    box-shadow:0 6px 16px rgba(40,32,55,.04);
-    transition:transform .15s ease, box-shadow .15s ease;
-  }
+    .eyebrow {
+        margin: 0 0 8px;
+        color: #7656e8;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 1px;
+    }
 
-  .metric-card:hover {
-    transform:translateY(-2px);
-    box-shadow:0 10px 22px rgba(40,32,55,.09);
-  }
+    .analytics-header h2 {
+        margin: 0 0 8px;
+        color: #282037;
+        font-size: 29px;
+    }
 
-  .metric-card h3 { margin:0 0 11px; color:#59436a; font-size:13px; }
-  .metric-value { color:#5f3ed4; font-size:31px; font-weight:bold; }
-  .metric-card p { margin:11px 0 0; color:#7d7382; font-size:12px; line-height:1.5; }
+    .analytics-header p {
+        max-width: 690px;
+        margin: 0;
+        color: #746d7d;
+        font-size: 14px;
+        line-height: 1.55;
+    }
 
-  .reporting-link {
-    display:inline-block; margin-top:22px; padding:12px 16px; border-radius:9px;
-    background:#5f3ed4; color:white; font-size:13px; font-weight:bold; text-decoration:none;
-  }
+    .reporting-link {
+        flex: none;
+        padding: 11px 14px;
+        border: 1px solid #ddd3e7;
+        border-radius: 9px;
+        background: white;
+        color: #6242d7;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+        white-space: nowrap;
+    }
 
-  @media (max-width:850px) {
-    .metric-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
-  }
+    .analytics-note {
+        margin-bottom: 22px;
+        padding: 14px 17px;
+        border: 1px solid #e3daf1;
+        border-radius: 11px;
+        background: #faf8ff;
+        color: #625778;
+        font-size: 13px;
+        line-height: 1.55;
+    }
 
-  @media (max-width:550px) {
-    .metric-grid { grid-template-columns:1fr; }
-  }
+    .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .analytics-card {
+        position: relative;
+        display: block;
+        min-height: 157px;
+        overflow: hidden;
+        padding: 19px;
+        border: 1px solid #e9e2e7;
+        border-radius: 14px;
+        background: white;
+        color: inherit;
+        text-decoration: none;
+        box-shadow: 0 5px 13px rgba(40, 32, 55, 0.035);
+        transition: transform .16s ease, box-shadow .16s ease;
+    }
+
+    .analytics-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 24px rgba(40, 32, 55, 0.10);
+    }
+
+    .analytics-card::after {
+        position: absolute;
+        right: -23px;
+        bottom: -26px;
+        width: 104px;
+        height: 104px;
+        border-radius: 50%;
+        background: #f1edff;
+        content: "";
+    }
+
+    .analytics-card.serious::after {
+        background: #fff0ee;
+    }
+
+    .analytics-card.neutral::after {
+        background: #f4f0f4;
+    }
+
+    .card-icon {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        width: 35px;
+        height: 35px;
+        place-items: center;
+        border-radius: 10px;
+        background: #eee9ff;
+        color: #6545d8;
+        font-size: 14px;
+        font-weight: bold;
+    }
+
+    .serious .card-icon {
+        background: #ffe9e6;
+        color: #ce564d;
+    }
+
+    .neutral .card-icon {
+        background: #f0ebf0;
+        color: #6b5e6d;
+    }
+
+    .card-label {
+        position: relative;
+        z-index: 1;
+        display: block;
+        margin-top: 18px;
+        color: #655b69;
+        font-size: 13px;
+        font-weight: bold;
+        line-height: 1.35;
+    }
+
+    .card-value {
+        position: relative;
+        z-index: 1;
+        display: block;
+        margin-top: 7px;
+        color: #282037;
+        font-size: 31px;
+        font-weight: bold;
+        line-height: 1;
+    }
+
+    .serious .card-value {
+        color: #cd554d;
+    }
+
+    .card-action {
+        position: relative;
+        z-index: 1;
+        display: block;
+        margin-top: 12px;
+        color: #7656e8;
+        font-size: 11px;
+        font-weight: bold;
+    }
+
+    @media (max-width: 1050px) {
+        .cards-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 720px) {
+        .analytics-header {
+            display: block;
+        }
+
+        .reporting-link {
+            display: inline-block;
+            margin-top: 16px;
+        }
+
+        .cards-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 480px) {
+        .cards-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 
 <section class="analytics-page">
-  <header class="analytics-header">
-    <h2>PV & Regulatory Analytics</h2>
-    <p>Select a metric to view only its underlying records and apply focused filters.</p>
-  </header>
+    <header class="analytics-header">
+        <div>
+            <p class="eyebrow">PV AND REGULATORY INTELLIGENCE</p>
+            <h2>Analytics Centre</h2>
+            <p>
+                Select one measure to view only the records relevant to it.
+                Each page is kept separate from unrelated monitoring data.
+            </p>
+        </div>
 
-  <section class="metric-grid">
-    {% for metric_key, metric in metrics.items() %}
-<a
-  class="metric-card"
-  href="{{ url_for('core.analytics_metric_detail', metric_key=metric_key) }}"
->
-        <h3>{{ metric.title }}</h3>
-        <div class="metric-value">{{ metric.value }}</div>
-{% if metric_key == "psur-records" %}
-  <p>
-    <strong>{{ metric.due }}</strong> record(s) were still awaiting
-    approval or finalisation.
-  </p>
-{% else %}
-  <p>Open the focused register for this monitoring item.</p>
-{% endif %}
-      </a>
-    {% endfor %}
-  </section>
+        <a
+            class="reporting-link"
+            href="{{ url_for('core.regulatory_reporting') }}"
+        >
+            Reporting register
+        </a>
+    </header>
 
-  <a class="reporting-link" href="{{ url_for('core.regulatory_reporting') }}">
-    Open regulatory reporting register
-  </a>
+    <section class="analytics-note">
+        The figures below are generated from information recorded in the APDL
+        PV platform. Select a card to open its focused register.
+    </section>
+
+    <section class="cards-grid">
+        <a class="analytics-card" href="{{ url_for('core.analytics_metric_detail', metric_key='total-cases') }}">
+            <span class="card-icon">C</span>
+            <span class="card-label">Total safety cases</span>
+            <span class="card-value">{{ metrics.total_cases }}</span>
+            <span class="card-action">Open case register →</span>
+        </a>
+
+        <a class="analytics-card" href="{{ url_for('core.analytics_metric_detail', metric_key='new-cases') }}">
+            <span class="card-icon">+</span>
+            <span class="card-label">New safety cases</span>
+            <span class="card-value">{{ metrics.new_cases }}</span>
+            <span class="card-action">Open new-case register →</span>
+        </a>
+
+        <a class="analytics-card serious" href="{{ url_for('core.analytics_metric_detail', metric_key='serious-cases') }}">
+            <span class="card-icon">!</span>
+            <span class="card-label">Serious safety cases</span>
+            <span class="card-value">{{ metrics.serious_cases }}</span>
+            <span class="card-action">Open serious-case register →</span>
+        </a>
+
+        <a class="analytics-card neutral" href="{{ url_for('core.analytics_metric_detail', metric_key='open-signals') }}">
+            <span class="card-icon">S</span>
+            <span class="card-label">Open safety signals</span>
+            <span class="card-value">{{ metrics.open_signals }}</span>
+            <span class="card-action">Open signal register →</span>
+        </a>
+
+        <a class="analytics-card neutral" href="{{ url_for('core.analytics_metric_detail', metric_key='reports-due') }}">
+            <span class="card-icon">D</span>
+            <span class="card-label">PSUR reports due</span>
+            <span class="card-value">{{ metrics.reports_due }}</span>
+            <span class="card-action">Open due-report register →</span>
+        </a>
+
+        <a class="analytics-card neutral" href="{{ url_for('core.analytics_metric_detail', metric_key='product-complaints') }}">
+            <span class="card-icon">P</span>
+            <span class="card-label">Product complaints</span>
+            <span class="card-value">{{ metrics.total_complaints }}</span>
+            <span class="card-action">Open complaint register →</span>
+        </a>
+
+        <a class="analytics-card" href="{{ url_for('core.analytics_metric_detail', metric_key='psur-records') }}">
+            <span class="card-icon">R</span>
+            <span class="card-label">PSUR records</span>
+            <span class="card-value">{{ metrics.total_psurs }}</span>
+            <span class="card-action">Open PSUR register →</span>
+        </a>
+    </section>
 </section>
 {% endblock %}

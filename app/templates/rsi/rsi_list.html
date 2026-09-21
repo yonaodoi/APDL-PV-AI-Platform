@@ -38,6 +38,23 @@
         color: #746d7d;
         font-size: 14px;
     }
+    .rsi-header-actions {
+        display:flex;
+        gap:10px;
+        align-items:center;
+    }
+
+    .close-rsi-button {
+        padding:12px 15px;
+        border:1px solid #ded6e5;
+        border-radius:9px;
+        background:white;
+        color:#6242d7;
+        font-size:13px;
+        font-weight:bold;
+        text-decoration:none;
+        white-space:nowrap;
+    }
 
     .new-rsi-button {
         padding: 12px 17px;
@@ -187,9 +204,15 @@
             <p>Maintain the approved innovator and reference-product safety information used for listedness review.</p>
         </div>
 
-        <a class="new-rsi-button" href="{{ url_for('rsi.create_rsi') }}">
-            + Add reference document
-        </a>
+        <div class="rsi-header-actions">
+            <a class="close-rsi-button" href="{{ request.args.get('return_to') or url_for('core.dashboard') }}">
+                Close
+            </a>
+
+            <a class="new-rsi-button" href="{{ url_for('rsi.create_rsi') }}">
+                + Add reference document
+            </a>
+        </div>
     </header>
 
     <div class="rsi-note">
@@ -243,15 +266,6 @@
                                 {% endif %}
                             </td>
 
-                            <td>
-                                {% if document.stored_filename %}
-                                    <a class="document-link" href="{{ url_for('rsi.download_rsi', rsi_id=document.rsi_id) }}">Download</a>
-                                {% endif %}
-                                {% if document.source_url %}
-                                    {% if document.stored_filename %}<br>{% endif %}
-                                    <a class="source-link" href="{{ document.source_url }}" target="_blank" rel="noopener">Official source</a>
-                                {% endif %}
-                            </td>
 
                             <td>
                                 {% if document.stored_filename %}
@@ -262,6 +276,32 @@
                                 {% endif %}
 
                                 <a class="source-link" style="display:block; margin-top:8px;" href="{{ url_for('rsi.review_reactions', rsi_id=document.rsi_id) }}">Verify terms</a>
+                            </td>
+
+                            <td>
+                                {% if document.stored_filename %}
+                                    <form method="post" action="{{ url_for('rsi.extract_reactions', rsi_id=document.rsi_id) }}" style="display:inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" style="padding:7px 10px; border:1px solid #dcd1ee; border-radius:8px; background:#faf8ff; color:#6242d7; font-size:12px; font-weight:bold; cursor:pointer;">
+                                            Extract terms
+                                        </button>
+                                    </form>
+
+                                    <form method="post" action="{{ url_for('rsi.extract_rsi_text', rsi_id=document.rsi_id) }}" style="display:inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" style="margin-top:8px; padding:7px 10px; border:1px solid #dcd1ee; border-radius:8px; background:#faf8ff; color:#6242d7; font-size:12px; font-weight:bold; cursor:pointer;">
+                                            Extract SmPC text
+                                        </button>
+                                    </form>
+
+                                    <span style="display:block; margin-top:8px; color:#817787; font-size:11px;">
+                                        {{ document.extraction_status }}
+                                    </span>
+                                {% endif %}
+
+                                <a class="source-link" style="display:block; margin-top:8px;" href="{{ url_for('rsi.review_reactions', rsi_id=document.rsi_id) }}">
+                                    Verify terms
+                                </a>
                             </td>
                         </tr>
 

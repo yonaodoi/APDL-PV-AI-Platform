@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+
+{% block title %}PSUR Authoring | APDL PV{% endblock %}
+{% block page_title %}PSUR Authoring{% endblock %}
+
+{% block content %}
+<style>
+    .authoring-home {
+        max-width:900px;
+        margin:0 auto;
+    }
+
+    .home-header {
+        display:flex;
+        justify-content:space-between;
+        gap:18px;
+        align-items:flex-start;
+        margin-bottom:22px;
+    }
+
+    .back-link,
+    .secondary-link {
+        display:inline-block;
+        padding:10px 13px;
+        border:1px solid #ddd4e5;
+        border-radius:8px;
+        background:white;
+        color:#6242d7;
+        font-size:12px;
+        font-weight:bold;
+        text-decoration:none;
+    }
+
+    .home-header h2 {
+        margin:0 0 7px;
+        color:#282037;
+        font-size:27px;
+    }
+
+    .home-header p {
+        margin:0;
+        color:#746d7d;
+        font-size:14px;
+        line-height:1.5;
+    }
+
+    .overview-card,
+    .completion-card {
+        margin-bottom:18px;
+        padding:22px;
+        border:1px solid #e8e0ea;
+        border-radius:15px;
+        background:white;
+        box-shadow:0 6px 16px rgba(40,32,55,.04);
+    }
+
+    .overview-card h3,
+    .completion-card h3 {
+        margin:0 0 8px;
+        color:#3a3044;
+        font-size:18px;
+    }
+
+    .overview-card p,
+    .completion-card p {
+        margin:0;
+        color:#685e6d;
+        font-size:14px;
+        line-height:1.6;
+    }
+
+    .progress-summary {
+        display:flex;
+        gap:12px;
+        flex-wrap:wrap;
+        margin:18px 0;
+    }
+
+    .summary-chip {
+        padding:10px 12px;
+        border:1px solid #e3d9ed;
+        border-radius:9px;
+        background:#faf8ff;
+        color:#675b71;
+        font-size:12px;
+    }
+
+    .summary-chip strong {
+        color:#5f3ed4;
+    }
+
+    .start-button,
+    .preview-button,
+    .download-button {
+        display:inline-block;
+        padding:12px 16px;
+        border-radius:9px;
+        color:white;
+        font-size:13px;
+        font-weight:bold;
+        text-decoration:none;
+    }
+
+    .start-button {
+        background:#7656e8;
+        box-shadow:0 7px 15px rgba(118,86,232,.2);
+    }
+
+    .preview-button {
+        margin-right:10px;
+        background:#5f3ed4;
+    }
+
+    .download-button {
+        background:#3f7b5a;
+    }
+
+    .completion-card {
+        border-color:#d8e9de;
+        background:#fbfffc;
+    }
+    .section-category-actions {
+        display:flex;
+        gap:12px;
+        flex-wrap:wrap;
+        margin:18px 0 0;
+    }
+
+    .category-button {
+        display:inline-block;
+        padding:11px 14px;
+        border:1px solid #dcd2e5;
+        border-radius:9px;
+        background:white;
+        color:#5f3ed4;
+        font-size:13px;
+        font-weight:bold;
+        text-decoration:none;
+    }
+
+    .category-button.active {
+        border-color:#7656e8;
+        background:#eee9ff;
+        color:#493273;
+    }
+
+    .section-group {
+        margin-bottom:18px;
+        overflow:hidden;
+        border:1px solid #e8e0ea;
+        border-radius:15px;
+        background:white;
+        box-shadow:0 6px 16px rgba(40,32,55,.04);
+    }
+
+    .section-group-heading {
+        padding:17px 20px;
+        border-bottom:1px solid #eee8ec;
+    }
+
+    .section-group-heading h3 {
+        margin:0 0 4px;
+        color:#3a3044;
+        font-size:16px;
+    }
+
+    .section-group-heading p {
+        margin:0;
+        color:#746d7d;
+        font-size:13px;
+    }
+
+    .section-row {
+        display:flex;
+        justify-content:space-between;
+        gap:14px;
+        align-items:center;
+        padding:14px 20px;
+        border-bottom:1px solid #f0ebee;
+        color:#44394c;
+        text-decoration:none;
+    }
+
+    .section-row:last-child {
+        border-bottom:0;
+    }
+
+    .section-row:hover {
+        background:#faf8ff;
+    }
+
+    .section-row strong {
+        font-size:13px;
+    }
+
+    .open-label {
+        flex:none;
+        color:#6242d7;
+        font-size:12px;
+        font-weight:bold;
+    }
+
+ 
+    @media (max-width:650px) {
+        .home-header {
+            display:block;
+        }
+
+        .back-link {
+            margin-top:14px;
+        }
+
+        .start-button,
+        .preview-button,
+        .download-button {
+            box-sizing:border-box;
+            width:100%;
+            margin:8px 0 0;
+            text-align:center;
+        }
+    }
+</style>
+
+<section class="authoring-home">
+    <header class="home-header">
+        <div>
+            <h2>Guided PSUR authoring</h2>
+            <p>
+                {{ report.report_number }} · {{ report.product_name }} ·
+                {{ report.reporting_period_start.strftime("%d %b %Y") }}
+                to {{ report.reporting_period_end.strftime("%d %b %Y") }}
+            </p>
+        </div>
+
+        <a
+            class="back-link"
+            href="{{ url_for('psur.psur_detail', psur_id=report.psur_id) }}"
+        >
+            Close
+        </a>
+    </header>
+
+    <section class="overview-card">
+        <h3>
+            {% if all_sections_complete %}
+                PSUR authoring completed
+            {% elif sections|selectattr("final_content")|list|length %}
+                Continue PSUR authoring
+            {% else %}
+                Start PSUR authoring
+            {% endif %}
+        </h3>
+
+        <p>
+            Each APDL template heading is completed one at a time. The response
+            is saved before the next heading opens. Only saved responses are
+            included in the final PSUR.
+        </p>
+
+        <div class="progress-summary">
+            <div class="summary-chip">
+                <strong>{{ sections|length }}</strong> template section(s)
+            </div>
+        <div class="section-category-actions">
+            <a
+                class="category-button {% if selected_view == 'completed' %}active{% endif %}"
+                href="{{ url_for('psur_builder.psur_builder_home', psur_id=report.psur_id, view='completed') }}"
+            >
+                Completed sections
+                ({{ sections|selectattr("final_content")|list|length }})
+            </a>
+
+            <a
+                class="category-button {% if selected_view == 'incomplete' %}active{% endif %}"
+                href="{{ url_for('psur_builder.psur_builder_home', psur_id=report.psur_id, view='incomplete') }}"
+            >
+                Sections still to complete
+                ({{ sections|rejectattr("final_content")|list|length }})
+            </a>
+        </div>
+
+            <div class="summary-chip">
+                <strong>{{ sections|selectattr("final_content")|list|length }}</strong>
+                section(s) completed
+            </div>
+        </div>
+
+        {% if next_section and not all_sections_complete %}
+            <a
+                class="start-button"
+                href="{{ url_for('psur_builder.psur_builder_section', psur_id=report.psur_id, section_key=next_section.section_key, group='incomplete') }}"
+            >
+                {% if sections|selectattr("final_content")|list|length %}
+                    Continue with: {{ next_section.section_title }}
+                {% else %}
+                    Start with: {{ next_section.section_title }}
+                {% endif %}
+            </a>
+        {% endif %}
+    </section>
+
+    {% if selected_view %}
+        {% if selected_view == "completed" %}
+            {% set visible_sections = sections|selectattr("final_content")|list %}
+            {% set group_title = "Completed sections" %}
+            {% set group_message = "Select a saved section to edit its response or improve it with the AI assistant." %}
+        {% else %}
+            {% set visible_sections = sections|rejectattr("final_content")|list %}
+            {% set group_title = "Sections still to complete" %}
+            {% set group_message = "Select a section to enter and save its response." %}
+        {% endif %}
+
+        <section class="section-group">
+            <div class="section-group-heading">
+                <h3>{{ group_title }}</h3>
+                <p>{{ group_message }}</p>
+            </div>
+
+            {% if visible_sections %}
+                {% for section in visible_sections %}
+                    <a
+                        class="section-row"
+                        href="{{ url_for('psur_builder.psur_builder_section', psur_id=report.psur_id, section_key=section.section_key, group=selected_view) }}"
+                    >
+                        <strong>
+                            {{ section.section_order }}.
+                            {{ section.section_title }}
+                        </strong>
+                        <span class="open-label">Open</span>
+                    </a>
+                {% endfor %}
+            {% else %}
+                <div class="section-group-heading">
+                    <p>No sections are available in this group.</p>
+                </div>
+            {% endif %}
+        </section>
+    {% endif %}
+
+
+    {% if all_sections_complete %}
+        <section class="completion-card">
+            <h3>Ready for final review</h3>
+            <p>
+                All template sections have saved content. Review the completed
+                PSUR, then download the Word document in the APDL format.
+            </p>
+
+            <div style="margin-top:18px;">
+                <a
+                    class="preview-button"
+                    href="{{ url_for('psur_builder.preview_psur_builder_report', psur_id=report.psur_id) }}"
+                >
+                    Preview PSUR
+                </a>
+
+                <a
+                    class="download-button"
+                    href="{{ url_for('psur_builder.download_psur_builder_report', psur_id=report.psur_id) }}"
+                >
+                    Download Word PSUR
+                </a>
+            </div>
+        </section>
+    {% endif %}
+</section>
+{% endblock %}

@@ -68,16 +68,24 @@ def _signal_lines(signals):
 def _rsi_lines(rsi_documents):
     if not rsi_documents:
         return (
-            "No reference safety information changes were recorded "
-            "for this product during the reporting interval."
+            "No change to the reference safety information for this "
+            "product was recorded in the APDL PV platform during the "
+            "reporting interval. The QPPV should confirm whether any "
+            "approved product-information update, safety variation or "
+            "other reference-document revision applies before the "
+            "PBRER is finalised."
         )
 
-    return "\n".join(
+    return "\n\n".join(
         (
-            f"- {document['document_type']} | "
-            f"Version {document['document_version'] or 'Not recorded'} | "
-            f"Market: {document['market'] or 'Not recorded'} | "
-            f"Effective: {_display_date(document['effective_date'])}"
+            f"Reference safety information for the product was "
+            f"reviewed through the {document['document_type']}"
+            f"{' (version ' + document['document_version'] + ')' if document['document_version'] else ''}"
+            f"{' for the ' + document['market'] + ' market' if document['market'] else ''}, "
+            f"effective {_display_date(document['effective_date'])}. "
+            "The QPPV should assess whether this information changes "
+            "the listedness, expectedness, frequency or risk "
+            "characterisation of any reported adverse reaction."
         )
         for document in rsi_documents
     )
@@ -196,107 +204,121 @@ def build_psur_evidence_sections(report):
     automated_signals = sum(
         1 for signal in signals if signal["auto_detected"]
     )
-    assessment_summary = "\n".join(
-        (
-            f"- {assessment['listedness_status']} / "
-            f"{assessment['expectedness_status']}: "
-            f"{assessment['total_cases']} case(s)"
-        )
-        for assessment in case_assessments
-    )
-
-    if not assessment_summary:
-        assessment_summary = (
-            "No ADR listedness or expectedness assessments were "
-            "recorded for this product and period."
-        )
 
     period = (
         f"{_display_date(start_date)} to {_display_date(end_date)}"
     )
+    active_substances = (
+        report["active_substances"]
+        or "the active substance recorded for this product"
+    )
+    therapeutic_indication = (
+        report["therapeutic_indication"]
+        or "the authorised indication recorded in the product dossier"
+    )
+    mechanism_of_action = (
+        report["mechanism_of_action"]
+        or "the mechanism of action recorded in the product dossier"
+    )
+    markets = report["countries_covered"] or "not recorded"
+
+    if case_assessments:
+        assessment_summary = "\n\n".join(
+            (
+                f"{assessment['total_cases']} ADR case(s) had been "
+                f"assessed as {assessment['listedness_status'].lower()} "
+                f"and {assessment['expectedness_status'].lower()}."
+            )
+            for assessment in case_assessments
+        )
+    else:
+        assessment_summary = (
+            "No ADR listedness or expectedness assessment had been "
+            "recorded for this product during the reporting interval."
+        )
 
     executive_summary = (
-        f"This draft PSUR covers {product_name} for the reporting "
-        f"period {period}. The system identified {total_cases} ADR "
-        f"case(s), including {serious_cases} serious case(s); "
-        f"{len(complaints)} market complaint(s); and "
-        f"{len(signals)} safety signal(s), of which "
-        f"{automated_signals} were generated through ADR screening. "
-        "This text is a data-based draft and requires QPPV/medical "
-        "review before approval."
+        f"This Periodic Benefit-Risk Evaluation Report covered "
+        f"{product_name}, containing {active_substances}, for the "
+        f"period {period}. {product_name} was recorded for "
+        f"{therapeutic_indication}. The APDL PV platform contained "
+        f"{total_cases} ADR case(s), including {serious_cases} serious "
+        f"case(s), {len(complaints)} market complaint(s), and "
+        f"{len(signals)} safety signal(s). {automated_signals} signal(s) "
+        "had been identified through ADR screening."
     )
 
     safety_actions = (
-        "Market complaint evidence for the reporting interval:\n"
-        f"{_complaint_lines(complaints)}\n\n"
-        "Review any complaint with a potential safety implication "
-        "and document the safety action, CAPA, authority "
-        "communication or rationale for no action."
+        f"Market-complaint information for {product_name} during "
+        f"{period} was reviewed as part of the periodic safety "
+        "evaluation.\n\n"
+        f"{_complaint_lines(complaints)}"
     )
+
     reference_safety_information = (
-        "Reference safety information changes recorded during "
-        "the reporting interval:\n"
-        f"{_rsi_lines(rsi_documents)}\n\n"
-        "QPPV/medical reviewer to assess the regulatory and "
-        "safety impact of each change and document any action."
+        f"Reference safety information for {product_name} was "
+        f"reviewed for the reporting period {period}.\n\n"
+        f"{_rsi_lines(rsi_documents)}"
     )
 
     signal_evaluation = (
-        "Automatically compiled signal evidence:\n"
+        f"The signal and risk evaluation for {product_name} was "
+        "based on the safety signals, ADR cases and case-level "
+        "listedness and expectedness assessments recorded during "
+        f"{period}.\n\n"
         f"{_signal_lines(signals)}\n\n"
-        "ADR listedness and expectedness assessment summary:\n"
+        "The following listedness and expectedness assessments were "
+        "recorded:\n\n"
         f"{assessment_summary}\n\n"
-        "Supporting ADR case register:\n"
-        f"{_case_lines(safety_cases)}\n\n"
-        "QPPV/medical reviewer to document validation, assessment, "
-        "risk characterisation and any required action for each "
-        "potential signal."
+        "The supporting ADR cases were as follows:\n\n"
+        f"{_case_lines(safety_cases)}"
     )
 
     exposure = (
-        "No patient exposure or utilisation denominator is currently "
-        "available in the platform. Enter verified sales, "
-        "distribution, prescription or exposure information here "
-        "where applicable."
+        f"No validated patient-exposure, sales, distribution or "
+        f"prescription denominator for {product_name} was available "
+        f"in the APDL PV platform for the period {period}. "
+        "Exposure-adjusted reporting rates and comparisons were "
+        "therefore not calculated."
     )
 
     benefit_risk = (
-        "Draft for QPPV/medical review: assess the cumulative ADR, "
-        "signal and market-complaint evidence above against the "
-        "known benefit-risk profile of the product. Document the "
-        "final conclusion and any required risk-minimisation action."
+        f"The available evidence for {product_name} comprised ADR "
+        "cases, market complaints, safety signals and reference "
+        "safety information recorded during the reporting interval. "
+        f"The product was recorded for {therapeutic_indication}, and "
+        f"its mechanism of action was recorded as {mechanism_of_action}. "
+        "No final integrated benefit-risk conclusion had been entered "
+        "in the APDL PV platform at the time this report was prepared."
     )
 
     conclusion = (
-        "Draft for QPPV approval: state whether the benefit-risk "
-        "balance remains favourable for the authorised indications, "
-        "identify required actions, and record the responsible "
-        "owner and due date."
+        f"The periodic review for {product_name} covered the interval "
+        f"from {period}. The record contained {total_cases} ADR case(s), "
+        f"{len(complaints)} market complaint(s) and {len(signals)} "
+        "safety signal(s). No final product-specific conclusion or "
+        "documented risk-minimisation action had been entered in the "
+        "APDL PV platform at the time this report was prepared."
     )
 
     return {
         "executive_summary": executive_summary,
         "introduction": (
-            f"This Periodic Benefit-Risk Evaluation Report presents "
-            f"the cumulative and interval safety evaluation for "
-            f"{product_name} for the reporting period {period}. "
-            f"The product is used for "
-            f"{report['therapeutic_indication'] or 'the authorised indication recorded in the product dossier'}. "
-            f"The assessment integrates ADR cases, safety-signal "
-            f"screening outcomes, market complaints and reference "
-            f"safety information available in the APDL PV platform."
+            f"This Periodic Benefit-Risk Evaluation Report presented "
+            f"the interval safety evaluation for {product_name}, "
+            f"containing {active_substances}, for the reporting period "
+            f"{period}. The product was recorded for "
+            f"{therapeutic_indication}. The evaluation incorporated "
+            "ADR cases, market complaints, signal-screening outcomes "
+            "and reference safety information available in the APDL "
+            "PV platform."
         ),
         "marketing_authorisation_status": (
-            f"During the reporting interval, {product_name} was "
-            f"recorded in the APDL PV platform with marketing "
-            f"authorisation number "
-            f"{report['marketing_authorisation_number'] or 'not recorded'} "
-            f"and marketing authorisation procedure "
+            f"{product_name} was recorded under marketing authorisation "
+            f"number {report['marketing_authorisation_number'] or 'not recorded'} "
+            f"and procedure "
             f"{report['marketing_authorisation_procedure'] or 'not recorded'}. "
-            f"The markets recorded for this PSUR are "
-            f"{report['countries_covered'] or 'not recorded'}. "
-            "The Regulatory Affairs team should confirm the current "
-            "authorisation status in each market before approval."
+            f"The PSUR covered the following market(s): {markets}."
         ),
         "safety_actions": safety_actions,
         "reference_safety_information": (

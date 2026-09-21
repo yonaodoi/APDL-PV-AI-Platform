@@ -53,7 +53,7 @@ class Config:
             "PSUR_TEMPLATE_PATH",
             BASE_DIR
             / "controlled_templates"
-            / "17.3 PSUR TEMPLATE.docx",
+            / "17.3 PSUR TEMPLATE REVISED.docx",
         )
     )
 

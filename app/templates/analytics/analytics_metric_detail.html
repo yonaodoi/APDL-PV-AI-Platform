@@ -1,216 +1,338 @@
 {% extends "base.html" %}
 
-{% block title %}{{ definition.title }} | APDL PV{% endblock %}
-{% block page_title %}PV & Regulatory Analytics{% endblock %}
+{% block title %}{{ title }} | Analytics | APDL PV{% endblock %}
+{% block page_title %}Analytics{% endblock %}
 
 {% block content %}
 <style>
-  .detail-page { max-width:1150px; margin:0 auto; }
+    .detail-page {
+        max-width: 1180px;
+        margin: 0 auto;
+    }
 
-  .detail-header {
-    display:flex; justify-content:space-between; gap:18px;
-    align-items:flex-end; margin-bottom:22px;
-  }
+    .detail-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-start;
+        margin-bottom: 24px;
+    }
 
-  .back-link, .clear-link {
-    display:inline-block; padding:10px 13px; border:1px solid #ddd4e5;
-    border-radius:8px; background:white; color:#6242d7; font-size:12px;
-    font-weight:bold; text-decoration:none;
-  }
+    .back-link {
+        display: inline-block;
+        margin-bottom: 11px;
+        color: #7656e8;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+    }
 
-  .detail-header h2 { margin:0 0 7px; color:#282037; font-size:28px; }
-  .detail-header p { margin:0; color:#746d7d; font-size:14px; line-height:1.5; }
+    .detail-header h2 {
+        margin: 0 0 8px;
+        color: #282037;
+        font-size: 28px;
+    }
 
-  .count-card {
-    margin-bottom:18px; padding:17px 20px; border:1px solid #e1d7ef;
-    border-radius:13px; background:#faf8ff; color:#5b4b68;
-  }
+    .detail-header p {
+        max-width: 680px;
+        margin: 0;
+        color: #746d7d;
+        font-size: 14px;
+        line-height: 1.55;
+    }
 
-  .count-card strong { color:#5f3ed4; font-size:24px; }
+    .record-count {
+        flex: none;
+        padding: 10px 13px;
+        border: 1px solid #e3d9ef;
+        border-radius: 9px;
+        background: #faf8ff;
+        color: #5f3ed4;
+        font-size: 13px;
+        font-weight: bold;
+        white-space: nowrap;
+    }
 
-  .filter-card, .records-card {
-    margin-bottom:18px; padding:20px; border:1px solid #e8e0ea;
-    border-radius:15px; background:white; box-shadow:0 6px 16px rgba(40,32,55,.04);
-  }
+    .filter-card {
+        display: grid;
+        grid-template-columns: 1.3fr 1fr 1fr 1fr auto;
+        gap: 14px;
+        align-items: end;
+        margin-bottom: 20px;
+        padding: 17px 19px;
+        border: 1px solid #e8e0eb;
+        border-radius: 13px;
+        background: white;
+        box-shadow: 0 4px 10px rgba(40, 32, 55, .025);
+    }
 
-  .filter-card h3, .records-heading h3 {
-    margin:0 0 6px; color:#3a3044; font-size:16px;
-  }
+    .filter-field label {
+        display: block;
+        margin-bottom: 6px;
+        color: #655b6a;
+        font-size: 11px;
+        font-weight: bold;
+    }
 
-  .filter-card p, .records-heading span {
-    margin:0; color:#746d7d; font-size:12px;
-  }
+    .filter-input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px;
+        border: 1px solid #ddd5dc;
+        border-radius: 8px;
+        background: #fffeff;
+        color: #403748;
+        font: inherit;
+        font-size: 13px;
+    }
 
-  .filter-grid {
-    display:grid; grid-template-columns:repeat(4, minmax(0, 1fr));
-    gap:14px; margin-top:17px;
-  }
+    .filter-input:focus {
+        outline: none;
+        border-color: #9f88ed;
+        box-shadow: 0 0 0 3px #eee9ff;
+    }
 
-  .filter-field label {
-    display:block; margin-bottom:6px; color:#554d5d; font-size:12px; font-weight:bold;
-  }
+    .filter-button {
+        padding: 10px 14px;
+        border: 0;
+        border-radius: 8px;
+        background: #7656e8;
+        color: white;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+        white-space: nowrap;
+    }
 
-  .filter-field select, .filter-field input {
-    box-sizing:border-box; width:100%; padding:10px 11px; border:1px solid #ddd5dc;
-    border-radius:8px; background:#fffeff; color:#322a3b; font:inherit; font-size:13px;
-  }
+    .register-card {
+        overflow: hidden;
+        border: 1px solid #e9e2e7;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(40, 32, 55, .035);
+    }
 
-  .filter-actions { display:flex; align-items:end; gap:10px; }
+    .register-heading {
+        padding: 18px 20px;
+        border-bottom: 1px solid #eee8ec;
+        color: #4d4354;
+        font-size: 14px;
+        font-weight: bold;
+    }
 
-  .filter-button {
-    padding:11px 15px; border:0; border-radius:8px; background:#5f3ed4;
-    color:white; font-size:13px; font-weight:bold; cursor:pointer;
-  }
+    .records-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
 
-  .records-heading {
-    display:flex; justify-content:space-between; gap:14px; align-items:center;
-    padding-bottom:14px; border-bottom:1px solid #eee8ec;
-  }
+    .records-table th {
+        padding: 13px 20px;
+        background: #fffdfe;
+        color: #918896;
+        font-size: 10px;
+        letter-spacing: .6px;
+        text-align: left;
+        text-transform: uppercase;
+    }
 
-  .records-table { width:100%; border-collapse:collapse; }
+    .records-table td {
+        padding: 15px 20px;
+        border-top: 1px solid #f0ebee;
+        color: #5c5365;
+        font-size: 13px;
+        vertical-align: top;
+    }
 
-  .records-table th {
-    padding:13px 14px; background:#fffdfe; color:#918896; font-size:10px;
-    letter-spacing:.6px; text-align:left; text-transform:uppercase;
-  }
+    .record-link {
+        color: #49366d;
+        font-weight: bold;
+        text-decoration: none;
+    }
 
-  .records-table td {
-    padding:14px; border-top:1px solid #f0ebee; color:#5d5365;
-    font-size:13px; vertical-align:top;
-  }
+    .record-link:hover {
+        color: #7656e8;
+    }
 
-  .product-cell { color:#473652; font-weight:bold; }
+    .record-detail {
+        max-width: 410px;
+        color: #746b79;
+        line-height: 1.45;
+    }
 
-  .status-pill {
-    display:inline-block; padding:5px 9px; border-radius:20px;
-    background:#f1edf4; color:#716674; font-size:11px; font-weight:bold;
-  }
+    .status-pill {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 20px;
+        background: #eee9ff;
+        color: #6242d7;
+        font-size: 11px;
+        font-weight: bold;
+    }
 
-  .empty-state { padding:50px 20px; color:#817786; text-align:center; }
+    .empty-state {
+        padding: 58px 24px;
+        color: #746d7d;
+        text-align: center;
+        font-size: 14px;
+        line-height: 1.55;
+    }
 
-  @media (max-width:850px) {
-    .filter-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
-    .records-table th:nth-child(6), .records-table td:nth-child(6) { display:none; }
-  }
+    @media (max-width: 780px) {
+        .detail-header {
+            display: block;
+        }
+        .filter-card { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-  @media (max-width:600px) {
-    .detail-header { display:block; }
-    .back-link { margin-top:15px; }
-    .filter-grid { grid-template-columns:1fr; }
-    .filter-actions { align-items:center; }
-    .records-table th:nth-child(5), .records-table td:nth-child(5) { display:none; }
-  }
+        .record-count {
+            display: inline-block;
+            margin-top: 15px;
+        }
+
+        .records-table th:nth-child(3),
+        .records-table td:nth-child(3) {
+            display: none;
+        }
+    }
+
+    @media (max-width: 540px) {
+        .records-table th:nth-child(5),
+        .records-table td:nth-child(5) {
+            display: none;
+        }
+    }
 </style>
 
 <section class="detail-page">
-  <header class="detail-header">
-    <div>
-      <h2>{{ definition.title }}</h2>
-      <p>{{ definition.description }}</p>
-    </div>
+    <header class="detail-header">
+        <div>
+            <a
+                class="back-link"
+                href="{{ url_for('core.analytics_home') }}"
+            >
+                ← Back to Analytics Centre
+            </a>
 
-    <a class="back-link" href="{{ url_for('core.analytics_home') }}">
-      Back to Analytics Centre
-    </a>
-  </header>
+            <h2>{{ title }}</h2>
+            <p>{{ description }}</p>
+        </div>
 
-  <section class="count-card">
-    <strong>{{ records|length }}</strong> record(s) matched the selected filters.
-  </section>
+        <span class="record-count">{{ records|length }} record(s)</span>
+    </header>
 
-  <section class="filter-card">
-    <h3>Focused filters</h3>
-    <p>These filters apply only to {{ definition.title|lower }}.</p>
+    <form method="get" class="filter-card">
+        <div class="filter-field">
+            <label for="product">Product</label>
+            <select class="filter-input" id="product" name="product">
+                <option value="">All products</option>
+                {% for product in products %}
+                    <option
+                        value="{{ product.product_name }}"
+                        {% if selected_product == product.product_name %}selected{% endif %}
+                    >
+                        {{ product.product_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
 
-    <form method="get" class="filter-grid">
-      <div class="filter-field">
-        <label for="product">Product</label>
-        <select id="product" name="product">
-          <option value="">All products</option>
-          {% for product in products %}
-            <option value="{{ product.product_name }}" {% if selected_product == product.product_name %}selected{% endif %}>
-              {{ product.product_name }}
-            </option>
-          {% endfor %}
-        </select>
-      </div>
+        <div class="filter-field">
+            <label for="status">Status</label>
+            <select class="filter-input" id="status" name="status">
+                <option value="">All statuses</option>
+                {% for status in statuses %}
+                    <option
+                        value="{{ status.status }}"
+                        {% if selected_status == status.status %}selected{% endif %}
+                    >
+                        {{ status.status }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
 
-      <div class="filter-field">
-        <label for="status">Status</label>
-        <select id="status" name="status">
-          <option value="">All statuses</option>
-          {% for status in statuses %}
-            <option value="{{ status.status }}" {% if selected_status == status.status %}selected{% endif %}>
-              {{ status.status }}
-            </option>
-          {% endfor %}
-        </select>
-      </div>
+        <div class="filter-field">
+            <label for="start_date">Date from</label>
+            <input
+                class="filter-input"
+                id="start_date"
+                name="start_date"
+                type="date"
+                value="{{ start_date }}"
+            >
+        </div>
 
-      <div class="filter-field">
-        <label for="start_date">From date</label>
-        <input id="start_date" name="start_date" type="date" value="{{ start_date }}">
-      </div>
+        <div class="filter-field">
+            <label for="end_date">Date to</label>
+            <input
+                class="filter-input"
+                id="end_date"
+                name="end_date"
+                type="date"
+                value="{{ end_date }}"
+            >
+        <div style="display:flex; gap:9px; align-items:center;">
+            <button class="filter-button" type="submit">
+                Apply filters
+            </button>
 
-      <div class="filter-field">
-        <label for="end_date">To date</label>
-        <input id="end_date" name="end_date" type="date" value="{{ end_date }}">
-      </div>
+            <a
+                href="{{ request.path }}"
+                style="color:#7656e8; font-size:12px; font-weight:bold; text-decoration:none; white-space:nowrap;"
+            >
+                Clear
+            </a>
+        </div>
 
-      <div class="filter-actions">
-        <button class="filter-button" type="submit">Apply filters</button>
-        <a class="clear-link" href="{{ url_for('core.analytics_metric_detail', metric_key=metric_key) }}">
-          Clear
-        </a>
-      </div>
     </form>
-  </section>
 
-  <section class="records-card">
-    <div class="records-heading">
-      <h3>{{ definition.title }} register</h3>
-      <span>Focused results only</span>
-    </div>
+    <section class="register-card">
+        <div class="register-heading">{{ title }} register</div>
 
-    {% if records %}
-      <table class="records-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Product</th>
-            <th>Reference</th>
-            <th>Status</th>
-            <th>Details</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for record in records %}
-            <tr>
-              <td>
-                {% if record.record_date %}
-                  {{ record.record_date.strftime("%d %b %Y") }}
-                {% else %}
-                  Not recorded
-                {% endif %}
-              </td>
-              <td class="product-cell">{{ record.product_name }}</td>
-<td>
-  <a
-    href="{{ record.record_url }}"
-    style="color:#6242d7; font-weight:bold; text-decoration:none;"
-  >
-    {{ record.record_number }}
-  </a>
-</td>
-              <td><span class="status-pill">{{ record.status }}</span></td>
-              <td>{{ record.detail }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <div class="empty-state">No records matched the selected filters.</div>
-    {% endif %}
-  </section>
+        {% if records %}
+            <table class="records-table">
+                <thead>
+                    <tr>
+                        <th>Reference</th>
+                        <th>Product</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Information</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                        <tr>
+                            <td>
+                                <a
+                                    class="record-link"
+                                    href="{{ record.record_url }}"
+                                >
+                                    {{ record.record_number }}
+                                </a>
+                            </td>
+                            <td>{{ record.product_name }}</td>
+                            <td>
+                                {% if record.record_date %}
+                                    {{ record.record_date.strftime("%d %b %Y") }}
+                                {% else %}
+                                    Not recorded
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="status-pill">{{ record.status }}</span>
+                            </td>
+                            <td class="record-detail">
+                                {{ record.detail or "No additional information recorded." }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">
+                No records currently matched this measure.
+            </div>
+        {% endif %}
+    </section>
 </section>
 {% endblock %}

@@ -1,0 +1,430 @@
+{% extends "base.html" %}
+
+{% block title %}{{ section.section_title }} | PSUR Builder{% endblock %}
+{% block page_title %}PSUR Authoring{% endblock %}
+
+{% block content %}
+<style>
+    .authoring-page {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .authoring-header {
+        display:flex;
+        justify-content:space-between;
+        gap:18px;
+        align-items:flex-start;
+        margin-bottom:20px;
+    }
+
+    .close-link,
+    .previous-link {
+        display:inline-block;
+        padding:10px 13px;
+        border:1px solid #ddd4e5;
+        border-radius:8px;
+        background:white;
+        color:#6242d7;
+        font-size:12px;
+        font-weight:bold;
+        text-decoration:none;
+    }
+
+    .authoring-header h2 {
+        margin:0 0 6px;
+        color:#282037;
+        font-size:25px;
+    }
+
+    .authoring-header p {
+        margin:0;
+        color:#746d7d;
+        font-size:13px;
+    }
+
+    .progress-card {
+        margin-bottom:18px;
+        padding:14px 16px;
+        border:1px solid #e3d9ef;
+        border-radius:12px;
+        background:#faf8ff;
+    }
+
+    .progress-label {
+        display:flex;
+        justify-content:space-between;
+        gap:12px;
+        margin-bottom:8px;
+        color:#69547d;
+        font-size:12px;
+        font-weight:bold;
+    }
+
+    .progress-track {
+        height:7px;
+        overflow:hidden;
+        border-radius:10px;
+        background:#e9e2f6;
+    }
+
+    .progress-track span {
+        display:block;
+        height:100%;
+        border-radius:inherit;
+        background:#7656e8;
+    }
+
+    .section-card {
+        overflow:hidden;
+        border:1px solid #e8e0ea;
+        border-radius:15px;
+        background:white;
+        box-shadow:0 7px 18px rgba(40,32,55,.05);
+    }
+
+    .section-prompt {
+        padding:20px 22px;
+        border-bottom:1px solid #eee8ec;
+        background:#f8f5ff;
+    }
+
+    .section-number {
+        display:inline-block;
+        margin-bottom:8px;
+        color:#7656e8;
+        font-size:11px;
+        font-weight:bold;
+        letter-spacing:.8px;
+        text-transform:uppercase;
+    }
+
+    .section-prompt h3 {
+        margin:0 0 8px;
+        color:#352b40;
+        font-size:19px;
+        line-height:1.4;
+    }
+
+    .section-prompt p {
+        margin:0;
+        color:#6c6173;
+        font-size:13px;
+        line-height:1.55;
+    }
+
+    .content-form {
+        padding:22px;
+    }
+
+    .field-label {
+        display:block;
+        margin-bottom:8px;
+        color:#554d5d;
+        font-size:12px;
+        font-weight:bold;
+        letter-spacing:.3px;
+    }
+
+    .narrative-input {
+        width:100%;
+        min-height:360px;
+        box-sizing:border-box;
+        padding:15px;
+        border:1px solid #d8cfdd;
+        border-radius:10px;
+        background:#fff;
+        color:#332b3d;
+        font:15px/1.7 "Times New Roman", Georgia, serif;
+        resize:vertical;
+    }
+
+    .narrative-input:focus {
+        outline:none;
+        border-color:#9f88ed;
+        box-shadow:0 0 0 3px #eee9ff;
+    }
+
+    .response-note {
+        margin:10px 0 0;
+        color:#857b89;
+        font-size:12px;
+        line-height:1.5;
+    }
+
+    .navigation-row {
+        display:flex;
+        justify-content:space-between;
+        gap:12px;
+        align-items:center;
+        margin-top:20px;
+    }
+
+    .continue-button {
+        padding:12px 18px;
+        border:0;
+        border-radius:9px;
+        background:#7656e8;
+        color:white;
+        font-size:13px;
+        font-weight:bold;
+        cursor:pointer;
+        box-shadow:0 7px 15px rgba(118,86,232,.2);
+    }
+
+    .ai-assistant {
+        margin:20px 22px 22px;
+        padding:17px;
+        border:1px solid #dfd5fb;
+        border-radius:11px;
+        background:#faf8ff;
+    }
+
+    .ai-assistant h4 {
+        margin:0 0 6px;
+        color:#493273;
+        font-size:14px;
+    }
+
+    .ai-assistant p {
+        margin:0;
+        color:#655b71;
+        font-size:12px;
+        line-height:1.55;
+    }
+
+    .ai-button {
+        margin-top:13px;
+        padding:9px 12px;
+        border:0;
+        border-radius:8px;
+        background:#5f3ed4;
+        color:white;
+        font-size:12px;
+        font-weight:bold;
+        cursor:pointer;
+    }
+
+    .proposal-card {
+        margin:0 22px 20px;
+        padding:17px;
+        border:1px solid #e3dcef;
+        border-radius:11px;
+        background:white;
+    }
+
+    .proposal-card h4 {
+        margin:0 0 10px;
+        color:#493273;
+        font-size:13px;
+    }
+
+    .proposal-content {
+        margin:0;
+        color:#4f4657;
+        font:15px/1.7 "Times New Roman", Georgia, serif;
+        white-space:pre-wrap;
+    }
+
+    .proposal-actions {
+        display:flex;
+        gap:10px;
+        margin-top:14px;
+    }
+
+    .accept-button,
+    .reject-button {
+        padding:8px 11px;
+        border-radius:8px;
+        font-size:12px;
+        font-weight:bold;
+        cursor:pointer;
+    }
+
+    .accept-button {
+        border:0;
+        background:#4c9a69;
+        color:white;
+    }
+
+    .reject-button {
+        border:1px solid #d8cfd9;
+        background:white;
+        color:#756b7a;
+    }
+
+    @media (max-width:650px) {
+        .authoring-header {
+            display:block;
+        }
+
+        .close-link {
+            margin-top:14px;
+        }
+
+        .navigation-row {
+            align-items:stretch;
+            flex-direction:column-reverse;
+        }
+
+        .previous-link,
+        .continue-button {
+            box-sizing:border-box;
+            width:100%;
+            text-align:center;
+        }
+    }
+</style>
+
+<section class="authoring-page">
+    <header class="authoring-header">
+        <div>
+            <h2>PSUR section authoring</h2>
+            <p>
+                {{ report.report_number }} · {{ report.product_name }} ·
+                {{ report.reporting_period_start.strftime("%d %b %Y") }}
+                to {{ report.reporting_period_end.strftime("%d %b %Y") }}
+            </p>
+        </div>
+
+        <a
+            class="close-link"
+            href="{{ url_for('psur_builder.psur_builder_home', psur_id=report.psur_id, view=navigation_group) }}"
+        >
+            Save and exit
+        </a>
+    </header>
+
+    <section class="progress-card">
+        <div class="progress-label">
+            <span>Section {{ section.section_order }} of {{ total_sections }}</span>
+            <span>{{ section.section_title }}</span>
+        </div>
+        <div class="progress-track">
+            <span style="width:{{ (section.section_order / total_sections * 100)|round(0) }}%;"></span>
+        </div>
+    </section>
+
+    <section class="section-card">
+        <div class="section-prompt">
+            <span class="section-number">
+                APDL PSUR template section {{ section.section_order }}
+            </span>
+            <h3>{{ section.section_title }}</h3>
+            <p>
+                Record the verified information relevant to this heading for
+                the selected product and reporting interval. Where no relevant
+                information was captured, record that position clearly.
+            </p>
+        </div>
+
+        <form
+            method="post"
+            class="content-form"
+            id="section-content-form"
+            action="{{ url_for('psur_builder.save_psur_builder_section', psur_id=report.psur_id, section_key=section.section_key) }}"
+        >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <input
+                type="hidden"
+                name="navigation_group"
+                value="{{ navigation_group }}"
+            >
+
+            <input
+                type="hidden"
+                name="next_section_key"
+                value="{{ next_section.section_key if next_section else '' }}"
+            >
+
+            <label class="field-label" for="final_content">
+                Section response
+            </label>
+
+            <textarea
+                class="narrative-input"
+                id="final_content"
+                name="final_content"
+                placeholder="Type the verified content for this PSUR section."
+            >{{ section.final_content or "" }}</textarea>
+
+            <p class="response-note">
+                Saved content is inserted under this exact heading in the final
+                APDL PSUR template.
+            </p>
+
+            <div class="navigation-row">
+                {% if previous_section %}
+                    <a
+                        class="previous-link"
+                        href="{{ url_for('psur_builder.psur_builder_section', psur_id=report.psur_id, section_key=previous_section.section_key, group=navigation_group) }}"
+                    >
+                        ← Previous section
+                    </a>
+                {% else %}
+                    <a
+                        class="previous-link"
+                        href="{{ url_for('psur_builder.psur_builder_home', psur_id=report.psur_id, view=navigation_group) }}"
+                    >
+                        ← Save and exit
+                    </a>
+                {% endif %}
+
+                <button class="continue-button" type="submit">
+                    {% if next_section %}
+                        Save and continue →
+                    {% else %}
+                        Save and finish PSUR
+                    {% endif %}
+                </button>
+            </div>
+        </form>
+
+        {% if section.final_content %}
+            <section class="ai-assistant">
+                <h4>AI content improvement</h4>
+                <p>
+                    A controlled proposal can be generated from the information
+                    recorded in the APDL platform for this product and period.
+                    The saved response remains unchanged until a proposal is
+                    accepted.
+                </p>
+
+                <button
+                    class="ai-button"
+                    type="submit"
+                    form="section-content-form"
+                    formaction="{{ url_for('psur_builder.propose_psur_builder_content', psur_id=report.psur_id, section_key=section.section_key) }}"
+                >
+                    Improve saved response from system information
+                </button>
+            </section>
+        {% endif %}
+
+        {% for proposal in proposals %}
+            <section class="proposal-card">
+                <h4>Proposed improved response</h4>
+
+                <p class="proposal-content">{{ proposal.proposed_content }}</p>
+
+                <div class="proposal-actions">
+                    <form method="post" action="{{ url_for('psur_builder.decide_psur_builder_proposal', psur_id=report.psur_id, section_key=section.section_key, proposal_id=proposal.proposal_id, decision='accepted') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="accept-button" type="submit">
+                            Accept and replace response
+                        </button>
+                    </form>
+
+                    <form method="post" action="{{ url_for('psur_builder.decide_psur_builder_proposal', psur_id=report.psur_id, section_key=section.section_key, proposal_id=proposal.proposal_id, decision='rejected') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="reject-button" type="submit">
+                            Reject
+                        </button>
+                    </form>
+                </div>
+            </section>
+        {% endfor %}
+    </section>
+</section>
+{% endblock %}

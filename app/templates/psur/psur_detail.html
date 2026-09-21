@@ -219,6 +219,7 @@
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
     <a href="{{ url_for('psur.edit_psur', psur_id=report.psur_id) }}" style="padding:8px 11px; border:1px solid #dcd3e4; border-radius:8px; background:white; color:#6242d7; font-size:12px; font-weight:bold; text-decoration:none;">Edit PSUR record</a>
+    <a href="{{ url_for('psur_builder.psur_builder_home', psur_id=report.psur_id) }}" style="padding:8px 11px; border:1px solid #dcd3e4; border-radius:8px; background:#5f3ed4; color:white; font-size:12px; font-weight:bold; text-decoration:none;">Open PSUR Builder</a>
     <a href="{{ url_for('psur_reports.preview_psur_report', psur_id=report.psur_id) }}" style="padding:8px 11px; border-radius:8px; background:#5f3ed4; color:white; font-size:12px; font-weight:bold; text-decoration:none;">Preview PSUR</a>
     <span class="status-pill">{{ report.status }}</span>
 </div>
@@ -328,9 +329,7 @@
 <a href="{{ url_for('psur_sections.manage_psur_sections', psur_id=report.psur_id) }}" style="display:block; margin-top:12px; padding:10px; border:1px solid #7656e8; border-radius:8px; color:#6242d7; font-weight:bold; text-align:center; text-decoration:none;">
     Manage PSUR narrative sections
 </a>
-    <a href="{{ url_for('psur_reports.download_psur_report', psur_id=report.psur_id) }}" style="display:block; margin-top:12px; padding:10px; border-radius:8px; background:#7656e8; color:white; font-weight:bold; text-align:center; text-decoration:none;">
-        Download PSUR Word report
-    </a>
+<a href="{{ url_for('psur_builder.preview_psur_builder_report', psur_id=report.psur_id) }}" style="padding:8px 11px; border:1px solid #dcd3e4; border-radius:8px; background:#5f3ed4; color:white; font-size:12px; font-weight:bold; text-decoration:none;">Preview Builder report</a>
 </div>
     </aside>
 </div>

@@ -1,3 +1,4 @@
+from threading import Thread
 from flask import (
     Blueprint,
     abort,
@@ -8,12 +9,17 @@ from flask import (
     session,
     send_file,
     url_for,
+    current_app,
+    jsonify,
 )
 
 from app.audit import write_audit_log
 from app.db import query_all, query_one, transaction
 from app.security import login_required, roles_required
-from app.services.ai_case_assessment import generate_case_assessment
+from app.services.ai_case_assessment import (
+    OLLAMA_MODEL,
+    generate_case_assessment,
+)
 from app.services.rsi_lookup import automatic_dailymed_assessment
 from app.services.ai_case_assessment_docx import (
     build_ai_case_assessment_docx,
@@ -135,6 +141,39 @@ def document_with_reactions(document):
         "extracted_reactions": [dict(row) for row in reactions],
     }
 
+def update_ai_assessment_generation_job(
+    job_id,
+    status,
+    current_stage,
+    error_message=None,
+    completed=False,
+):
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.case_ai_assessment_generation_jobs
+            SET
+                status = %s,
+                current_stage = %s,
+                error_message = %s,
+                started_at = COALESCE(
+                    started_at,
+                    CURRENT_TIMESTAMP
+                ),
+                completed_at = CASE
+                    WHEN %s THEN CURRENT_TIMESTAMP
+                    ELSE completed_at
+                END
+            WHERE job_id = %s
+            """,
+            (
+                status,
+                current_stage,
+                error_message,
+                completed,
+                job_id,
+            ),
+        )
 
 @bp.get("/cases/<int:case_id>/ai-assessment")
 @login_required
@@ -165,102 +204,245 @@ def view_ai_case_assessment(case_id):
         report=report,
     )
 
+def run_ai_case_assessment_generation(
+    app,
+    job_id,
+    case_id,
+    user_id,
+):
+    with app.app_context():
+        try:
+            update_ai_assessment_generation_job(
+                job_id,
+                "Processing",
+                "Retrieving case information and product details.",
+            )
+
+            case, product, safety_assessment = get_case_context(case_id)
+
+            update_ai_assessment_generation_job(
+                job_id,
+                "Processing",
+                "Case information and product details retrieved.",
+            )
+
+            rsi_documents_for_product(product)
+
+            update_ai_assessment_generation_job(
+                job_id,
+                "Processing",
+                "Reference safety information retrieved.",
+            )
+
+            update_ai_assessment_generation_job(
+                job_id,
+                "Processing",
+                "AI assessment narrative is being generated.",
+            )
+
+            report_text = generate_case_assessment(
+                case=dict(case),
+                product=dict(product or {}),
+                apdl_product_information={},
+                innovator_rsi={},
+                safety_assessment=dict(safety_assessment or {}),
+            )
+
+            update_ai_assessment_generation_job(
+                job_id,
+                "Processing",
+                "Assessment narrative is being saved.",
+            )
+
+            with transaction() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO pv.case_ai_assessment_reports (
+                        case_id,
+                        report_text,
+                        model_name,
+                        generation_status,
+                        generated_by
+                    )
+                    VALUES (%s, %s, %s, 'Generated', %s)
+                    """,
+                    (
+                        case_id,
+                        report_text,
+                        OLLAMA_MODEL,
+                        user_id,
+                    ),
+                )
+
+            write_audit_log(
+                "case",
+                case_id,
+                "AI case assessment report generated",
+                user_id,
+                (
+                    f"Local model: {OLLAMA_MODEL}; "
+                    "APDL PI and innovator RSI comparison requested."
+                ),
+            )
+
+            update_ai_assessment_generation_job(
+                job_id,
+                "Processing",
+                "Finalising assessment.",
+            )
+
+            update_ai_assessment_generation_job(
+                job_id,
+                "Completed",
+                "Assessment completed.",
+                completed=True,
+            )
+
+        except Exception as error:
+            update_ai_assessment_generation_job(
+                job_id,
+                "Failed",
+                "Assessment generation could not be completed.",
+                error_message=str(error),
+                completed=True,
+            )
+
 
 @bp.post("/cases/<int:case_id>/ai-assessment/generate")
 @login_required
 def generate_ai_case_assessment(case_id):
-    case, product, safety_assessment = get_case_context(case_id)
+    get_case_context(case_id)
 
-    documents, apdl_document, innovator_document = (
-        rsi_documents_for_product(product)
+    existing_job = query_one(
+        """
+        SELECT job_id
+        FROM pv.case_ai_assessment_generation_jobs
+        WHERE case_id = %s
+          AND requested_by = %s
+          AND status IN ('Queued', 'Processing')
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        (case_id, session["user_id"]),
     )
 
-    online_reference = {}
-
-    if False:
-        product_for_lookup = (
-            product.get("generic_name")
-            or product.get("product_name")
-            or ""
-        )
-
-        if product_for_lookup:
-            try:
-                online_reference = automatic_dailymed_assessment(
-                    product_for_lookup,
-                    case["event_description"],
-                )
-            except Exception:
-                online_reference = {
-                    "source": "No online official label retrieved",
-                    "evidence": (
-                        "No suitable official online label could be "
-                        "retrieved for this product."
-                    ),
-                }
-
-    try:
-        report_text = generate_case_assessment(
-            case=dict(case),
-            product=dict(product or {}),
-
-            apdl_product_information={},
-            innovator_rsi={},
-            safety_assessment=dict(safety_assessment or {}),
-        )
-    except Exception:
-        flash(
-            "The local AI report could not be generated. Confirm that "
-            "Ollama is installed and llama3.2:3b is available.",
-            "error",
-        )
+    if existing_job:
         return redirect(
             url_for(
-                "case_ai_reports.view_ai_case_assessment",
+                "case_ai_reports.generating_ai_case_assessment",
                 case_id=case_id,
+                job_id=existing_job["job_id"],
             )
         )
 
     with transaction() as cursor:
         cursor.execute(
             """
-            INSERT INTO pv.case_ai_assessment_reports (
+            INSERT INTO pv.case_ai_assessment_generation_jobs (
                 case_id,
-                report_text,
-                model_name,
-                generation_status,
-                generated_by
+                requested_by,
+                status,
+                current_stage
             )
-            VALUES (%s, %s, %s, 'Generated', %s)
+            VALUES (%s, %s, 'Queued', %s)
+            RETURNING job_id
             """,
             (
                 case_id,
-                report_text,
-                "llama3.2:1b",
                 session["user_id"],
+                "Assessment request received.",
             ),
         )
+        job_id = cursor.fetchone()["job_id"]
 
-    write_audit_log(
-        "case",
-        case_id,
-        "AI case assessment report generated",
-        session["user_id"],
+    app = current_app._get_current_object()
+
+    Thread(
+        target=run_ai_case_assessment_generation,
+        args=(
+            app,
+            job_id,
+            case_id,
+            session["user_id"],
+        ),
+        daemon=True,
+    ).start()
+
+    return redirect(
+        url_for(
+            "case_ai_reports.generating_ai_case_assessment",
+            case_id=case_id,
+            job_id=job_id,
+        )
+    )
+
+
+@bp.get(
+    "/cases/<int:case_id>/ai-assessment/generating/<int:job_id>"
+)
+@login_required
+def generating_ai_case_assessment(case_id, job_id):
+    case, _, _ = get_case_context(case_id)
+
+    job = query_one(
+        """
+        SELECT
+            job_id,
+            status,
+            current_stage,
+            error_message
+        FROM pv.case_ai_assessment_generation_jobs
+        WHERE job_id = %s
+          AND case_id = %s
+          AND requested_by = %s
+        """,
         (
-            "Local model: llama3.2:3b; "
-            "APDL PI and innovator RSI comparison requested."
+            job_id,
+            case_id,
+            session["user_id"],
         ),
     )
 
-    flash(
-        "AI case assessment report generated successfully.",
-        "success",
+    if not job:
+        abort(404)
+
+    return render_template(
+        "cases/ai_case_assessment_generating.html",
+        case=case,
+        job=job,
     )
-    return redirect(
-        url_for(
-            "case_ai_reports.view_ai_case_assessment",
-            case_id=case_id,
-        )
+
+
+@bp.get(
+    "/cases/<int:case_id>/ai-assessment/jobs/<int:job_id>/status"
+)
+@login_required
+def ai_case_assessment_generation_status(case_id, job_id):
+    job = query_one(
+        """
+        SELECT
+            status,
+            current_stage,
+            error_message
+        FROM pv.case_ai_assessment_generation_jobs
+        WHERE job_id = %s
+          AND case_id = %s
+          AND requested_by = %s
+        """,
+        (
+            job_id,
+            case_id,
+            session["user_id"],
+        ),
+    )
+
+    if not job:
+        abort(404)
+
+    return jsonify(
+        status=job["status"],
+        current_stage=job["current_stage"],
+        error_message=job["error_message"],
     )
 
 @bp.post("/cases/<int:case_id>/ai-assessment/edit")

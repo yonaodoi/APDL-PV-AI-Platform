@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Assessment in Progress | APDL PV{% endblock %}
+{% block page_title %}AI Case Assessment{% endblock %}
+
+{% block content %}
+<style>
+    .generation-page {
+        min-height: 66vh;
+        display: grid;
+        place-items: center;
+        padding: 30px 0;
+    }
+
+    .generation-card {
+        width: min(560px, 100%);
+        padding: 42px 38px;
+        border: 1px solid #e7e0ec;
+        border-radius: 18px;
+        background: white;
+        text-align: center;
+        box-shadow: 0 14px 35px rgba(40, 32, 55, .08);
+    }
+
+    .generation-icon {
+        width: 60px;
+        height: 60px;
+        display: grid;
+        place-items: center;
+        margin: 0 auto 20px;
+        border-radius: 18px;
+        background: #eee9ff;
+        color: #6545d8;
+        font-size: 30px;
+        font-weight: bold;
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .generation-card h2 {
+        margin: 0 0 10px;
+        color: #30273a;
+        font-size: 24px;
+    }
+
+    .case-label {
+        margin: 0 0 25px;
+        color: #847b89;
+        font-size: 13px;
+    }
+
+    .stage-box {
+        padding: 18px;
+        border: 1px solid #e3dbef;
+        border-radius: 12px;
+        background: #faf8ff;
+    }
+
+    .stage-label {
+        display: block;
+        margin-bottom: 7px;
+        color: #816bc4;
+        font-size: 10px;
+        font-weight: bold;
+        letter-spacing: .8px;
+        text-transform: uppercase;
+    }
+
+    .stage-message {
+        margin: 0;
+        color: #443a4b;
+        font-size: 15px;
+        font-weight: bold;
+        line-height: 1.5;
+    }
+
+    .progress-track {
+        height: 7px;
+        overflow: hidden;
+        margin: 24px 0 14px;
+        border-radius: 20px;
+        background: #eee9ff;
+    }
+
+    .progress-track span {
+        display: block;
+        width: 40%;
+        height: 100%;
+        border-radius: inherit;
+        background: #7656e8;
+        animation: progress-slide 1.4s ease-in-out infinite;
+    }
+
+    .generation-note {
+        margin: 0;
+        color: #8b818f;
+        font-size: 12px;
+        line-height: 1.55;
+    }
+
+    .failure-box {
+        margin-top: 18px;
+        padding: 14px;
+        border-radius: 10px;
+        background: #fff0ef;
+        color: #ad4d47;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .back-link {
+        display: inline-block;
+        margin-top: 22px;
+        color: #6242d7;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+    }
+
+    @keyframes pulse {
+        50% { transform: scale(1.10); }
+    }
+
+    @keyframes progress-slide {
+        from { transform: translateX(-115%); }
+        to { transform: translateX(365%); }
+    }
+</style>
+
+<section class="generation-page">
+    <div class="generation-card">
+        <div class="generation-icon">+</div>
+        <h2>Assessment in progress</h2>
+        <p class="case-label">Safety case {{ case.case_number }}</p>
+
+        <div class="stage-box">
+            <span class="stage-label">Current processing stage</span>
+            <p class="stage-message" id="stage-message">
+                {{ job.current_stage }}
+            </p>
+        </div>
+
+        <div class="progress-track" id="progress-track">
+            <span></span>
+        </div>
+
+        <p class="generation-note" id="generation-note">
+            The page updates only when the assessment process reaches the next stage.
+        </p>
+
+        <div class="failure-box" id="failure-box" hidden></div>
+
+        <a
+            class="back-link"
+            id="back-link"
+            href="{{ url_for('case_ai_reports.view_ai_case_assessment', case_id=case.case_id) }}"
+            hidden
+        >
+            Back to assessment
+        </a>
+    </div>
+</section>
+
+<script>
+    const statusUrl = "{{ url_for(
+        'case_ai_reports.ai_case_assessment_generation_status',
+        case_id=case.case_id,
+        job_id=job.job_id
+    ) }}";
+
+    const completedUrl = "{{ url_for(
+        'case_ai_reports.view_ai_case_assessment',
+        case_id=case.case_id
+    ) }}";
+
+    const stageMessage = document.getElementById("stage-message");
+    const generationNote = document.getElementById("generation-note");
+    const failureBox = document.getElementById("failure-box");
+    const progressTrack = document.getElementById("progress-track");
+    const backLink = document.getElementById("back-link");
+
+    async function checkAssessmentStatus() {
+        try {
+            const response = await fetch(statusUrl, {
+                cache: "no-store",
+            });
+
+            if (!response.ok) {
+                throw new Error("Unable to check assessment status.");
+            }
+
+            const result = await response.json();
+
+            stageMessage.textContent = result.current_stage;
+
+            if (result.status === "Completed") {
+                generationNote.textContent =
+                    "Opening the completed assessment.";
+                window.location.assign(completedUrl);
+                return;
+            }
+
+            if (result.status === "Failed") {
+                progressTrack.hidden = true;
+                failureBox.hidden = false;
+                backLink.hidden = false;
+                failureBox.textContent =
+                    result.error_message ||
+                    "The assessment could not be generated.";
+                generationNote.textContent =
+                    "No assessment report was saved.";
+                return;
+            }
+
+            window.setTimeout(checkAssessmentStatus, 1500);
+        } catch (error) {
+            generationNote.textContent =
+                "The assessment is still processing. Checking again shortly.";
+            window.setTimeout(checkAssessmentStatus, 3000);
+        }
+    }
+
+    checkAssessmentStatus();
+</script>
+{% endblock %}

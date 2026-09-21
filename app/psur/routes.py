@@ -1,3 +1,4 @@
+
 import flask
 
 from flask import Blueprint, abort, flash, redirect, render_template, session, url_for
@@ -39,10 +40,21 @@ def populate_psur_form(form, report):
     form.qppv_name.data = report["qppv_name"]
     form.qppv_phone.data = report["qppv_phone"]
     form.qppv_email.data = report["qppv_email"]
+    form.pbrer_contact_name.data = report["pbrer_contact_name"]
+    form.pbrer_contact_position.data = report[
+        "pbrer_contact_position"
+    ]
+    form.reviewer_a_name.data = report["reviewer_a_name"]
+    form.reviewer_a_position.data = report[
+        "reviewer_a_position"
+    ]
     form.therapeutic_indication.data = report["therapeutic_indication"]
     form.mechanism_of_action.data = report["mechanism_of_action"]
     form.countries_covered.data = report["countries_covered"]
     form.prepared_by.data = report["prepared_by"]
+    form.prepared_by_position.data = report[
+        "prepared_by_position"
+    ]
     form.approved_by.data = report["approved_by"]
     form.report_notes.data = report["report_notes"]
 
@@ -67,11 +79,16 @@ def psur_form_values(form):
         form.qppv_name.data.strip() or None,
         form.qppv_phone.data.strip() or None,
         form.qppv_email.data.strip() or None,
+        form.pbrer_contact_name.data.strip() or None,
+        form.pbrer_contact_position.data.strip() or None,
+        form.reviewer_a_name.data.strip() or None,
+        form.reviewer_a_position.data.strip() or None,
         form.therapeutic_indication.data.strip() or None,
         form.mechanism_of_action.data.strip() or None,
         form.countries_covered.data.strip() or None,
         form.prepared_by.data.strip() or None,
-        form.approved_by.data.strip() or None,
+        form.prepared_by_position.data.strip() or None,
+        (form.approved_by.data or "").strip() or None,
         form.report_notes.data.strip() or None,
     )
 
@@ -221,15 +238,21 @@ def create_psur():
                     qppv_name,
                     qppv_phone,
                     qppv_email,
+                    pbrer_contact_name,
+                    pbrer_contact_position,
+                    reviewer_a_name,
+                    reviewer_a_position,
                     therapeutic_indication,
                     mechanism_of_action,
                     countries_covered,
                     prepared_by,
+                    prepared_by_position,
                     approved_by,
                     report_notes,
                     created_by
                 )
                 VALUES (
+                    %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s,
@@ -314,10 +337,15 @@ def edit_psur(psur_id):
                     qppv_name = %s,
                     qppv_phone = %s,
                     qppv_email = %s,
+                    pbrer_contact_name = %s,
+                    pbrer_contact_position = %s,
+                    reviewer_a_name = %s,
+                    reviewer_a_position = %s,
                     therapeutic_indication = %s,
                     mechanism_of_action = %s,
                     countries_covered = %s,
                     prepared_by = %s,
+                    prepared_by_position = %s,
                     approved_by = %s,
                     report_notes = %s,
                     updated_at = NOW()
@@ -406,7 +434,7 @@ def review_psur(psur_id):
             (
                 form.status.data,
                 form.prepared_by.data.strip() or None,
-                form.approved_by.data.strip() or None,
+                (form.approved_by.data or "").strip() or None,
                 form.report_notes.data.strip() or None,
                 psur_id,
             ),

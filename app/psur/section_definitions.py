@@ -132,6 +132,19 @@ PSUR_SECTION_TITLES = {
     ),
     "conclusion": "20.0 Conclusion and actions",
     "appendices": "21.0 Appendices",
+    "appendix_marketing_approval_status": (
+        "Appendix 1: Worldwide Marketing Approval Status"
+    ),
+    "appendix_reference_safety_information": (
+        "Appendix 2: Reference Safety Information"
+    ),
+    "appendix_sponsored_studies": (
+        "Appendix 3: Listing of all APDL sponsored studies"
+    ),
+    "appendix_safety_data_sources": (
+        "Appendix 4: Sources of safety data"
+    ),
+    "references": "References",
 }
 
 PSUR_SECTION_CHOICES = tuple(PSUR_SECTION_TITLES.items())

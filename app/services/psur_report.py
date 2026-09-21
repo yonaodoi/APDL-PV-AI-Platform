@@ -3,10 +3,13 @@ from pathlib import Path
 import re
 
 from docx import Document
+from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Pt, RGBColor
 from docx.text.paragraph import Paragraph
 from flask import current_app
-
 from app.db import query_all
 from app.psur.section_definitions import PSUR_SECTION_TITLES
 DEFAULT_TEMPLATE_SECTION_HEADINGS = (
@@ -132,6 +135,153 @@ def _insert_paragraph_after(paragraph, text):
 
 def _safe_filename(value):
     return re.sub(r"[^A-Za-z0-9._-]+", "_", value)
+def _set_cell_shading(cell, fill):
+    cell_properties = cell._tc.get_or_add_tcPr()
+    shading = OxmlElement("w:shd")
+    shading.set(qn("w:fill"), fill)
+    cell_properties.append(shading)
+
+
+def _set_cell_text(cell, value, bold=False, color=None):
+    cell.text = ""
+    paragraph = cell.paragraphs[0]
+    paragraph.paragraph_format.space_before = Pt(0)
+    paragraph.paragraph_format.space_after = Pt(0)
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+    run = paragraph.add_run(str(value or ""))
+    run.bold = bold
+    run.font.name = "Times New Roman"
+    run._element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
+    run.font.size = Pt(10)
+
+    if color:
+        run.font.color.rgb = RGBColor.from_string(color)
+
+    cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+
+
+def _append_signatory_table(
+    document,
+    prepared_by,
+    qppv_name,
+    group_head_name,
+):
+    document.add_paragraph()
+
+    title = document.add_paragraph()
+    title.paragraph_format.space_before = Pt(4)
+    title.paragraph_format.space_after = Pt(6)
+
+    run = title.add_run("SIGNATORIES")
+    run.bold = True
+    run.font.name = "Times New Roman"
+    run._element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
+    run.font.size = Pt(12)
+
+    table = document.add_table(rows=4, cols=5)
+    table.style = "Table Grid"
+    table.autofit = False
+
+    headings = (
+        "Signatory",
+        "Name",
+        "Designation",
+        "Signature",
+        "Date",
+    )
+
+    for index, heading in enumerate(headings):
+        cell = table.cell(0, index)
+        _set_cell_shading(cell, "5F3ED4")
+        _set_cell_text(
+            cell,
+            heading,
+            bold=True,
+            color="FFFFFF",
+        )
+
+    signatories = (
+        (
+            "Prepared by",
+            prepared_by,
+            "DEPUTY Q.P.P.V.",
+        ),
+        (
+            "Reviewed by",
+            qppv_name,
+            "Q.P.P.V.",
+        ),
+        (
+            "Authorised by",
+            group_head_name,
+            "GROUP HEAD, RA & QUALITY",
+        ),
+    )
+
+    for row_index, signatory in enumerate(signatories, start=1):
+        _set_cell_text(table.cell(row_index, 0), signatory[0])
+        _set_cell_text(table.cell(row_index, 1), signatory[1])
+        _set_cell_text(table.cell(row_index, 2), signatory[2])
+        _set_cell_text(table.cell(row_index, 3), "")
+        _set_cell_text(table.cell(row_index, 4), "")
+
+
+def _format_report_document(document):
+    headings = set(DEFAULT_TEMPLATE_SECTION_HEADINGS)
+    headings.update(SECTION_HEADINGS.values())
+    headings.update(
+        {
+            "Therapeutic Indication:",
+            "Mechanism of action:",
+            "SIGNATORIES",
+        }
+    )
+
+    for paragraph in document.paragraphs:
+        paragraph.paragraph_format.space_before = Pt(0)
+        paragraph.paragraph_format.space_after = Pt(0)
+        paragraph.paragraph_format.line_spacing = 1.0
+
+        is_heading = paragraph.text.strip() in headings
+
+        for run in paragraph.runs:
+            run.font.name = "Times New Roman"
+            run._element.rPr.rFonts.set(
+                qn("w:eastAsia"),
+                "Times New Roman",
+            )
+            run.font.size = Pt(12)
+
+            if is_heading:
+                run.bold = True
+
+    for table in document.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+
+                for paragraph in cell.paragraphs:
+                    paragraph.paragraph_format.space_before = Pt(0)
+                    paragraph.paragraph_format.space_after = Pt(2)
+                    paragraph.paragraph_format.line_spacing = 1.0
+
+                    for run in paragraph.runs:
+                        run.font.name = "Times New Roman"
+                        run._element.rPr.rFonts.set(
+                            qn("w:eastAsia"),
+                            "Times New Roman",
+                        )
+                        run.font.size = Pt(10)
+
+    for section in document.sections:
+        for paragraph in section.footer.paragraphs:
+            paragraph.text = ""
+            paragraph.paragraph_format.space_before = Pt(0)
+            paragraph.paragraph_format.space_after = Pt(0)
+
+        for table in list(section.footer.tables):
+            table._element.getparent().remove(table._element)
 
 def _section_default_content(section_key, report):
     product_name = _text(report["product_name"])
@@ -530,6 +680,17 @@ def generate_psur_report(report):
         f"PSUR_{_safe_filename(report['report_number'])}.docx"
     )
     output_path = output_folder / filename
+    _append_signatory_table(
+        document,
+        prepared_by=_text(
+            report["prepared_by"],
+            "CHARLES AMEKO",
+        ),
+        qppv_name=qppv_name,
+        group_head_name=group_head_name,
+    )
+
+    _format_report_document(document)
 
     document.save(output_path)
 

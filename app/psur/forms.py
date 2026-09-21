@@ -88,6 +88,26 @@ class PsurReportForm(FlaskForm):
         "QPPV email",
         validators=[Optional(), Length(max=200)],
     )
+    pbrer_contact_name = StringField(
+        "Contact person for the PBRER",
+        validators=[Optional(), Length(max=200)],
+    )
+    pbrer_contact_position = StringField(
+        "PBRER contact position",
+        validators=[Optional(), Length(max=200)],
+    )
+    reviewer_a_name = StringField(
+        "Reviewer name",
+        validators=[Optional(), Length(max=200)],
+    )
+    reviewer_a_position = StringField(
+        "Reviewer position",
+        validators=[Optional(), Length(max=200)],
+    )
+    prepared_by_position = StringField(
+        "Prepared by position",
+        validators=[Optional(), Length(max=200)],
+    )
 
     therapeutic_indication = TextAreaField(
         "Therapeutic indication",

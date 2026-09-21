@@ -8,6 +8,9 @@ from app.services.rsi_lookup import automatic_dailymed_assessment
 from app.services.ai_case_assessment import (
     generate_rsi_assessment_explanation,
 )
+from app.services.rsi_extraction import (
+    extract_reference_document_text,
+)
 
 from flask import (
     Blueprint,
@@ -19,6 +22,7 @@ from flask import (
     send_file,
     session,
     url_for,
+    request,
 )
 from werkzeug.utils import secure_filename
 
@@ -83,6 +87,13 @@ def rsi_list():
 @roles_required(*REVIEWER_ROLES)
 def create_rsi():
     form = ReferenceSafetyInformationForm()
+    return_to = request.args.get(
+        "return_to",
+        "",
+    ).strip()
+
+    if return_to and not return_to.startswith("/"):
+        return_to = ""
 
     if form.validate_on_submit():
         source_file = form.source_file.data
@@ -92,39 +103,30 @@ def create_rsi():
         file_size_bytes = None
 
         if source_file and source_file.filename:
-            original_filename = secure_filename(source_file.filename)
+            original_filename = secure_filename(
+                source_file.filename
+            )
             extension = Path(original_filename).suffix.lower()
 
             if extension not in ALLOWED_RSI_EXTENSIONS:
                 form.source_file.errors.append(
                     "Upload a PDF, DOC or DOCX reference document."
                 )
-                return render_template("rsi/create_rsi.html", form=form)
+                return render_template(
+                    "rsi/create_rsi.html",
+                    form=form,
+                )
 
             stored_filename = f"{uuid4().hex}{extension}"
             output_path = rsi_file_path(stored_filename)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.parent.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
             source_file.save(output_path)
 
             content_type = source_file.content_type
             file_size_bytes = output_path.stat().st_size
-    try:
-        assessment_rationale = generate_rsi_assessment_explanation(
-            event_term=case["event_description"],
-            listedness=result["listedness_status"],
-            expectedness=result["expectedness_status"],
-            frequency=result.get("frequency_assessment", "Not stated"),
-            evidence=result["evidence"],
-        )
-    except Exception:
-        assessment_rationale = (
-            "Automated reference-information assessment: "
-            f"the reported event was assessed as "
-            f"{result['listedness_status']} and "
-            f"{result['expectedness_status']}. "
-            f"Frequency: {result.get('frequency_assessment', 'Not stated')}. "
-            "QPPV or medical reviewer confirmation is required."
-        )
 
         with transaction() as cursor:
             cursor.execute(
@@ -167,6 +169,41 @@ def create_rsi():
                 ),
             )
             rsi_id = cursor.fetchone()["rsi_id"]
+        if stored_filename:
+            try:
+                extracted_text = extract_reference_document_text(
+                    rsi_file_path(stored_filename)
+                )
+
+                with transaction() as cursor:
+                    cursor.execute(
+                        """
+                        UPDATE pv.reference_safety_information
+                        SET
+                            extracted_text = %s,
+                            extraction_status = 'Extracted',
+                            extracted_at = CURRENT_TIMESTAMP
+                        WHERE rsi_id = %s
+                        """,
+                        (extracted_text, rsi_id),
+                    )
+
+            except Exception:
+                with transaction() as cursor:
+                    cursor.execute(
+                        """
+                        UPDATE pv.reference_safety_information
+                        SET extraction_status = 'Extraction failed'
+                        WHERE rsi_id = %s
+                        """,
+                        (rsi_id,),
+                    )
+
+                flash(
+                    "Reference document was saved, but its text "
+                    "could not be extracted automatically.",
+                    "warning",
+                )
 
         write_audit_log(
             record_type="reference_safety_information",
@@ -179,11 +216,79 @@ def create_rsi():
             actor_user_id=session["user_id"],
         )
 
-        flash("Reference safety information saved successfully.", "success")
-        return redirect(url_for("rsi.rsi_list"))
-
+        flash(
+            "Reference safety information saved successfully.",
+            "success",
+        )
+        return redirect(
+            return_to or url_for("rsi.rsi_list")
+        )
     return render_template("rsi/create_rsi.html", form=form)
 
+@bp.post("/<int:rsi_id>/extract")
+@roles_required(*REVIEWER_ROLES)
+def extract_rsi_text(rsi_id):
+    document = query_one(
+        """
+        SELECT rsi_id, stored_filename
+        FROM pv.reference_safety_information
+        WHERE rsi_id = %s
+        """,
+        (rsi_id,),
+    )
+
+    if not document:
+        abort(404)
+
+    if not document["stored_filename"]:
+        flash(
+            "No uploaded PDF or DOCX document is available for "
+            "text extraction.",
+            "error",
+        )
+        return redirect(url_for("rsi.rsi_list"))
+
+    try:
+        extracted_text = extract_reference_document_text(
+            rsi_file_path(document["stored_filename"])
+        )
+
+        with transaction() as cursor:
+            cursor.execute(
+                """
+                UPDATE pv.reference_safety_information
+                SET
+                    extracted_text = %s,
+                    extraction_status = 'Extracted',
+                    extracted_at = CURRENT_TIMESTAMP
+                WHERE rsi_id = %s
+                """,
+                (extracted_text, rsi_id),
+            )
+
+        flash(
+            "Reference document text extracted successfully.",
+            "success",
+        )
+
+    except Exception:
+        with transaction() as cursor:
+            cursor.execute(
+                """
+                UPDATE pv.reference_safety_information
+                SET extraction_status = 'Extraction failed'
+                WHERE rsi_id = %s
+                """,
+                (rsi_id,),
+            )
+
+        flash(
+            "The document could not be extracted. Upload a readable "
+            "PDF or DOCX version where available.",
+            "error",
+        )
+
+    return redirect(url_for("rsi.rsi_list"))
 
 @bp.get("/<int:rsi_id>/download")
 @roles_required(*REVIEWER_ROLES)

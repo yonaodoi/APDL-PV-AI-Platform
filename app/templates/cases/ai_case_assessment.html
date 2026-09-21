@@ -109,7 +109,7 @@
     <p>{{ case.case_number }}{% if product %} · {{ product.product_name }}{% endif %}</p>
   </div>
 
-  <form method="post" action="{{ url_for('case_ai_reports.generate_ai_case_assessment', case_id=case.case_id) }}">
+  <form method="post" action="{{ url_for('case_ai_reports.generate_ai_case_assessment', case_id=case.case_id) }}" id="assessment-generation-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="generate-button" type="submit">Generate AI assessment</button>
   </form>
@@ -160,4 +160,6 @@ approval before use as a final PV conclusion.
     </div>
   {% endif %}
 </section>
+
+
 {% endblock %}
