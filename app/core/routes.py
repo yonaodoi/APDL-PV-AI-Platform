@@ -723,3 +723,271 @@ def download_regulatory_reporting_csv():
                 f'attachment; filename="{filename}"'
         },
     )
+
+def _analytics_metrics():
+    return {
+        "total-cases": {
+            "title": "Total safety cases",
+            "value": query_one(
+                "SELECT COUNT(*) AS total FROM pv.safety_cases"
+            )["total"],
+        },
+        "new-cases": {
+            "title": "New safety cases",
+            "value": query_one(
+                """
+                SELECT COUNT(*) AS total
+                FROM pv.safety_cases
+                WHERE received_date >= CURRENT_DATE - INTERVAL '30 days'
+                """
+            )["total"],
+        },
+        "serious-cases": {
+            "title": "Serious safety cases",
+            "value": query_one(
+                """
+                SELECT COUNT(*) AS total
+                FROM pv.safety_cases
+                WHERE seriousness = TRUE
+                """
+            )["total"],
+        },
+        "open-signals": {
+            "title": "Open safety signals",
+            "value": query_one(
+                """
+                SELECT COUNT(*) AS total
+                FROM pv.safety_signals
+                WHERE LOWER(COALESCE(status, '')) NOT IN (
+                    'closed',
+                    'finalised'
+                )
+                """
+            )["total"],
+        },
+        "product-complaints": {
+            "title": "Product complaints",
+            "value": query_one(
+                "SELECT COUNT(*) AS total FROM pv.product_complaints"
+            )["total"],
+        },
+        "psur-records": {
+            "title": "PSUR records",
+            "value": query_one(
+                "SELECT COUNT(*) AS total FROM pv.psur_reports"
+            )["total"],
+            "due": query_one(
+                """
+                SELECT COUNT(*) AS total
+                FROM pv.psur_reports
+                WHERE LOWER(COALESCE(status, '')) NOT IN (
+                    'finalised',
+                    'approved'
+                )
+                """
+            )["total"],
+        },
+    }
+
+@bp.get("/analytics/")
+@login_required
+def analytics_home():
+    return flask.render_template(
+        "analytics/analytics_home.html",
+        metrics=_analytics_metrics(),
+    )
+
+@bp.get("/analytics/<metric_key>")
+@login_required
+def analytics_metric_detail(metric_key):
+    metric_definitions = {
+        "total-cases": {
+            "title": "Total safety cases",
+            "description": "All safety cases recorded in the APDL PV platform.",
+            "record_path": "/cases/{record_id}",
+            "sql": """
+                SELECT
+                    sc.case_id AS record_id,
+                    sc.received_date AS record_date,
+                    COALESCE(cp.product_name, 'Not recorded') AS product_name,
+                    sc.case_number AS record_number,
+                    COALESCE(sc.workflow_status, 'Not recorded') AS status,
+                    COALESCE(sc.event_description, 'No event description recorded.') AS detail
+                FROM pv.safety_cases AS sc
+                LEFT JOIN pv.case_products AS cp ON cp.case_id = sc.case_id
+            """,
+        },
+        "new-cases": {
+            "title": "New safety cases",
+            "description": "Safety cases received during the last 30 days.",
+            "record_path": "/cases/{record_id}",
+            "sql": """
+                SELECT
+                    sc.case_id AS record_id,
+                    sc.received_date AS record_date,
+                    COALESCE(cp.product_name, 'Not recorded') AS product_name,
+                    sc.case_number AS record_number,
+                    COALESCE(sc.workflow_status, 'Not recorded') AS status,
+                    COALESCE(sc.event_description, 'No event description recorded.') AS detail
+                FROM pv.safety_cases AS sc
+                LEFT JOIN pv.case_products AS cp ON cp.case_id = sc.case_id
+                WHERE sc.received_date >= CURRENT_DATE - INTERVAL '30 days'
+            """,
+        },
+        "serious-cases": {
+            "title": "Serious safety cases",
+            "description": "Safety cases recorded as serious.",
+            "record_path": "/cases/{record_id}",
+            "sql": """
+                SELECT
+                    sc.case_id AS record_id,
+                    sc.received_date AS record_date,
+                    COALESCE(cp.product_name, 'Not recorded') AS product_name,
+                    sc.case_number AS record_number,
+                    COALESCE(sc.workflow_status, 'Not recorded') AS status,
+                    COALESCE(sc.event_description, 'No event description recorded.') AS detail
+                FROM pv.safety_cases AS sc
+                LEFT JOIN pv.case_products AS cp ON cp.case_id = sc.case_id
+                WHERE sc.seriousness = TRUE
+            """,
+        },
+        "open-signals": {
+            "title": "Open safety signals",
+            "description": "Safety signals that had not been closed or finalised.",
+            "record_path": "/signals/{record_id}",
+            "sql": """
+                SELECT
+                    ss.signal_id AS record_id,
+                    ss.date_detected AS record_date,
+                    COALESCE(ss.product_name, 'Not recorded') AS product_name,
+                    ss.signal_number AS record_number,
+                    COALESCE(ss.status, 'Not recorded') AS status,
+                    COALESCE(ss.event_term, 'No event term recorded.') AS detail
+                FROM pv.safety_signals AS ss
+                WHERE LOWER(COALESCE(ss.status, '')) NOT IN ('closed', 'finalised')
+            """,
+        },
+        "reports-due": {
+            "title": "PSURs due",
+            "description": "PSUR records that were not approved or finalised.",
+            "sql": """
+                SELECT
+                    pr.psur_id AS record_id,
+                    pr.reporting_period_end AS record_date,
+                    COALESCE(pr.product_name, 'Not recorded') AS product_name,
+                    pr.report_number AS record_number,
+                    COALESCE(pr.status, 'Not recorded') AS status,
+                    COALESCE(pr.report_notes, 'Periodic safety report') AS detail
+                FROM pv.psur_reports AS pr
+                WHERE LOWER(COALESCE(pr.status, '')) NOT IN ('finalised', 'approved')
+            """,
+        },
+        "product-complaints": {
+            "title": "Product complaints",
+            "description": "All product complaints recorded in the platform.", 
+            "record_path": "/complaints/{record_id}",
+            "sql": """
+                SELECT
+                    pc.complaint_id AS record_id,
+                    pc.date_received AS record_date,
+                    COALESCE(pc.product_name, 'Not recorded') AS product_name,
+                    pc.complaint_number AS record_number,
+                    COALESCE(pc.status, 'Not recorded') AS status,
+                    COALESCE(pc.complaint_description, 'No complaint description recorded.') AS detail
+                FROM pv.product_complaints AS pc
+            """,
+        },
+        "psur-records": {
+            "title": "PSUR records",
+            "description": "All periodic safety reports recorded in the platform.",
+            "record_path": "/psur/{record_id}",
+            "sql": """
+                SELECT
+                    pr.psur_id AS record_id,
+                    pr.reporting_period_end AS record_date,
+                    COALESCE(pr.product_name, 'Not recorded') AS product_name,
+                    pr.report_number AS record_number,
+                    COALESCE(pr.status, 'Not recorded') AS status,
+                    COALESCE(pr.report_notes, 'Periodic safety report') AS detail
+                FROM pv.psur_reports AS pr
+            """,
+        },
+    }
+
+    definition = metric_definitions.get(metric_key)
+
+    if definition is None:
+        flask.abort(404)
+
+    selected_product = flask.request.args.get("product", "").strip()
+    selected_status = flask.request.args.get("status", "").strip()
+    start_date = flask.request.args.get("start_date", "").strip()
+    end_date = flask.request.args.get("end_date", "").strip()
+
+    base_sql = definition["sql"].strip()
+
+    products = query_all(
+        f"""
+        SELECT DISTINCT product_name
+        FROM ({base_sql}) AS metric_records
+        ORDER BY product_name
+        """
+    )
+    statuses = query_all(
+        f"""
+        SELECT DISTINCT status
+        FROM ({base_sql}) AS metric_records
+        ORDER BY status
+        """
+    )
+
+    filters = []
+    parameters = []
+
+    if selected_product:
+        filters.append("product_name = %s")
+        parameters.append(selected_product)
+
+    if selected_status:
+        filters.append("status = %s")
+        parameters.append(selected_status)
+
+    if start_date:
+        filters.append("record_date >= %s")
+        parameters.append(start_date)
+
+    if end_date:
+        filters.append("record_date <= %s")
+        parameters.append(end_date)
+
+    where_clause = ""
+    if filters:
+        where_clause = "WHERE " + " AND ".join(filters)
+
+    records = query_all(
+        f"""
+        SELECT *
+        FROM ({base_sql}) AS metric_records
+        {where_clause}
+        ORDER BY record_date DESC NULLS LAST, record_number DESC
+        """,
+        tuple(parameters),
+    )
+
+    for record in records:
+        record["record_url"] = definition["record_path"].format(
+            record_id=record["record_id"]
+        )
+
+    return flask.render_template(
+        "analytics/analytics_metric_detail.html",
+        metric_key=metric_key,
+        definition=definition,
+        records=records,
+        products=products,
+        statuses=statuses,
+        selected_product=selected_product,
+        selected_status=selected_status,
+        start_date=start_date,
+        end_date=end_date,
+    )

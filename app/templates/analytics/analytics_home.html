@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}PV & Regulatory Analytics | APDL PV{% endblock %}
+{% block page_title %}PV & Regulatory Analytics{% endblock %}
+
+{% block content %}
+<style>
+  .analytics-page { max-width:1150px; margin:0 auto; }
+  .analytics-header { margin-bottom:24px; }
+  .analytics-header h2 { margin:0 0 7px; color:#282037; font-size:28px; }
+  .analytics-header p { margin:0; color:#746d7d; font-size:14px; }
+
+  .metric-grid {
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0, 1fr));
+    gap:16px;
+  }
+
+  .metric-card {
+    display:block; padding:21px; border:1px solid #e8e0ea; border-radius:14px;
+    background:white; color:inherit; text-decoration:none;
+    box-shadow:0 6px 16px rgba(40,32,55,.04);
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+
+  .metric-card:hover {
+    transform:translateY(-2px);
+    box-shadow:0 10px 22px rgba(40,32,55,.09);
+  }
+
+  .metric-card h3 { margin:0 0 11px; color:#59436a; font-size:13px; }
+  .metric-value { color:#5f3ed4; font-size:31px; font-weight:bold; }
+  .metric-card p { margin:11px 0 0; color:#7d7382; font-size:12px; line-height:1.5; }
+
+  .reporting-link {
+    display:inline-block; margin-top:22px; padding:12px 16px; border-radius:9px;
+    background:#5f3ed4; color:white; font-size:13px; font-weight:bold; text-decoration:none;
+  }
+
+  @media (max-width:850px) {
+    .metric-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media (max-width:550px) {
+    .metric-grid { grid-template-columns:1fr; }
+  }
+</style>
+
+<section class="analytics-page">
+  <header class="analytics-header">
+    <h2>PV & Regulatory Analytics</h2>
+    <p>Select a metric to view only its underlying records and apply focused filters.</p>
+  </header>
+
+  <section class="metric-grid">
+    {% for metric_key, metric in metrics.items() %}
+<a
+  class="metric-card"
+  href="{{ url_for('core.analytics_metric_detail', metric_key=metric_key) }}"
+>
+        <h3>{{ metric.title }}</h3>
+        <div class="metric-value">{{ metric.value }}</div>
+{% if metric_key == "psur-records" %}
+  <p>
+    <strong>{{ metric.due }}</strong> record(s) were still awaiting
+    approval or finalisation.
+  </p>
+{% else %}
+  <p>Open the focused register for this monitoring item.</p>
+{% endif %}
+      </a>
+    {% endfor %}
+  </section>
+
+  <a class="reporting-link" href="{{ url_for('core.regulatory_reporting') }}">
+    Open regulatory reporting register
+  </a>
+</section>
+{% endblock %}
