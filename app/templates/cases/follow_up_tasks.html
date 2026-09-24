@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Follow-up Tasks | APDL PV{% endblock %}
+
+{% block page_title %}Follow-up Tasks{% endblock %}
+
+{% block content %}
+<section style="display: flex; justify-content: space-between; gap: 18px; align-items: flex-end; margin-bottom: 24px;">
+    <div>
+        <h2 style="margin: 0 0 7px; color: #282037; font-size: 28px;">Follow-up tasks</h2>
+        <p style="margin: 0; color: #746d7d; font-size: 14px;">
+            Open tasks generated from unresolved case completeness checks.
+        </p>
+    </div>
+    <a href="{{ url_for('cases.review_queue') }}" style="padding: 11px 16px; border-radius: 9px; background: white; border: 1px solid #d8caef; color: #6242d7; font-size: 13px; font-weight: bold; text-decoration: none;">Review queue</a>
+</section>
+
+<section style="overflow: hidden; border: 1px solid #e9e2e7; border-radius: 14px; background: white; box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);">
+    {% for task in tasks %}
+        <article style="padding: 18px 20px; border-bottom: 1px solid #f0ebee;">
+            <div style="display: flex; justify-content: space-between; gap: 16px; align-items: flex-start;">
+                <div>
+                    <a href="{{ url_for('cases.case_detail', case_id=task.case_id) }}" style="color: #49366d; font-size: 15px; font-weight: bold; text-decoration: none;">{{ task.task_title }}</a>
+                    <div style="margin-top: 5px; color: #756c7a; font-size: 12px;">
+                        Case {{ task.case_number }} · {{ task.assigned_to_name or "Unassigned" }} · Due {{ task.due_date.strftime("%d %b %Y") }}
+                    </div>
+                    <p style="margin: 10px 0 0; color: #554c5b; font-size: 13px;">{{ task.task_description }}</p>
+                </div>
+                <span style="padding: 5px 9px; border-radius: 20px; background: {% if task.due_date < current_date %}#ffe9e6; color: #cc5149{% else %}#fff3df; color: #966018{% endif %}; font-size: 11px; font-weight: bold;">
+                    {% if task.due_date < current_date %}Overdue{% else %}{{ task.status }}{% endif %}
+                </span>
+            </div>
+            <form method="post" action="{{ url_for('case_review.complete_follow_up_task', task_id=task.task_id) }}" style="margin-top: 13px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <a download href="{{ url_for('case_review.download_follow_up_docx', task_id=task.task_id) }}" style="display: inline-block; margin-right: 7px; padding: 8px 12px; border: 1px solid #d8caef; border-radius: 8px; color: #6242d7; font-size: 12px; font-weight: bold; text-decoration: none;">Download Word follow-up form</a>
+                <a download href="{{ url_for('case_review.download_follow_up_email_draft', task_id=task.task_id) }}" style="display: inline-block; margin-right: 7px; padding: 8px 12px; border: 1px solid #d8caef; border-radius: 8px; color: #6242d7; font-size: 12px; font-weight: bold; text-decoration: none;">Download email draft</a>
+                <a download href="{{ url_for('case_review.download_follow_up_email_docx', task_id=task.task_id) }}" style="display: inline-block; margin-right: 7px; padding: 8px 12px; border: 1px solid #d8caef; border-radius: 8px; color: #6242d7; font-size: 12px; font-weight: bold; text-decoration: none;">Email + form in Word</a>
+                <button type="submit" style="padding: 8px 12px; border: 0; border-radius: 8px; background: #7656e8; color: white; cursor: pointer; font-size: 12px; font-weight: bold;">Mark completed</button>
+            </form>
+        </article>
+    {% else %}
+        <div style="padding: 60px 25px; color: #827988; text-align: center;">
+            <h3 style="margin: 0 0 7px; color: #473d50; font-size: 16px;">No open follow-up tasks</h3>
+            <p style="margin: 0; font-size: 13px;">New tasks will appear when a case has unresolved follow-up requirements.</p>
+        </div>
+    {% endfor %}
+</section>
+{% endblock %}

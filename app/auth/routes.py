@@ -1,6 +1,16 @@
 from datetime import datetime, timedelta, timezone
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+import psycopg2
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.db import query_one, transaction
@@ -19,23 +29,34 @@ def login():
         username = request.form.get("username", "").strip()
         submitted_password = request.form.get("password", "")
 
-        user = query_one(
-            """
-            SELECT
-                u.user_id,
-                u.username,
-                u.full_name,
-                u.password_hash,
-                u.is_active,
-                u.failed_login_attempts,
-                u.locked_until,
-                r.role_name
-            FROM pv.users AS u
-            JOIN pv.roles AS r ON r.role_id = u.role_id
-            WHERE u.username = %s
-            """,
-            (username,),
-        )
+        try:
+            user = query_one(
+                """
+                SELECT
+                    u.user_id,
+                    u.username,
+                    u.full_name,
+                    u.password_hash,
+                    u.is_active,
+                    u.failed_login_attempts,
+                    u.locked_until,
+                    r.role_name
+                FROM pv.users AS u
+                JOIN pv.roles AS r ON r.role_id = u.role_id
+                WHERE u.username = %s
+                """,
+                (username,),
+            )
+        except psycopg2.OperationalError:
+            current_app.logger.exception(
+                "Database connection failed during login."
+            )
+            flash(
+                "The platform cannot connect to its database. "
+                "Check the local DATABASE_URL configuration.",
+                "error",
+            )
+            return render_template("auth/login.html"), 503
 
         now = datetime.now(timezone.utc)
 

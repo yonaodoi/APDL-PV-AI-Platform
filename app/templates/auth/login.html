@@ -77,13 +77,23 @@
                 Password
             </label>
 
-            <input
-                id="password"
-                name="password"
-                type="password"
-                autocomplete="current-password"
-                required
-            >
+            <div class="password-input">
+                <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autocomplete="current-password"
+                    required
+                >
+
+                <label class="password-toggle">
+                    <input
+                        type="checkbox"
+                        data-password-toggle="password"
+                    >
+                    <span>Show password</span>
+                </label>
+            </div>
 
             <button
                 type="submit"
@@ -97,5 +107,14 @@
             Authorised APDL users only
         </p>
     </main>
+
+    <script>
+        document.querySelectorAll("[data-password-toggle]").forEach(function (toggle) {
+            toggle.addEventListener("change", function () {
+                var password = document.getElementById(toggle.dataset.passwordToggle);
+                password.type = toggle.checked ? "text" : "password";
+            });
+        });
+    </script>
 </body>
 </html>

@@ -266,9 +266,14 @@
         <p>Review and manage all adverse drug reaction reports received by APDL.</p>
     </div>
 
-    <a class="new-case-button" href="{{ url_for('cases.create_case') }}">
-        + Create safety case
-    </a>
+    <div style="display: flex; gap: 9px; flex-wrap: wrap; justify-content: flex-end;">
+        <a class="new-case-button" href="{{ url_for('cases.review_queue') }}" style="background: white; color: #6242d7; border: 1px solid #d8caef; box-shadow: none;">
+            Review queue
+        </a>
+        <a class="new-case-button" href="{{ url_for('cases.create_case') }}">
+            + Create safety case
+        </a>
+    </div>
 </section>
 
 <section class="case-filter">

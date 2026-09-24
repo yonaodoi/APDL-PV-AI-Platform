@@ -2,6 +2,7 @@ import csv
 import io
 from datetime import date
 import flask
+from flask import current_app, flash, redirect, request, session, url_for
 from app.db import get_db, query_all, query_one
 from app.security import login_required
 from app.services.regulatory_reporting_docx import (
@@ -13,6 +14,30 @@ bp = flask.Blueprint("core", __name__)
 @bp.get("/")
 @login_required
 def dashboard():
+    if request.args.get("code"):
+        state = session.pop("gmail_oauth_state", None)
+        if not state or state != request.args.get("state"):
+            flash("Gmail authorization could not be verified.", "error")
+            return redirect(url_for("case_review.follow_up_tasks"))
+        try:
+            from app.services.gmail_oauth import complete_authorization
+
+            complete_authorization(
+                current_app,
+                request.url,
+                state,
+            )
+        except Exception as exc:
+            current_app.logger.exception(
+                "Gmail OAuth authorization failed"
+            )
+            flash(f"Gmail authorization failed: {exc}", "error")
+        else:
+            flash(
+                "Gmail is connected and ready to send follow-up forms.",
+                "success",
+            )
+        return redirect(url_for("case_review.follow_up_tasks"))
     return flask.render_template("dashboard.html")
 
 @bp.get("/health")

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Case Review Queue | APDL PV{% endblock %}
+
+{% block page_title %}Case Review Queue{% endblock %}
+
+{% block content %}
+<section style="display: flex; justify-content: space-between; gap: 18px; align-items: flex-end; margin-bottom: 24px;">
+    <div>
+        <h2 style="margin: 0 0 7px; color: #282037; font-size: 28px;">Case review queue</h2>
+        <p style="margin: 0; color: #746d7d; font-size: 14px;">
+            Cases with completeness checks that need reviewer attention.
+        </p>
+    </div>
+    <div style="display: flex; gap: 9px;">
+        <a href="{{ url_for('case_review.follow_up_tasks') }}" style="padding: 11px 16px; border-radius: 9px; background: white; border: 1px solid #d8caef; color: #6242d7; font-size: 13px; font-weight: bold; text-decoration: none;">Follow-up tasks</a>
+        <a href="{{ url_for('cases.case_list') }}" style="padding: 11px 16px; border-radius: 9px; background: #7656e8; color: white; font-size: 13px; font-weight: bold; text-decoration: none;">All safety cases</a>
+    </div>
+</section>
+
+<section style="overflow: hidden; border: 1px solid #e9e2e7; border-radius: 14px; background: white; box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);">
+    {% for case in cases %}
+        <article style="padding: 18px 20px; border-bottom: 1px solid #f0ebee;">
+            <div style="display: flex; justify-content: space-between; gap: 16px; align-items: flex-start;">
+                <div>
+                    <a href="{{ url_for('cases.case_detail', case_id=case.case_id) }}" style="color: #49366d; font-size: 15px; font-weight: bold; text-decoration: none;">{{ case.case_number }}</a>
+                    <div style="margin-top: 5px; color: #756c7a; font-size: 12px;">
+                        {{ case.product_count }} suspected product(s) · {{ case.workflow_status }} · {{ case.country_name or "Country not recorded" }}
+                    </div>
+                </div>
+                <span style="padding: 5px 9px; border-radius: 20px; background: #fff3df; color: #966018; font-size: 11px; font-weight: bold;">{{ case.review_checks|length }} item(s) to review</span>
+            </div>
+            <ul style="margin: 14px 0 0; padding-left: 18px; color: #554c5b; font-size: 13px; line-height: 1.6;">
+                {% for check in case.review_checks %}
+                    <li><strong>{{ check.label }}:</strong> {{ check.message }}</li>
+                {% endfor %}
+            </ul>
+        </article>
+    {% else %}
+        <div style="padding: 60px 25px; color: #827988; text-align: center;">
+            <h3 style="margin: 0 0 7px; color: #473d50; font-size: 16px;">No cases need completeness review</h3>
+            <p style="margin: 0; font-size: 13px;">The current case register has no unresolved checklist items.</p>
+        </div>
+    {% endfor %}
+</section>
+{% endblock %}

@@ -13,6 +13,14 @@ load_dotenv(BASE_DIR / ".env")
 class Config:
     SECRET_KEY = os.environ.get("APDL_PV_SECRET_KEY")
     DATABASE_URL = os.environ.get("DATABASE_URL")
+    DEV_AUTO_LOGIN = (
+        os.environ.get("DEV_AUTO_LOGIN", "false").lower() == "true"
+        and os.environ.get("FLASK_ENV") != "production"
+    )
+    DEV_AUTO_LOGIN_USERNAME = os.environ.get(
+        "DEV_AUTO_LOGIN_USERNAME",
+        "yona.odoi",
+    )
 
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
@@ -57,6 +65,48 @@ class Config:
         )
     )
 
+    ABACUS_FOLLOW_UP_TEMPLATE_PATH = Path(
+        os.environ.get(
+            "ABACUS_FOLLOW_UP_TEMPLATE_PATH",
+            BASE_DIR
+            / "controlled_templates"
+            / "case followup form.pdf",
+        )
+    )
+
+    SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    SMTP_PORT = int(os.environ.get("SMTP_PORT", "465"))
+    SMTP_SENDER_EMAIL = os.environ.get(
+        "SMTP_SENDER_EMAIL",
+        "odoiwilber2@gmail.com",
+    )
+    SMTP_SENDER_NAME = os.environ.get(
+        "SMTP_SENDER_NAME",
+        "APDL Pharmacovigilance",
+    )
+    GMAIL_OAUTH_CLIENT_SECRET_PATH = Path(
+        os.environ.get(
+            "GMAIL_OAUTH_CLIENT_SECRET_PATH",
+            BASE_DIR / "instance" / "gmail_client_secret.json",
+        )
+    )
+    GMAIL_OAUTH_TOKEN_PATH = Path(
+        os.environ.get(
+            "GMAIL_OAUTH_TOKEN_PATH",
+            BASE_DIR / "instance" / "gmail_token.json",
+        )
+    )
+    GMAIL_OAUTH_REDIRECT_URI = os.environ.get(
+        "GMAIL_OAUTH_REDIRECT_URI",
+        "http://localhost:5000/",
+    )
+    SMTP_USERNAME = os.environ.get(
+        "SMTP_USERNAME",
+        SMTP_SENDER_EMAIL,
+    )
+    SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
+    SMTP_USE_SSL = os.environ.get("SMTP_USE_SSL", "true").lower() == "true"
+    SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "false").lower() == "true"
     @classmethod
     def validate(cls):
         missing = []

@@ -4,7 +4,7 @@ from flask import Flask, session
 
 from config import Config
 from .cli import register_cli
-from .db import close_db
+from .db import close_db, query_one
 from .extensions import csrf
 from .cases.ai_report_routes import bp as case_ai_reports_blueprint
 
@@ -55,6 +55,26 @@ def create_app(config_class=Config):
 
     @app.before_request
     def refresh_session_activity():
+        if (
+            app.config.get("DEV_AUTO_LOGIN")
+            and not session.get("user_id")
+        ):
+            user = query_one(
+                """
+                SELECT u.user_id, u.username, u.full_name, r.role_name
+                FROM pv.users AS u
+                JOIN pv.roles AS r ON r.role_id = u.role_id
+                WHERE u.username = %s
+                  AND u.is_active = TRUE
+                """,
+                (app.config["DEV_AUTO_LOGIN_USERNAME"],),
+            )
+            if user:
+                session["user_id"] = user["user_id"]
+                session["username"] = user["username"]
+                session["full_name"] = user["full_name"]
+                session["role"] = user["role_name"]
+
         if session.get("user_id"):
             session.permanent = True
             session["last_activity_at"] = datetime.now(timezone.utc).isoformat()

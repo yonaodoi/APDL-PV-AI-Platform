@@ -269,6 +269,7 @@
             <div class="nav-label">WORKSPACE</div>
             <a class="nav-link {% if request.endpoint == 'core.dashboard' %}active{% endif %}" href="{{ url_for('core.dashboard') }}">Dashboard</a>
             <a class="nav-link {% if request.endpoint in ('cases.case_list', 'cases.create_case', 'cases.case_detail') %}active{% endif %}" href="{{ url_for('cases.case_list') }}">Safety Cases</a>
+            <a class="nav-link {% if request.endpoint in ('case_review.review_queue', 'case_review.follow_up_tasks') %}active{% endif %}" href="{{ url_for('case_review.follow_up_tasks') }}">Follow-up Tasks</a>
             <a class="nav-link {% if request.endpoint in ('complaints.complaint_list', 'complaints.create_complaint', 'complaints.complaint_detail') %}active{% endif %}" href="{{ url_for('complaints.complaint_list') }}">Product Complaints</a>
 
             <div class="nav-label">SAFETY MANAGEMENT</div>

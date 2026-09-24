@@ -309,6 +309,26 @@
     <div>
         <section class="detail-section">
             <div class="section-title">
+                <span class="section-icon">✓</span>
+                Automated completeness checklist
+            </div>
+
+            <div class="detail-content">
+                {% for check in completeness_checks %}
+                    <div style="display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #f0ebee;">
+                        <div>
+                            <div style="color: #453c4d; font-size: 13px; font-weight: bold;">{{ check.label }}</div>
+                            <div style="margin-top: 3px; color: #776e7d; font-size: 12px;">{{ check.message }}</div>
+                        </div>
+                        <span style="padding: 4px 8px; border-radius: 20px; background: {% if check.status == 'Pass' %}#e7f6ef; color: #176247{% else %}#fff3df; color: #966018{% endif %}; font-size: 10px; font-weight: bold;">{{ check.status }}</span>
+                    </div>
+                {% endfor %}
+                <a href="{{ url_for('cases.review_queue') }}" style="display: inline-block; margin-top: 14px; color: #6242d7; font-size: 12px; font-weight: bold; text-decoration: none;">Open case review queue →</a>
+            </div>
+        </section>
+
+        <section class="detail-section">
+            <div class="section-title">
                 <span class="section-icon">1</span>
                 Case receipt and reporter
             </div>

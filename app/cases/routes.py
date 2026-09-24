@@ -18,6 +18,9 @@ from .forms import SafetyCaseForm
 from app.services.signal_detection import (
     detect_potential_signals_for_case,
 )
+from app.services.case_completeness import (
+    refresh_case_completeness,
+)
 
 
 bp = Blueprint("cases", __name__, url_prefix="/cases")
@@ -147,7 +150,6 @@ def case_detail(case_id):
         """,
         (case_id,),
     )
-
     if case is None:
         abort(404)
 
@@ -160,6 +162,7 @@ def case_detail(case_id):
         """,
         (case_id,),
     )
+    completeness_checks = refresh_case_completeness(case, products)
 
     audit_log = query_all(
         """
@@ -181,7 +184,52 @@ def case_detail(case_id):
         "cases/case_detail.html",
         case=case,
         products=products,
+        completeness_checks=completeness_checks,
         audit_log=audit_log,
+    )
+
+
+@bp.get("/review-queue")
+@login_required
+def review_queue():
+    cases = query_all(
+        """
+        SELECT
+            safety_cases.*,
+            countries.country_name,
+            COUNT(case_products.case_product_id) AS product_count
+        FROM pv.safety_cases AS safety_cases
+        LEFT JOIN pv.countries AS countries
+            ON countries.country_id = safety_cases.country_id
+        LEFT JOIN pv.case_products AS case_products
+            ON case_products.case_id = safety_cases.case_id
+        GROUP BY safety_cases.case_id, countries.country_name
+        ORDER BY safety_cases.updated_at DESC
+        """
+    )
+
+    queue_cases = []
+    for case in cases:
+        products = query_all(
+            """
+            SELECT *
+            FROM pv.case_products
+            WHERE case_id = %s
+            ORDER BY case_product_id
+            """,
+            (case["case_id"],),
+        )
+        checks = refresh_case_completeness(case, products)
+        review_checks = [
+            check for check in checks if check["status"] == "Review"
+        ]
+        if review_checks:
+            case["review_checks"] = review_checks
+            queue_cases.append(case)
+
+    return render_template(
+        "cases/review_queue.html",
+        cases=queue_cases,
     )
 
 
@@ -385,6 +433,16 @@ def create_case():
                 "screening could not run.",
                 "warning",
             )
+
+        case = query_one(
+            "SELECT * FROM pv.safety_cases WHERE case_id = %s",
+            (case_id,),
+        )
+        products = query_all(
+            "SELECT * FROM pv.case_products WHERE case_id = %s",
+            (case_id,),
+        )
+        refresh_case_completeness(case, products)
 
         if detected_signals:
             flash(
