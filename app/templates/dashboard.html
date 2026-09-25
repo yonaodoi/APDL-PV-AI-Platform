@@ -193,6 +193,16 @@
         </a>
     </section>
 
+    {% if open_follow_up_reminder_count %}
+        <a
+            href="{{ url_for('case_review.follow_up_reminders') }}"
+            style="display: block; margin-bottom: 25px; padding: 17px 20px; border: 1px solid #f0c8c3; border-radius: 12px; background: #fff4f2; color: #8f3f39; text-decoration: none;"
+        >
+            <strong>{{ open_follow_up_reminder_count }} overdue follow-up reminder{% if open_follow_up_reminder_count != 1 %}s{% endif %}</strong>
+            <span style="display: block; margin-top: 5px; font-size: 13px;">Review overdue requests and acknowledge each reminder.</span>
+        </a>
+    {% endif %}
+
     <h3 class="workspace-heading">Workspaces</h3>
     <p class="workspace-intro">
         Select a module to record, assess, review or report safety information.

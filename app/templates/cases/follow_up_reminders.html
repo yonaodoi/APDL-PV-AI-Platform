@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Overdue Follow-up Reminders | APDL PV{% endblock %}
+{% block page_title %}Overdue Follow-up Reminders{% endblock %}
+
+{% block content %}
+<section style="max-width: 1080px;">
+    <div style="display: flex; justify-content: space-between; gap: 18px; align-items: flex-end; margin-bottom: 24px;">
+        <div>
+            <h2 style="margin: 0 0 7px; color: #282037; font-size: 28px;">Overdue reminders</h2>
+            <p style="margin: 0; color: #746d7d; font-size: 14px;">
+                These reminders are generated automatically when an open follow-up task passes its due date.
+            </p>
+        </div>
+        <a href="{{ url_for('case_review.follow_up_tasks') }}" style="padding: 11px 16px; border-radius: 9px; background: white; border: 1px solid #d8caef; color: #6242d7; font-size: 13px; font-weight: bold; text-decoration: none;">Follow-up tasks</a>
+    </div>
+    <section style="overflow: hidden; border: 1px solid #e9e2e7; border-radius: 14px; background: white;">
+        {% for reminder in reminders %}
+            <article style="display: flex; justify-content: space-between; gap: 18px; align-items: center; padding: 18px 20px; border-bottom: 1px solid #f0ebee;">
+                <div>
+                    <a href="{{ url_for('cases.case_detail', case_id=reminder.case_id) }}" style="color: #49366d; font-weight: bold; text-decoration: none;">{{ reminder.task_title }}</a>
+                    <div style="margin-top: 6px; color: #756c7a; font-size: 12px;">Case {{ reminder.case_number }} · Due {{ reminder.due_date.strftime("%d %b %Y") }}</div>
+                    <p style="margin: 9px 0 0; color: #554c5b; font-size: 13px;">{{ reminder.message }}</p>
+                </div>
+                <form method="post" action="{{ url_for('case_review.acknowledge_follow_up_reminder', reminder_id=reminder.reminder_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" style="padding: 8px 12px; border: 0; border-radius: 8px; background: #7656e8; color: white; cursor: pointer; font-size: 12px; font-weight: bold;">Acknowledge</button>
+                </form>
+            </article>
+        {% else %}
+            <div style="padding: 60px 25px; color: #827988; text-align: center;">
+                <h3 style="margin: 0 0 7px; color: #473d50; font-size: 16px;">No overdue reminders</h3>
+                <p style="margin: 0; font-size: 13px;">Open follow-up tasks will appear here after their due date passes.</p>
+            </div>
+        {% endfor %}
+    </section>
+</section>
+{% endblock %}

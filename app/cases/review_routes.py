@@ -191,6 +191,28 @@ def follow_up_tasks():
     )
 
 
+@bp.get("/follow-up-reminders")
+@login_required
+def follow_up_reminders():
+    from app.services.case_follow_up_reminders import get_open_reminders
+
+    return render_template(
+        "cases/follow_up_reminders.html",
+        reminders=get_open_reminders(),
+    )
+
+
+@bp.post("/follow-up-reminders/<int:reminder_id>/acknowledge")
+@login_required
+def acknowledge_follow_up_reminder(reminder_id):
+    from app.services.case_follow_up_reminders import acknowledge_reminder
+
+    if acknowledge_reminder(reminder_id, session["user_id"]) is None:
+        abort(404)
+    flash("Reminder acknowledged.", "success")
+    return redirect(url_for("case_review.follow_up_reminders"))
+
+
 @bp.post("/follow-up-tasks/<int:task_id>/complete")
 @login_required
 def complete_follow_up_task(task_id):

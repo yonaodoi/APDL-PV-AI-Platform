@@ -79,4 +79,14 @@ def create_app(config_class=Config):
             session.permanent = True
             session["last_activity_at"] = datetime.now(timezone.utc).isoformat()
 
+    @app.context_processor
+    def inject_follow_up_reminder_count():
+        if not session.get("user_id"):
+            return {}
+        from app.services.case_follow_up_reminders import (
+            get_open_reminder_count,
+        )
+
+        return {"open_follow_up_reminder_count": get_open_reminder_count()}
+
     return app
