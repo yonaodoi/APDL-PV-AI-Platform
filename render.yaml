@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: apdl-pv-demo
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python scripts/migrate.py && waitress-serve --listen=0.0.0.0:$PORT run:app
+    healthCheckPath: /login
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: APDL_PV_SECRET_KEY
+        generateValue: true
+      - key: DEV_AUTO_LOGIN
+        value: "false"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: apdl-pv-demo-db
+          property: connectionString
+
+databases:
+  - name: apdl-pv-demo-db
+    databaseName: apdl_pv_demo
+    user: apdl_pv_demo
+    plan: free
