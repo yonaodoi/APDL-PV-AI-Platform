@@ -1,7 +1,11 @@
 import json
+from datetime import date
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from flask import (
     Blueprint,
     abort,
+    current_app,
     flash,
     redirect,
     render_template,
@@ -11,14 +15,102 @@ from flask import (
     jsonify,
     send_file,
 )
+from werkzeug.utils import secure_filename
 from app.complaints.forms import ComplaintReviewForm, ProductComplaintForm
 from app.db import query_all, query_one, transaction
 from app.security import login_required
 from app.services.product_complaint_reporting_docx import (
     build_product_complaint_reporting_docx,
 )
+from app.services.complaint_document_extraction import (
+    MAX_DOCUMENT_BYTES,
+    SUPPORTED_EXTENSIONS,
+    extract_complaint_fields,
+    extract_document_text,
+)
 
 bp = Blueprint("complaints", __name__, url_prefix="/complaints")
+
+
+def _set_complaint_country_choices(form):
+    countries = query_all(
+        """
+        SELECT country_id, country_name
+        FROM pv.countries
+        ORDER BY country_name
+        """
+    )
+    form.country_id.choices = [(0, "Select country")] + [
+        (country["country_id"], country["country_name"])
+        for country in countries
+    ]
+    return countries
+
+
+def _populate_complaint_form(form, extracted, countries):
+    uncertain = list(extracted.get("uncertain_fields", []))
+    matched_country = next(
+        (
+            country
+            for country in countries
+            if extracted.get("country")
+            and country["country_name"].strip().casefold()
+            == str(extracted["country"]).strip().casefold()
+        ),
+        None,
+    )
+    form.country_id.data = (
+        matched_country["country_id"] if matched_country else 0
+    )
+    if extracted.get("country") and not matched_country:
+        uncertain.append("country")
+
+    for field_name in ("date_received", "manufacturing_date", "expiry_date"):
+        value = extracted.get(field_name)
+        try:
+            getattr(form, field_name).data = (
+                date.fromisoformat(value) if value else None
+            )
+        except (TypeError, ValueError):
+            getattr(form, field_name).data = None
+            if value:
+                uncertain.append(field_name)
+
+    for field_name in ("complaint_category", "severity"):
+        value = extracted.get(field_name)
+        choices = {
+            choice.casefold(): choice
+            for choice, _label in getattr(form, field_name).choices
+        }
+        choice = choices.get(value.strip().casefold()) if isinstance(value, str) else None
+        getattr(form, field_name).data = choice
+        if value and not choice:
+            uncertain.append(field_name)
+
+    for field_name in (
+        "reporter_name",
+        "reporter_contact",
+        "product_name",
+        "batch_number",
+        "complaint_description",
+    ):
+        value = extracted.get(field_name)
+        getattr(form, field_name).data = str(value) if value is not None else ""
+
+    required_fields = (
+        "date_received",
+        "product_name",
+        "complaint_category",
+        "severity",
+        "complaint_description",
+    )
+    for field_name in required_fields:
+        if not getattr(form, field_name).data:
+            uncertain.append(field_name)
+    if not matched_country:
+        uncertain.append("country")
+    form.complaint_number.data = ""
+    return sorted(set(uncertain))
 
 
 @bp.get("/")
@@ -133,19 +225,7 @@ def complaint_list():
 def create_complaint():
     form = ProductComplaintForm()
 
-    countries = query_all(
-        """
-        SELECT country_id, country_name
-        FROM pv.countries
-        ORDER BY country_name
-        """
-    )
-    form.country_id.choices = [
-        (0, "Select country")
-    ] + [
-        (country["country_id"], country["country_name"])
-        for country in countries
-    ]
+    _set_complaint_country_choices(form)
 
     if form.validate_on_submit():
         existing_complaint = query_one(
@@ -206,12 +286,85 @@ def create_complaint():
                 ),
             )
 
-        flash("Product complaint saved successfully.", "success")
+        flash("Product quality complaint saved successfully.", "success")
         return redirect(url_for("complaints.complaint_list"))
 
     return render_template(
         "complaints/create_complaint.html",
         form=form,
+    )
+
+
+@bp.route("/new/from-document", methods=["GET", "POST"])
+@login_required
+def extract_complaint_from_document():
+    if request.method == "GET":
+        return render_template(
+            "complaints/extract_complaint_document.html"
+        )
+
+    uploaded_file = request.files.get("complaint_document")
+    if not uploaded_file or not uploaded_file.filename:
+        flash("Choose a complaint document to extract.", "error")
+        return render_template(
+            "complaints/extract_complaint_document.html"
+        ), 400
+
+    filename = secure_filename(uploaded_file.filename)
+    extension = Path(filename).suffix.lower()
+    if not filename or extension not in SUPPORTED_EXTENSIONS:
+        flash("Upload a PDF, DOCX, or plain text complaint document.", "error")
+        return render_template(
+            "complaints/extract_complaint_document.html"
+        ), 400
+
+    document_bytes = uploaded_file.read(MAX_DOCUMENT_BYTES + 1)
+    if len(document_bytes) > MAX_DOCUMENT_BYTES:
+        flash("The document exceeds the 20 MB upload limit.", "error")
+        return render_template(
+            "complaints/extract_complaint_document.html"
+        ), 413
+
+    try:
+        with TemporaryDirectory() as temp_directory:
+            document_path = Path(temp_directory) / f"complaint{extension}"
+            document_path.write_bytes(document_bytes)
+            document_text = extract_document_text(document_path)
+        extracted = extract_complaint_fields(document_text)
+    except (ValueError, RuntimeError) as exc:
+        current_app.logger.warning(
+            "Product complaint document extraction failed: %s",
+            exc,
+        )
+        flash(str(exc), "error")
+        return render_template(
+            "complaints/extract_complaint_document.html"
+        )
+    except Exception:
+        current_app.logger.exception(
+            "Unexpected product complaint extraction error"
+        )
+        flash(
+            "Complaint information could not be extracted. Check that the "
+            "document is readable and the local AI service is available.",
+            "error",
+        )
+        return render_template(
+            "complaints/extract_complaint_document.html"
+        ), 503
+
+    form = ProductComplaintForm()
+    countries = _set_complaint_country_choices(form)
+    uncertain_fields = _populate_complaint_form(
+        form,
+        extracted,
+        countries,
+    )
+    return render_template(
+        "complaints/create_complaint.html",
+        form=form,
+        extraction_filename=filename,
+        uncertain_fields=uncertain_fields,
     )
 
 

@@ -2,6 +2,7 @@ import json
 from flask import (
     Blueprint,
     abort,
+    current_app,
     flash,
     redirect,
     render_template,
@@ -20,6 +21,9 @@ from app.services.safety_signal_reporting_docx import (
 from app.signals.forms import SafetySignalForm, SignalEvaluationForm
 from app.services.signal_detection import (
     run_signal_detection_for_all_cases,
+)
+from app.services.safety_signal_assistance import (
+    draft_safety_signal_assessment,
 )
 
 bp = Blueprint("signals", __name__, url_prefix="/signals")
@@ -185,12 +189,6 @@ def screen_adr_cases():
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
 def create_signal():
-    flash(
-        "Safety signals are generated automatically from ADR case screening.",
-        "info",
-    )
-    return redirect(url_for("signals.signal_list"))
-
     form = SafetySignalForm()
 
     if form.validate_on_submit():
@@ -225,7 +223,7 @@ def create_signal():
                     auto_detected,
                     created_by
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, FALSE, %s)
                 """,
                 (
                     form.signal_number.data.strip(),
@@ -249,6 +247,11 @@ def create_signal():
 @bp.get("/<int:signal_id>")
 @login_required
 def signal_detail(signal_id):
+    signal, supporting_cases = _get_signal_and_supporting_cases(signal_id)
+    return _render_signal_detail(signal, supporting_cases)
+
+
+def _get_signal_and_supporting_cases(signal_id):
     signal = query_one(
         """
         SELECT
@@ -264,11 +267,6 @@ def signal_detail(signal_id):
     if not signal:
         abort(404)
 
-    evaluation_form = SignalEvaluationForm()
-    evaluation_form.status.data = signal["status"]
-    evaluation_form.assessment_summary.data = signal["assessment_summary"]
-    evaluation_form.decision_summary.data = signal["decision_summary"]
-    evaluation_form.owner_name.data = signal["owner_name"]
     supporting_cases = query_all(
         """
         SELECT
@@ -290,12 +288,61 @@ def signal_detail(signal_id):
         """,
         (signal_id,),
     )
+    return signal, supporting_cases
 
+
+def _render_signal_detail(
+    signal,
+    supporting_cases,
+    ai_assistance=None,
+):
+    evaluation_form = SignalEvaluationForm()
+    evaluation_form.status.data = signal["status"]
+    evaluation_form.assessment_summary.data = signal["assessment_summary"]
+    evaluation_form.decision_summary.data = signal["decision_summary"]
+    evaluation_form.owner_name.data = signal["owner_name"]
     return render_template(
         "signals/signal_detail.html",
         signal=signal,
         evaluation_form=evaluation_form,
         supporting_cases=supporting_cases,
+        ai_assistance=ai_assistance,
+    )
+
+
+@bp.post("/<int:signal_id>/ai-draft")
+@login_required
+def draft_signal_assessment(signal_id):
+    signal, supporting_cases = _get_signal_and_supporting_cases(signal_id)
+    try:
+        ai_assistance = draft_safety_signal_assessment(
+            signal,
+            supporting_cases,
+        )
+    except (ValueError, RuntimeError) as exc:
+        current_app.logger.warning(
+            "Safety signal AI drafting failed for signal %s: %s",
+            signal_id,
+            exc,
+        )
+        flash(str(exc), "error")
+        return _render_signal_detail(signal, supporting_cases)
+    except Exception:
+        current_app.logger.exception(
+            "Unexpected safety signal AI drafting error for signal %s",
+            signal_id,
+        )
+        flash(
+            "The AI draft could not be generated. Check that the local AI "
+            "service is available and try again.",
+            "error",
+        )
+        return _render_signal_detail(signal, supporting_cases), 503
+
+    return _render_signal_detail(
+        signal,
+        supporting_cases,
+        ai_assistance=ai_assistance,
     )
 
 

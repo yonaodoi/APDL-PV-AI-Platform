@@ -2,6 +2,7 @@ import json
 from flask import (
     Blueprint,
     abort,
+    current_app,
     flash,
     redirect,
     render_template,
@@ -15,6 +16,7 @@ from app.db import query_all, query_one, transaction
 from app.security import login_required
 from app.psur.section_definitions import PSUR_SECTION_TITLES
 from app.services.psur_builder_ai import (
+    draft_psur_section_content,
     propose_psur_section_content,
 )
 from app.services.psur_builder_docx import (
@@ -377,6 +379,10 @@ def save_psur_builder_section(psur_id, section_key):
 @bp.post("/<int:psur_id>/builder/sections/<section_key>/propose")
 @login_required
 def propose_psur_builder_content(psur_id, section_key):
+    proposal_type = request.form.get("proposal_type", "suggestion").strip()
+    if proposal_type not in ("suggestion", "paraphrase"):
+        abort(400)
+
     report, psur_builder_id = get_or_create_psur_builder(psur_id)
 
     section = query_one(
@@ -394,7 +400,7 @@ def propose_psur_builder_content(psur_id, section_key):
 
     if section is None:
         abort(404)
-    if not section["final_content"]:
+    if proposal_type == "paraphrase" and not section["final_content"]:
         flash(
             "Save a section response before requesting an AI improvement.",
             "error",
@@ -407,17 +413,30 @@ def propose_psur_builder_content(psur_id, section_key):
             )
         )
 
-
     try:
-        proposal = propose_psur_section_content(
-            report=report,
-            section_key=section_key,
-            section_title=section["section_title"],
-            saved_content=section["final_content"],
+        if proposal_type == "suggestion":
+            proposal = draft_psur_section_content(
+                report=report,
+                section_key=section_key,
+                section_title=section["section_title"],
+            )
+        else:
+            proposal = propose_psur_section_content(
+                report=report,
+                section_key=section_key,
+                section_title=section["section_title"],
+                saved_content=section["final_content"],
+            )
+    except Exception:
+        current_app.logger.exception(
+            "PSUR AI proposal generation failed for report %s section %s",
+            psur_id,
+            section_key,
         )
-    except Exception as error:
         flash(
-            f"The AI proposal could not be generated: {error}",
+            "The AI proposal could not be generated. Check that the local "
+            "AI service is available and try again.",
+            "error",
         )
         return redirect(
             url_for(
@@ -460,7 +479,7 @@ def propose_psur_builder_content(psur_id, section_key):
             """,
             (
                 section["psur_builder_section_id"],
-                "suggestion",
+                proposal_type,
                 proposal["proposed_content"],
                 json.dumps(
                     proposal["evidence_used"],
@@ -497,33 +516,6 @@ def decide_psur_builder_proposal(
 
     report, psur_builder_id = get_or_create_psur_builder(psur_id)
 
-    incomplete_sections = query_all(
-        """
-        SELECT section_title
-        FROM pv.psur_builder_sections
-        WHERE psur_builder_id = %s
-          AND (
-              final_content IS NULL
-              OR BTRIM(final_content) = ''
-          )
-        ORDER BY section_order
-        """,
-        (psur_builder_id,),
-    )
-
-    if incomplete_sections:
-        flash(
-            f"The PSUR has {len(incomplete_sections)} section(s) still "
-            "to complete before final preview or Word download.",
-            "error",
-        )
-        return redirect(
-            url_for(
-                "psur_builder.psur_builder_home",
-                psur_id=psur_id,
-                view="incomplete",
-            )
-        )
     selected_view = request.args.get("view", "").strip()
 
     if selected_view not in ("completed", "incomplete"):

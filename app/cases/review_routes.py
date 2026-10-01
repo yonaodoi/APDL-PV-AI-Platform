@@ -239,6 +239,55 @@ def complete_follow_up_task(task_id):
     return redirect(url_for("case_review.follow_up_tasks"))
 
 
+@bp.post("/<int:case_id>/duplicate-review")
+@login_required
+def review_duplicate_candidate(case_id):
+    from app.services.case_duplicates import (
+        find_possible_duplicates,
+        save_duplicate_review,
+    )
+
+    case = query_one(
+        "SELECT * FROM pv.safety_cases WHERE case_id = %s",
+        (case_id,),
+    )
+    if case is None:
+        abort(404)
+    try:
+        candidate_case_id = int(request.form.get("candidate_case_id", ""))
+    except ValueError:
+        abort(400)
+
+    products = query_all(
+        "SELECT * FROM pv.case_products WHERE case_id = %s",
+        (case_id,),
+    )
+    candidates = find_possible_duplicates(case, products)
+    if not any(
+        candidate["case_id"] == candidate_case_id
+        for candidate in candidates
+    ):
+        abort(400)
+
+    status = request.form.get("review_status", "")
+    try:
+        save_duplicate_review(
+            case_id,
+            candidate_case_id,
+            status,
+            session["user_id"],
+        )
+    except ValueError:
+        abort(400)
+
+    flash(
+        f"Duplicate screening recorded as {status.lower()}. "
+        "No cases were merged or changed.",
+        "success",
+    )
+    return redirect(url_for("cases.case_detail", case_id=case_id))
+
+
 @bp.get("/follow-up-tasks/<int:task_id>/document")
 @login_required
 def download_follow_up_document(task_id):

@@ -305,6 +305,38 @@
     </div>
 </section>
 
+{% if duplicate_candidates %}
+    <section class="detail-section" style="margin-bottom: 22px; border-color: #f1d5a6;">
+        <div class="section-title" style="background: #fffaf0; color: #75531d;">
+            Possible duplicate cases — reviewer assessment required
+        </div>
+        <div class="detail-content">
+            <p style="margin: 0 0 14px; color: #665a4c; font-size: 13px;">
+                Automated matching is advisory only. Review the case details; no cases are merged or modified automatically.
+            </p>
+            {% for candidate in duplicate_candidates %}
+                <article style="padding: 13px 0; border-top: 1px solid #f0ebee;">
+                    <a href="{{ url_for('cases.case_detail', case_id=candidate.case_id) }}" style="color: #49366d; font-weight: bold; text-decoration: none;">
+                        {{ candidate.case_number }}
+                    </a>
+                    <span style="margin-left: 8px; color: #756c7a; font-size: 12px;">{{ candidate.workflow_status }} · {{ candidate.review_status }}</span>
+                    <ul style="margin: 8px 0 12px; padding-left: 20px; color: #554c5b; font-size: 13px;">
+                        {% for reason in candidate.match_reasons %}
+                            <li>{{ reason }}</li>
+                        {% endfor %}
+                    </ul>
+                    <form method="post" action="{{ url_for('case_review.review_duplicate_candidate', case_id=case.case_id) }}" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="candidate_case_id" value="{{ candidate.case_id }}">
+                        <button name="review_status" value="Confirmed duplicate" type="submit" style="padding: 7px 10px; border: 0; border-radius: 7px; background: #7656e8; color: white; cursor: pointer; font-size: 12px; font-weight: bold;">Confirm duplicate</button>
+                        <button name="review_status" value="Not a duplicate" type="submit" style="padding: 7px 10px; border: 1px solid #d8caef; border-radius: 7px; background: white; color: #6242d7; cursor: pointer; font-size: 12px; font-weight: bold;">Not a duplicate</button>
+                    </form>
+                </article>
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
+
 <div class="detail-grid">
     <div>
         <section class="detail-section">

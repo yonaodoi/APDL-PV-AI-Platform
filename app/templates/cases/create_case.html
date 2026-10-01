@@ -80,8 +80,20 @@
     <div class="progress-item"><span>4</span>Save case</div>
 </section>
 
+{% if extraction_filename %}
+    <section style="margin-bottom: 20px; padding: 15px 18px; border: 1px solid #ead6a8; border-radius: 10px; background: #fff9ed; color: #76521c;">
+        <strong>AI-extracted draft from {{ extraction_filename }}</strong>
+        <p style="margin: 6px 0 0; font-size: 13px; line-height: 1.5;">
+            Verify each value against the source document before saving. AI has not assigned an APDL case ID or assessed seriousness or causality.
+        </p>
+        {% if uncertain_fields %}
+            <p style="margin: 8px 0 0; font-size: 13px;"><strong>Review these fields carefully:</strong> {{ uncertain_fields|join(", ") }}</p>
+        {% endif %}
+    </section>
+{% endif %}
+
 <div class="layout">
-    <form method="post" novalidate>
+    <form method="post" novalidate {% if not editing %}data-guided-voice="true"{% endif %}>
         {{ form.hidden_tag() }}
 
         <section class="section">

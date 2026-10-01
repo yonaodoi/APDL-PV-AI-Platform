@@ -5,10 +5,27 @@ import psycopg2
 from werkzeug.security import generate_password_hash
 
 from .db import query_one, transaction
+from .services.case_follow_up_reminders import create_overdue_reminders
 
 
 def register_cli(app):
     app.cli.add_command(create_admin)
+    app.cli.add_command(generate_follow_up_reminders)
+
+
+@click.command("generate-follow-up-reminders")
+def generate_follow_up_reminders():
+    """Create today's reminders for overdue open follow-up tasks."""
+    try:
+        created_count = create_overdue_reminders()
+    except Exception as exc:
+        raise click.ClickException(
+            f"Could not create overdue follow-up reminders: {exc}"
+        ) from exc
+
+    click.echo(
+        f"Created {created_count} overdue follow-up reminder(s)."
+    )
 
 
 @click.command("create-admin")

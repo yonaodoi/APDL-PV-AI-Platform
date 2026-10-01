@@ -140,7 +140,7 @@
     <header class="summary-header">
         <div>
             <h1>PV portfolio summary</h1>
-            <p>Review the live status of safety cases, product complaints, safety signals and PSURs.</p>
+            <p>Review the live status of safety cases, product quality complaints, safety signals and PSURs.</p>
         </div>
 
         <a class="back-link" href="{{ url_for('core.dashboard') }}">
@@ -171,7 +171,7 @@
 
         <article class="summary-card" id="complaints">
             <div class="summary-card-header">
-                <h2>Product complaints</h2>
+                <h2>Product quality complaints</h2>
                 <a href="{{ url_for('complaints.complaint_list') }}">Open register</a>
             </div>
 
@@ -185,7 +185,7 @@
                     {% endfor %}
                 </div>
             {% else %}
-                <div class="empty-state">No product complaints recorded.</div>
+                <div class="empty-state">No product quality complaints recorded.</div>
             {% endif %}
         </article>
 

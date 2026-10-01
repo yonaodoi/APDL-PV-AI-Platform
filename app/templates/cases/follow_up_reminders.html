@@ -1,38 +1,74 @@
 {% extends "base.html" %}
 
 {% block title %}Overdue Follow-up Reminders | APDL PV{% endblock %}
-{% block page_title %}Overdue Follow-up Reminders{% endblock %}
+{% block page_title %}Follow-up radar{% endblock %}
 
 {% block content %}
-<section style="max-width: 1080px;">
-    <div style="display: flex; justify-content: space-between; gap: 18px; align-items: flex-end; margin-bottom: 24px;">
-        <div>
-            <h2 style="margin: 0 0 7px; color: #282037; font-size: 28px;">Overdue reminders</h2>
-            <p style="margin: 0; color: #746d7d; font-size: 14px;">
-                These reminders are generated automatically when an open follow-up task passes its due date.
-            </p>
+<section class="reminder-page">
+    <header class="reminder-hero">
+        <div class="reminder-hero-copy">
+            <p class="reminder-eyebrow">CASE FOLLOW-UP / MONITORING</p>
+            <h2>Follow-up radar</h2>
+            <p>Keep outstanding case follow-ups moving. Reminders appear here when an open task passes its due date.</p>
         </div>
-        <a href="{{ url_for('case_review.follow_up_tasks') }}" style="padding: 11px 16px; border-radius: 9px; background: white; border: 1px solid #d8caef; color: #6242d7; font-size: 13px; font-weight: bold; text-decoration: none;">Follow-up tasks</a>
-    </div>
-    <section style="overflow: hidden; border: 1px solid #e9e2e7; border-radius: 14px; background: white;">
-        {% for reminder in reminders %}
-            <article style="display: flex; justify-content: space-between; gap: 18px; align-items: center; padding: 18px 20px; border-bottom: 1px solid #f0ebee;">
-                <div>
-                    <a href="{{ url_for('cases.case_detail', case_id=reminder.case_id) }}" style="color: #49366d; font-weight: bold; text-decoration: none;">{{ reminder.task_title }}</a>
-                    <div style="margin-top: 6px; color: #756c7a; font-size: 12px;">Case {{ reminder.case_number }} · Due {{ reminder.due_date.strftime("%d %b %Y") }}</div>
-                    <p style="margin: 9px 0 0; color: #554c5b; font-size: 13px;">{{ reminder.message }}</p>
-                </div>
-                <form method="post" action="{{ url_for('case_review.acknowledge_follow_up_reminder', reminder_id=reminder.reminder_id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" style="padding: 8px 12px; border: 0; border-radius: 8px; background: #7656e8; color: white; cursor: pointer; font-size: 12px; font-weight: bold;">Acknowledge</button>
-                </form>
-            </article>
-        {% else %}
-            <div style="padding: 60px 25px; color: #827988; text-align: center;">
-                <h3 style="margin: 0 0 7px; color: #473d50; font-size: 16px;">No overdue reminders</h3>
-                <p style="margin: 0; font-size: 13px;">Open follow-up tasks will appear here after their due date passes.</p>
+        <div class="reminder-hero-side">
+            <div class="reminder-count">
+                <strong>{{ reminders|length }}</strong>
+                <span>overdue {{ "item" if reminders|length == 1 else "items" }}</span>
             </div>
-        {% endfor %}
-    </section>
+            <a class="reminder-task-link" href="{{ url_for('case_review.follow_up_tasks') }}">
+                View all follow-up tasks <span aria-hidden="true">→</span>
+            </a>
+        </div>
+        <span class="reminder-orbit reminder-orbit-one" aria-hidden="true"></span>
+        <span class="reminder-orbit reminder-orbit-two" aria-hidden="true"></span>
+    </header>
+
+    <div class="reminder-section-heading">
+        <div>
+            <p class="reminder-section-kicker">ACTION QUEUE</p>
+            <h3>Needs your attention</h3>
+        </div>
+        <span class="reminder-live-label"><span></span> Live task status</span>
+    </div>
+
+    {% if reminders %}
+        <section class="reminder-list" aria-label="Overdue follow-up tasks">
+            {% for reminder in reminders %}
+                <article class="reminder-card">
+                    <div class="reminder-date-rail">
+                        <span>OVERDUE</span>
+                        <strong>{{ reminder.due_date.strftime("%d") }}</strong>
+                        <span>{{ reminder.due_date.strftime("%b %Y") }}</span>
+                    </div>
+                    <div class="reminder-card-main">
+                        <div class="reminder-card-meta">
+                            <span class="reminder-case-tag">CASE {{ reminder.case_number }}</span>
+                            <span class="reminder-due-copy">Due {{ reminder.due_date.strftime("%d %b %Y") }}</span>
+                        </div>
+                        <a class="reminder-task-title" href="{{ url_for('cases.case_detail', case_id=reminder.case_id) }}">{{ reminder.task_title }}</a>
+                        <p>{{ reminder.message }}</p>
+                    </div>
+                    <form class="reminder-ack-form" method="post" action="{{ url_for('case_review.acknowledge_follow_up_reminder', reminder_id=reminder.reminder_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit">Acknowledge <span aria-hidden="true">→</span></button>
+                    </form>
+                </article>
+            {% endfor %}
+        </section>
+    {% else %}
+        <section class="reminder-clear-state">
+            <div class="clear-state-graphic" aria-hidden="true">
+                <span class="clear-state-ring"></span>
+                <span class="clear-state-check">✓</span>
+                <span class="clear-state-spark clear-state-spark-one"></span>
+                <span class="clear-state-spark clear-state-spark-two"></span>
+            </div>
+            <p class="reminder-section-kicker">ALL CLEAR</p>
+            <h3>No overdue follow-ups</h3>
+            <p>There are no open tasks past their due date. New reminders will appear here automatically when a follow-up becomes overdue.</p>
+            <a href="{{ url_for('case_review.follow_up_tasks') }}">Review upcoming tasks <span aria-hidden="true">→</span></a>
+        </section>
+    {% endif %}
 </section>
 {% endblock %}

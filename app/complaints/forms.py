@@ -73,7 +73,7 @@ class ProductComplaintForm(FlaskForm):
         validators=[DataRequired(), Length(max=5000)],
     )
 
-    submit = SubmitField("Save product complaint")
+    submit = SubmitField("Save product quality complaint")
 
 class ComplaintReviewForm(FlaskForm):
     status = SelectField(

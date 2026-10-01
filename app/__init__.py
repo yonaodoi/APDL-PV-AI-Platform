@@ -31,6 +31,7 @@ def create_app(config_class=Config):
     from .complaints.routes import bp as complaints_blueprint
     from .rsi.routes import bp as rsi_blueprint
     from .signals.routes import bp as signals_blueprint
+    from .voice.routes import bp as voice_blueprint
     from .psur.routes import bp as psur_blueprint
     from .psur.report_routes import bp as psur_reports_blueprint
     from .psur.section_routes import bp as psur_sections_blueprint
@@ -46,6 +47,7 @@ def create_app(config_class=Config):
     app.register_blueprint(complaints_blueprint)
     app.register_blueprint(rsi_blueprint)
     app.register_blueprint(signals_blueprint)
+    app.register_blueprint(voice_blueprint)
     app.register_blueprint(psur_blueprint)
     app.register_blueprint(psur_reports_blueprint)
     app.register_blueprint(psur_sections_blueprint)

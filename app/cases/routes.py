@@ -1,15 +1,21 @@
 from datetime import datetime, timezone
+from datetime import date, time
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from flask import (
     Blueprint,
     abort,
+    current_app,
     flash,
+    current_app,
     redirect,
     render_template,
     request,
     session,
     url_for,
 )
+from werkzeug.utils import secure_filename
 
 from app.audit import write_audit_log
 from app.db import query_all, query_one, transaction
@@ -21,9 +27,149 @@ from app.services.signal_detection import (
 from app.services.case_completeness import (
     refresh_case_completeness,
 )
+from app.services.case_document_extraction import (
+    MAX_DOCUMENT_BYTES,
+    SUPPORTED_EXTENSIONS,
+    extract_case_fields,
+    extract_document_text,
+)
 
 
 bp = Blueprint("cases", __name__, url_prefix="/cases")
+
+
+def _set_country_choices(form):
+    countries = query_all(
+        """
+        SELECT country_id, country_name
+        FROM pv.countries
+        ORDER BY country_name
+        """
+    )
+    form.country_id.choices = [(0, "Select country")] + [
+        (country["country_id"], country["country_name"])
+        for country in countries
+    ]
+    return countries
+
+
+def _populate_extracted_case_form(form, extracted, countries):
+    allowed_values = {
+        "source": {value for value, _ in form.source.choices},
+        "report_type": {value for value, _ in form.report_type.choices},
+        "patient_sex": {value for value, _ in form.patient_sex.choices},
+        "patient_pregnancy_status": {
+            value for value, _ in form.patient_pregnancy_status.choices
+        },
+        "action_taken": {value for value, _ in form.action_taken.choices},
+        "event_outcome": {value for value, _ in form.event_outcome.choices},
+    }
+    uncertain = list(extracted.get("uncertain_fields", []))
+
+    country_name = extracted.get("country")
+    matched_country = next(
+        (
+            country
+            for country in countries
+            if country_name
+            and country["country_name"].strip().casefold()
+            == str(country_name).strip().casefold()
+        ),
+        None,
+    )
+    form.country_id.data = matched_country["country_id"] if matched_country else 0
+    if country_name and not matched_country:
+        uncertain.append("country")
+
+    date_fields = {
+        "received_date",
+        "patient_date_of_birth",
+        "expiry_date",
+        "therapy_start_date",
+        "therapy_end_date",
+        "event_onset_date",
+        "event_end_date",
+    }
+    for field_name in date_fields:
+        value = extracted.get(field_name)
+        try:
+            setattr(
+                getattr(form, field_name),
+                "data",
+                date.fromisoformat(value) if value else None,
+            )
+        except (TypeError, ValueError):
+            getattr(form, field_name).data = None
+            if value:
+                uncertain.append(field_name)
+
+    age = extracted.get("patient_age_years")
+    try:
+        form.patient_age_years.data = int(age) if age is not None else None
+    except (TypeError, ValueError):
+        form.patient_age_years.data = None
+        if age:
+            uncertain.append("patient_age_years")
+
+    onset_time = extracted.get("event_onset_time")
+    try:
+        form.event_onset_time.data = (
+            time.fromisoformat(onset_time) if onset_time else None
+        )
+    except (TypeError, ValueError):
+        form.event_onset_time.data = None
+        if onset_time:
+            uncertain.append("event_onset_time")
+
+    for field_name, values in allowed_values.items():
+        value = extracted.get(field_name)
+        if value in values:
+            getattr(form, field_name).data = value
+        elif isinstance(value, str):
+            matching_value = next(
+                (
+                    choice
+                    for choice in values
+                    if choice.casefold() == value.strip().casefold()
+                ),
+                None,
+            )
+            if matching_value is not None:
+                getattr(form, field_name).data = matching_value
+            else:
+                getattr(form, field_name).data = ""
+                uncertain.append(field_name)
+        elif value:
+            getattr(form, field_name).data = ""
+            uncertain.append(field_name)
+
+    for field_name, value in extracted.items():
+        if field_name in date_fields or field_name in allowed_values \
+                or field_name in {
+                    "country",
+                    "patient_age_years",
+                    "event_onset_time",
+                    "uncertain_fields",
+                }:
+            continue
+        if field_name in form._fields and isinstance(value, (str, int, float)):
+            getattr(form, field_name).data = str(value)
+
+    for required_field in (
+        "received_date",
+        "source",
+        "report_type",
+        "product_name",
+        "event_description",
+    ):
+        if not getattr(form, required_field).data:
+            uncertain.append(required_field)
+    if not matched_country:
+        uncertain.append("country")
+
+    form.icsr_case_id.data = ""
+    form.seriousness.data = False
+    return sorted(set(uncertain))
 
 
 @bp.get("/")
@@ -163,6 +309,9 @@ def case_detail(case_id):
         (case_id,),
     )
     completeness_checks = refresh_case_completeness(case, products)
+    from app.services.case_duplicates import find_possible_duplicates
+
+    duplicate_candidates = find_possible_duplicates(case, products)
 
     audit_log = query_all(
         """
@@ -185,6 +334,7 @@ def case_detail(case_id):
         case=case,
         products=products,
         completeness_checks=completeness_checks,
+        duplicate_candidates=duplicate_candidates,
         audit_log=audit_log,
     )
 
@@ -233,22 +383,71 @@ def review_queue():
     )
 
 
+@bp.route("/new/from-document", methods=["GET", "POST"])
+@login_required
+def extract_case_from_document():
+    if request.method == "GET":
+        return render_template("cases/extract_case_document.html")
+
+    uploaded_file = request.files.get("case_document")
+    if not uploaded_file or not uploaded_file.filename:
+        flash("Choose a case document to extract.", "error")
+        return render_template("cases/extract_case_document.html"), 400
+
+    filename = secure_filename(uploaded_file.filename)
+    extension = Path(filename).suffix.lower()
+    if not filename or extension not in SUPPORTED_EXTENSIONS:
+        flash("Upload a PDF, DOCX, or plain text case document.", "error")
+        return render_template("cases/extract_case_document.html"), 400
+
+    document_bytes = uploaded_file.read(MAX_DOCUMENT_BYTES + 1)
+    if len(document_bytes) > MAX_DOCUMENT_BYTES:
+        flash("The document exceeds the 20 MB upload limit.", "error")
+        return render_template("cases/extract_case_document.html"), 413
+
+    try:
+        with TemporaryDirectory() as temp_directory:
+            document_path = Path(temp_directory) / f"case-document{extension}"
+            document_path.write_bytes(document_bytes)
+            document_text = extract_document_text(document_path)
+        extracted = extract_case_fields(document_text)
+    except (ValueError, RuntimeError) as exc:
+        current_app.logger.warning(
+            "Case document extraction could not complete: %s",
+            exc,
+        )
+        flash(str(exc), "error")
+        return render_template("cases/extract_case_document.html")
+    except Exception:
+        current_app.logger.exception("Unexpected case document extraction error")
+        flash(
+            "Case information could not be extracted. Check that the "
+            "document is readable and the local AI service is available.",
+            "error",
+        )
+        return render_template("cases/extract_case_document.html"), 503
+
+    form = SafetyCaseForm()
+    countries = _set_country_choices(form)
+    uncertain_fields = _populate_extracted_case_form(
+        form,
+        extracted,
+        countries,
+    )
+    return render_template(
+        "cases/create_case.html",
+        form=form,
+        editing=False,
+        extraction_filename=filename,
+        uncertain_fields=uncertain_fields,
+    )
+
+
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
 def create_case():
     form = SafetyCaseForm()
-
-    countries = query_all(
-        """
-        SELECT country_id, country_name
-        FROM pv.countries
-        ORDER BY country_name
-        """
-    )
-    form.country_id.choices = [(0, "Select country")] + [
-        (country["country_id"], country["country_name"])
-        for country in countries
-    ]
+    _set_country_choices(form)
 
     if form.validate_on_submit():
         existing_case = query_one(
@@ -444,6 +643,22 @@ def create_case():
         )
         refresh_case_completeness(case, products)
 
+        from app.services.case_duplicates import find_possible_duplicates
+
+        try:
+            duplicate_candidates = find_possible_duplicates(case, products)
+        except Exception:
+            current_app.logger.exception(
+                "Duplicate screening failed for newly created case %s",
+                case_number,
+            )
+            flash(
+                "The safety case was saved, but duplicate screening "
+                "could not be completed.",
+                "warning",
+            )
+            return redirect(url_for("core.dashboard"))
+
         if detected_signals:
             flash(
                 "Potential safety signal detected from ADR case "
@@ -451,6 +666,13 @@ def create_case():
                 "warning",
             )
         flash(f"Safety case {case_number} was created.", "success")
+        if duplicate_candidates:
+            flash(
+                "Possible duplicate cases were found. Review the matches "
+                "before proceeding.",
+                "warning",
+            )
+            return redirect(url_for("cases.case_detail", case_id=case_id))
         return redirect(url_for("core.dashboard"))
 
     return render_template("cases/create_case.html", form=form)

@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}{{ complaint.complaint_number }} | APDL PV{% endblock %}
+{% block title %}Product Quality Complaint | {{ complaint.complaint_number }} | APDL PV{% endblock %}
 
-{% block page_title %}Product Complaint{% endblock %}
+{% block page_title %}Product Quality Complaint{% endblock %}
 
 {% block content %}
 <style>
@@ -297,7 +297,7 @@
     <header class="detail-header">
         <div>
             <a class="back-link" href="{{ url_for('complaints.complaint_list') }}">
-                ← Back to product complaints
+                ← Back to product quality complaints
             </a>
 
             <h1>{{ complaint.complaint_number }}</h1>

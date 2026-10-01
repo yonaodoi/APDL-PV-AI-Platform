@@ -155,3 +155,21 @@ APDL system evidence for this reporting interval:
             "product_context": product_context,
         },
     }
+
+
+def draft_psur_section_content(
+    report,
+    section_key,
+    section_title,
+):
+    evidence = _section_evidence(report, section_key)
+    product_context = _product_context(report)
+    return {
+        "proposed_content": evidence,
+        "evidence_used": {
+            "section_key": section_key,
+            "system_evidence": evidence,
+            "product_context": product_context,
+            "proposal_basis": "system_evidence",
+        },
+    }

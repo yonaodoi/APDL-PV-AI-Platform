@@ -856,9 +856,9 @@ def analytics_metric_detail(metric_key):
             "id_name": "psur_id",
         },
         "product-complaints": {
-            "title": "Product complaints",
+            "title": "Product quality complaints",
             "description": (
-                "All product complaints recorded in the platform."
+                "All product quality complaints recorded in the platform."
             ),
             "sql": """
                 SELECT

@@ -64,7 +64,7 @@ def build_product_complaint_reporting_docx(
 
     report_title = (
         editable_content.get("title")
-        or "PRODUCT COMPLAINT REPORTING SUMMARY"
+        or "PRODUCT QUALITY COMPLAINT REPORTING SUMMARY"
     )
 
     header = section.header
@@ -169,7 +169,7 @@ def build_product_complaint_reporting_docx(
         saved_value(
             section_titles,
             0,
-            "1. FILTERED PRODUCT COMPLAINT REGISTER",
+            "1. FILTERED PRODUCT QUALITY COMPLAINT REGISTER",
         )
     )
     run.bold = True
@@ -226,7 +226,7 @@ def build_product_complaint_reporting_docx(
         cells = complaint_table.add_row().cells
         set_cell_text(
             cells[0],
-            "No product complaints match the selected filters",
+            "No product quality complaints match the selected filters",
             size=8,
         )
         for index in range(1, 8):
@@ -281,7 +281,7 @@ def build_product_complaint_reporting_docx(
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     run = paragraph.add_run(
-        "System-generated product complaint reporting summary"
+        "System-generated product quality complaint reporting summary"
     )
     run.italic = True
     run.font.size = Pt(8)

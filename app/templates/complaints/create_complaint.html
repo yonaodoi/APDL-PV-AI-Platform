@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}New Product Complaint | APDL PV{% endblock %}
+{% block title %}New Product Quality Complaint | APDL PV{% endblock %}
 
-{% block page_title %}New Product Complaint{% endblock %}
+{% block page_title %}New Product Quality Complaint{% endblock %}
 
 {% block content %}
 <style>
@@ -17,6 +17,13 @@
         gap: 24px;
         align-items: flex-end;
         margin-bottom: 24px;
+    }
+
+    .complaint-header-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 9px;
     }
 
     .complaint-kicker {
@@ -253,23 +260,49 @@
         .form-grid {
             grid-template-columns: 1fr;
         }
+
+        .complaint-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .complaint-header-actions {
+            justify-content: flex-start;
+        }
     }
 </style>
 
-<section class="complaint-page">
+<section class="complaint-page product-quality-entry">
     <header class="complaint-header">
         <div>
             <p class="complaint-kicker">PRODUCT QUALITY MANAGEMENT</p>
-            <h1>Capture product complaint</h1>
+            <h1>Capture product quality complaint</h1>
             <p>Record the information exactly as received. The Complaint ID is entered manually.</p>
         </div>
 
-        <a class="back-link" href="{{ url_for('complaints.complaint_list') }}">
-            ← Back to complaints
-        </a>
+        <div class="complaint-header-actions">
+            <a class="back-link" href="{{ url_for('complaints.extract_complaint_from_document') }}">
+                Create product quality complaint from document
+            </a>
+            <a class="back-link" href="{{ url_for('complaints.complaint_list') }}">
+                ← Back to product quality complaints
+            </a>
+        </div>
     </header>
 
-    <form method="post">
+    {% if extraction_filename %}
+        <section style="margin: 0 0 20px; padding: 15px 18px; border: 1px solid #ead6a8; border-radius: 10px; background: #fff9ed; color: #76521c;">
+            <strong>AI-extracted product quality complaint draft from {{ extraction_filename }}</strong>
+            <p style="margin: 6px 0 0; font-size: 13px; line-height: 1.5;">
+                Verify every suggested value against the source report before saving. Complaint ID is intentionally blank. AI has not assessed severity, product quality, root cause, or corrective action.
+            </p>
+            {% if uncertain_fields %}
+                <p style="margin: 8px 0 0; font-size: 13px;"><strong>Review these fields carefully:</strong> {{ uncertain_fields|join(", ") }}</p>
+            {% endif %}
+        </section>
+    {% endif %}
+
+    <form method="post" data-guided-voice="true">
         {{ form.hidden_tag() }}
 
         <div class="complaint-layout">

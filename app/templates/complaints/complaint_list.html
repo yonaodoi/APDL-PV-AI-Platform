@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Product Complaints | APDL PV{% endblock %}
-{% block page_title %}Product Complaints{% endblock %}
+{% block title %}Product Quality Complaints | APDL PV{% endblock %}
+{% block page_title %}Product Quality Complaints{% endblock %}
 
 {% block content %}
 <style>
@@ -44,6 +44,13 @@
         border-radius:14px;
         background:white;
         box-shadow:0 5px 12px rgba(40,32,55,.025);
+    }
+
+    .complaints-header-actions {
+        display:flex;
+        flex-wrap:wrap;
+        gap:9px;
+        justify-content:flex-end;
     }
 
     .filter-grid {
@@ -138,6 +145,10 @@
         border-collapse:collapse;
     }
 
+    .complaint-table-wrap {
+        overflow-x:auto;
+    }
+
     .complaint-table th {
         padding:13px 20px;
         color:#918896;
@@ -225,15 +236,6 @@
         font-size:13px;
     }
 
-    @media (max-width:1050px) {
-        .complaint-table th:nth-child(4),
-        .complaint-table td:nth-child(4),
-        .complaint-table th:nth-child(5),
-        .complaint-table td:nth-child(5) {
-            display:none;
-        }
-    }
-
     @media (max-width:700px) {
         .complaints-header {
             display:block;
@@ -244,29 +246,33 @@
             margin-top:17px;
         }
 
+        .complaints-header-actions {
+            justify-content:flex-start;
+        }
+
         .complaint-summary {
             flex-wrap:wrap;
         }
 
-        .complaint-table th:nth-child(3),
-        .complaint-table td:nth-child(3),
-        .complaint-table th:nth-child(7),
-        .complaint-table td:nth-child(7) {
-            display:none;
-        }
     }
 </style>
 
-<section class="complaints-header">
+<div class="quality-complaint-page">
+<header class="complaints-header">
     <div>
-        <h2>Product complaint register</h2>
+        <h2>Product quality complaint register</h2>
         <p>Track product quality, packaging, labelling and other complaints.</p>
     </div>
 
-    <a class="new-complaint-button" href="{{ url_for('complaints.create_complaint') }}">
-        + Create product complaint
-    </a>
-</section>
+    <div class="complaints-header-actions" style="display: flex; flex-wrap: wrap; gap: 9px; justify-content: flex-end;">
+        <a class="new-complaint-button document-action" href="{{ url_for('complaints.extract_complaint_from_document') }}">
+            Create product quality complaint from document
+        </a>
+        <a class="new-complaint-button" href="{{ url_for('complaints.create_complaint') }}">
+            + Create product quality complaint
+        </a>
+    </div>
+</header>
 
 <section class="complaint-filter">
     <form method="get" class="filter-grid">
@@ -332,24 +338,26 @@
     </form>
 </section>
 
-<div style="margin:0 0 20px;">
-    <a href="{{ url_for('complaints.preview_product_complaint_reporting_summary', product=selected_product, country=selected_country, status=selected_status, severity=selected_severity, start_date=start_date, end_date=end_date) }}" style="display:inline-block; margin-right:10px; padding:11px 15px; border-radius:8px; background:#5f3ed4; color:white; font-size:13px; font-weight:bold; text-decoration:none;">Preview filtered report</a>
+<div class="quality-report-actions">
+    <a href="{{ url_for('complaints.preview_product_complaint_reporting_summary', product=selected_product, country=selected_country, status=selected_status, severity=selected_severity, start_date=start_date, end_date=end_date) }}">Preview filtered report</a>
 
-    <a href="{{ url_for('complaints.download_product_complaint_reporting_summary', product=selected_product, country=selected_country, status=selected_status, severity=selected_severity, start_date=start_date, end_date=end_date) }}" style="display:inline-block; padding:11px 15px; border-radius:8px; background:#7656e8; color:white; font-size:13px; font-weight:bold; text-decoration:none;">Download report (Word)</a>
+    <a href="{{ url_for('complaints.download_product_complaint_reporting_summary', product=selected_product, country=selected_country, status=selected_status, severity=selected_severity, start_date=start_date, end_date=end_date) }}">Download report (Word)</a>
 </div>
 
-<section class="complaint-summary">    <div class="summary-chip"><strong>{{ complaints|length }}</strong> total complaint(s)</div>
+<section class="complaint-summary">
+    <div class="summary-chip"><strong>{{ complaints|length }}</strong> total complaint(s)</div>
     <div class="summary-chip"><strong>{{ complaints|selectattr("status", "equalto", "New")|list|length }}</strong> new complaint(s)</div>
     <div class="summary-chip"><strong>{{ complaints|selectattr("severity", "equalto", "Critical")|list|length }}</strong> critical complaint(s)</div>
 </section>
 
 <section class="complaint-register">
     <div class="register-toolbar">
-        <h3>All product complaints</h3>
+        <h3>All product quality complaints</h3>
         <span>Newest complaints first</span>
     </div>
 
     {% if complaints %}
+        <div class="complaint-table-wrap">
         <table class="complaint-table">
             <thead>
                 <tr>
@@ -386,12 +394,14 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     {% else %}
         <div class="empty-state">
             <div class="empty-icon">+</div>
-            <h3>No product complaints yet</h3>
-            <p>Create the first complaint to begin tracking investigations and actions.</p>
+            <h3>No product quality complaints yet</h3>
+            <p>Create the first product quality complaint to begin tracking investigations and actions.</p>
         </div>
     {% endif %}
 </section>
+</div>
 {% endblock %}

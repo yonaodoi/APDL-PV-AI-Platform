@@ -313,6 +313,30 @@
         <section class="evaluation-card">
             <div class="evaluation-heading">Signal evaluation</div>
 
+            <form method="post" action="{{ url_for('signals.draft_signal_assessment', signal_id=signal.signal_id) }}" class="evaluation-form" style="padding-bottom:0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <p style="margin:0 0 12px; color:#746d7d; font-size:12px; line-height:1.5;">
+                    Generate a local AI draft from the signal record and linked cases. It will not be saved or decide signal validity, priority, causality, or action.
+                </p>
+                <button type="submit" class="save-button" style="margin-bottom:16px;">Generate AI review draft</button>
+            </form>
+
+            {% if ai_assistance %}
+                <section style="margin:0 18px 18px; padding:14px; border:1px solid #ead6a8; border-radius:9px; background:#fff9ed; color:#76521c;">
+                    <strong style="font-size:12px;">AI-generated draft — verify before use</strong>
+                    <p style="margin:6px 0 10px; font-size:12px; line-height:1.5;">This is a suggested factual summary, not an assessment or decision. Copy and edit it only if supported by the evidence.</p>
+                    <textarea readonly aria-label="AI-generated draft assessment" class="input" rows="7">{{ ai_assistance.draft_assessment }}</textarea>
+                    {% if ai_assistance.evidence_gaps %}
+                        <p style="margin:10px 0 5px; font-size:12px;"><strong>Possible evidence gaps to verify:</strong></p>
+                        <ul style="margin:0; padding-left:20px; font-size:12px; line-height:1.5;">
+                            {% for gap in ai_assistance.evidence_gaps %}
+                                <li>{{ gap }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </section>
+            {% endif %}
+
             <form method="post" action="{{ url_for('signals.evaluate_signal', signal_id=signal.signal_id) }}" class="evaluation-form">
                 {{ evaluation_form.hidden_tag() }}
 

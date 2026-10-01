@@ -381,30 +381,50 @@
             </div>
         </form>
 
-        {% if section.final_content %}
-            <section class="ai-assistant">
-                <h4>AI content improvement</h4>
-                <p>
-                    A controlled proposal can be generated from the information
-                    recorded in the APDL platform for this product and period.
-                    The saved response remains unchanged until a proposal is
-                    accepted.
-                </p>
+        <section class="ai-assistant">
+            <h4>AI-assisted section authoring</h4>
+            <p>
+                Start with an evidence-based proposal from APDL records, then
+                use AI to improve your saved response. Proposed content is not
+                placed in the section unless you explicitly accept it. Verify
+                every statement against the source evidence before use.
+            </p>
 
-                <button
-                    class="ai-button"
-                    type="submit"
-                    form="section-content-form"
-                    formaction="{{ url_for('psur_builder.propose_psur_builder_content', psur_id=report.psur_id, section_key=section.section_key) }}"
-                >
-                    Improve saved response from system information
+            <form
+                method="post"
+                action="{{ url_for('psur_builder.propose_psur_builder_content', psur_id=report.psur_id, section_key=section.section_key) }}"
+            >
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="proposal_type" value="suggestion">
+                <button class="ai-button" type="submit">
+                    Prepare evidence-based initial draft
                 </button>
-            </section>
-        {% endif %}
+            </form>
+
+            {% if section.final_content %}
+                <form
+                    method="post"
+                    action="{{ url_for('psur_builder.propose_psur_builder_content', psur_id=report.psur_id, section_key=section.section_key) }}"
+                    style="margin-top:10px;"
+                >
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="proposal_type" value="paraphrase">
+                    <button class="ai-button" type="submit">
+                        Improve saved response from system evidence
+                    </button>
+                </form>
+            {% endif %}
+        </section>
 
         {% for proposal in proposals %}
             <section class="proposal-card">
-                <h4>Proposed improved response</h4>
+                <h4>
+                    {% if proposal.proposal_type == "paraphrase" %}
+                        Proposed improved response
+                    {% else %}
+                        Proposed initial section draft
+                    {% endif %}
+                </h4>
 
                 <p class="proposal-content">{{ proposal.proposed_content }}</p>
 
@@ -412,7 +432,7 @@
                     <form method="post" action="{{ url_for('psur_builder.decide_psur_builder_proposal', psur_id=report.psur_id, section_key=section.section_key, proposal_id=proposal.proposal_id, decision='accepted') }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button class="accept-button" type="submit">
-                            Accept and replace response
+                            Accept as section response
                         </button>
                     </form>
 

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Product Complaint Report Preview | APDL PV{% endblock %}
-{% block page_title %}Product Complaint Report Preview{% endblock %}
+{% block title %}Product Quality Complaint Report Preview | APDL PV{% endblock %}
+{% block page_title %}Product Quality Complaint Report Preview{% endblock %}
 
 {% block content %}
 <style>
@@ -109,7 +109,7 @@
 </style>
 
 <div class="actions">
-  <a class="action-button back-button" href="{{ url_for('complaints.complaint_list', product=report_filters.product, country=report_filters.country, status=report_filters.status, severity=report_filters.severity, start_date=report_filters.start_date, end_date=report_filters.end_date) }}">← Back to Product Complaints</a>
+  <a class="action-button back-button" href="{{ url_for('complaints.complaint_list', product=report_filters.product, country=report_filters.country, status=report_filters.status, severity=report_filters.severity, start_date=report_filters.start_date, end_date=report_filters.end_date) }}">← Back to Product Quality Complaints</a>
 
   <a class="action-button" id="download-word-link" href="{{ url_for('complaints.download_product_complaint_reporting_summary', product=report_filters.product, country=report_filters.country, status=report_filters.status, severity=report_filters.severity, start_date=report_filters.start_date, end_date=report_filters.end_date) }}">Download Word report</a>
 
@@ -124,7 +124,7 @@
   </div>
 
   <table class="control-table">
-    <tr><td>TITLE</td><td>PRODUCT COMPLAINT REPORTING SUMMARY</td></tr>
+    <tr><td>TITLE</td><td>PRODUCT QUALITY COMPLAINT REPORTING SUMMARY</td></tr>
     <tr><td>REPORTING PERIOD</td><td>{{ report_filters.reporting_period }}</td></tr>
     <tr>
       <td>APPLIED FILTERS</td>
@@ -138,7 +138,7 @@
     <tr><td>REPORT STATUS</td><td>System-generated filtered report</td></tr>
   </table>
 
-  <h2 class="report-title" id="report-title" contenteditable="true">PRODUCT COMPLAINT REPORTING SUMMARY</h2>
+  <h2 class="report-title" id="report-title" contenteditable="true">PRODUCT QUALITY COMPLAINT REPORTING SUMMARY</h2>
 
   <div class="summary-grid">
     <div class="summary-card">
@@ -155,7 +155,7 @@
     </div>
   </div>
 
-  <h3 class="section-title">1. FILTERED PRODUCT COMPLAINT REGISTER</h3>
+  <h3 class="section-title">1. FILTERED PRODUCT QUALITY COMPLAINT REGISTER</h3>
 
   <table class="complaint-table" id="complaint-register">
     <thead>
@@ -183,7 +183,7 @@
           <td>{{ complaint.severity or "Not recorded" }}</td>
         </tr>
       {% else %}
-        <tr><td colspan="8">No product complaints match the selected filters.</td></tr>
+        <tr><td colspan="8">No product quality complaints match the selected filters.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -207,7 +207,7 @@
     </tbody>
   </table>
 
-  <p class="footer-note">System-generated product complaint reporting summary</p>
+  <p class="footer-note">System-generated product quality complaint reporting summary</p>
 </section>
 
 <script>

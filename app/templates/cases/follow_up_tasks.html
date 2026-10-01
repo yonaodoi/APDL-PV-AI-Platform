@@ -12,7 +12,10 @@
             Open tasks generated from unresolved case completeness checks.
         </p>
     </div>
-    <a href="{{ url_for('cases.review_queue') }}" style="padding: 11px 16px; border-radius: 9px; background: white; border: 1px solid #d8caef; color: #6242d7; font-size: 13px; font-weight: bold; text-decoration: none;">Review queue</a>
+    <div style="display: flex; gap: 9px;">
+        <a href="{{ url_for('case_review.follow_up_reminders') }}" style="padding: 11px 16px; border-radius: 9px; background: white; border: 1px solid #d8caef; color: #6242d7; font-size: 13px; font-weight: bold; text-decoration: none;">Overdue reminders</a>
+        <a href="{{ url_for('cases.review_queue') }}" style="padding: 11px 16px; border-radius: 9px; background: white; border: 1px solid #d8caef; color: #6242d7; font-size: 13px; font-weight: bold; text-decoration: none;">Review queue</a>
+    </div>
 </section>
 
 <section style="overflow: hidden; border: 1px solid #e9e2e7; border-radius: 14px; background: white; box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);">

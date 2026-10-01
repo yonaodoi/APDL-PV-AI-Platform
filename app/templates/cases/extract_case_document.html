@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Extract Case Information | APDL PV{% endblock %}
+{% block page_title %}Extract Case Information{% endblock %}
+
+{% block content %}
+<section style="max-width: 850px; margin: 0 auto;">
+    <a href="{{ url_for('cases.case_list') }}" style="display: inline-block; margin-bottom: 14px; color: #7656e8; font-size: 13px; font-weight: bold; text-decoration: none;">← Back to safety cases</a>
+    <section style="padding: 26px; border: 1px solid #e9e2e7; border-radius: 14px; background: white;">
+        <h2 style="margin: 0 0 8px; color: #282037; font-size: 25px;">Create a case from a document</h2>
+        <p style="margin: 0 0 20px; color: #746d7d; font-size: 14px; line-height: 1.5;">
+            Upload a case report to draft field values for the safety case form. The local AI model extracts stated information only; it does not save a case.
+        </p>
+        <div style="margin-bottom: 20px; padding: 13px 15px; border-radius: 9px; background: #fff8eb; color: #76521c; font-size: 13px; line-height: 1.5;">
+            Review every suggested value against the original report before saving. Missing or uncertain details must be completed or corrected by an authorised reviewer. The document is processed locally and is not retained by this extraction step.
+        </div>
+        <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="case_document" style="display: block; margin-bottom: 8px; color: #554d5d; font-size: 13px; font-weight: bold;">Case document</label>
+            <input id="case_document" name="case_document" type="file" accept=".pdf,.docx,.txt" required style="display: block; width: 100%; margin-bottom: 8px; padding: 12px; border: 1px solid #ddd5dc; border-radius: 8px; background: #fffeff;">
+            <p style="margin: 0 0 18px; color: #817887; font-size: 12px;">Accepted formats: PDF, DOCX, TXT. Maximum size: 20 MB. Scanned/image-only PDFs are not supported.</p>
+            <button type="submit" style="padding: 11px 16px; border: 0; border-radius: 8px; background: #7656e8; color: white; cursor: pointer; font-size: 13px; font-weight: bold;">Extract draft fields</button>
+        </form>
+    </section>
+</section>
+{% endblock %}

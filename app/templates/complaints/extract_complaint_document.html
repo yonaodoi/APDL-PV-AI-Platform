@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Create Product Quality Complaint from Document | APDL PV{% endblock %}
+{% block page_title %}Document intake{% endblock %}
+
+{% block content %}
+<section class="quality-document-page">
+    <a class="quality-document-back" href="{{ url_for('complaints.complaint_list') }}">
+        <span aria-hidden="true">←</span> Product quality complaint register
+    </a>
+    <div class="quality-document-layout">
+        <section class="quality-document-main">
+            <p class="quality-document-eyebrow">PRODUCT QUALITY / DOCUMENT INTAKE</p>
+            <h2>Start with the report. Finish with a reviewed complaint.</h2>
+            <p class="quality-document-intro">
+                Add a complaint report and APDL will prepare an editable intake draft from the facts stated in the document. Nothing is saved until you review and submit the completed form.
+            </p>
+
+            <form method="post" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="quality-dropzone">
+                    <span class="quality-upload-icon" aria-hidden="true">↑</span>
+                    <label for="complaint_document">Choose a product quality complaint report</label>
+                    <input
+                        class="quality-file-input"
+                        id="complaint_document"
+                        name="complaint_document"
+                        type="file"
+                        accept=".pdf,.docx,.txt"
+                        aria-describedby="complaint-file-help"
+                        required
+                    >
+                    <p class="quality-file-help" id="complaint-file-help">
+                        PDF, DOCX or TXT · Up to 20 MB · Text-based documents only
+                    </p>
+                </div>
+                <button class="quality-extract-button" type="submit">
+                    Prepare review draft <span aria-hidden="true">→</span>
+                </button>
+            </form>
+
+            <div class="quality-document-note">
+                <span aria-hidden="true">i</span>
+                <div>
+                    <strong>Human review stays in control</strong>
+                    The AI extracts reported details only. It does not decide seriousness, product quality, complaint validity, root cause or corrective action. Enter the Complaint ID yourself and verify every suggested value.
+                </div>
+            </div>
+        </section>
+
+        <aside class="quality-document-aside">
+            <div>
+                <h3>What happens next</h3>
+                <div class="quality-document-step">
+                    <span>01</span>
+                    <div>
+                        <strong>Read locally</strong>
+                        <p>Text is extracted and processed by the local AI service.</p>
+                    </div>
+                </div>
+                <div class="quality-document-step">
+                    <span>02</span>
+                    <div>
+                        <strong>Build a draft</strong>
+                        <p>Reported facts are mapped to complaint-entry fields.</p>
+                    </div>
+                </div>
+                <div class="quality-document-step">
+                    <span>03</span>
+                    <div>
+                        <strong>Review, then save</strong>
+                        <p>Check the source, complete missing details and submit when ready.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="quality-document-privacy">
+                The source document is temporary during extraction and is not retained by this step. Scanned/image-only PDFs are not supported.
+            </div>
+        </aside>
+    </div>
+</section>
+{% endblock %}

@@ -16,10 +16,10 @@ def create_overdue_reminders():
             ON CONFLICT (task_id, reminder_date) DO NOTHING
             """
         )
+        return cursor.rowcount
 
 
 def get_open_reminders():
-    create_overdue_reminders()
     return query_all(
         """
         SELECT reminders.*, tasks.task_title, tasks.due_date,
@@ -37,7 +37,6 @@ def get_open_reminders():
 
 
 def get_open_reminder_count():
-    create_overdue_reminders()
     reminder = query_one(
         """
         SELECT COUNT(*) AS count
