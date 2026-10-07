@@ -1,4 +1,5 @@
 from app.db import transaction
+from app.services.case_consistency import evaluate_case_consistency
 
 
 def evaluate_case_completeness(case, products):
@@ -159,6 +160,8 @@ def evaluate_case_completeness(case, products):
             ),
         }
     )
+
+    checks.extend(evaluate_case_consistency(case, products))
 
     return checks
 

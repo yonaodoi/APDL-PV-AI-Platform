@@ -1,7 +1,14 @@
 from datetime import date
 
 from flask_wtf import FlaskForm
-from wtforms import DateField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms import (
+    BooleanField,
+    DateField,
+    SelectField,
+    StringField,
+    SubmitField,
+    TextAreaField,
+)
 from wtforms.validators import DataRequired, Length, Optional
 
 
@@ -52,6 +59,9 @@ class SafetySignalForm(FlaskForm):
     owner_name = StringField(
         "Signal owner",
         validators=[Optional(), Length(max=200)],
+    )
+    confirm_separate_signal = BooleanField(
+        "This is a separate signal, not a duplicate of the open signal above"
     )
     submit = SubmitField("Save safety signal")
 

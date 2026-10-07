@@ -260,24 +260,25 @@
     }
 </style>
 
-<section class="cases-header">
+<section class="case-list-page">
+<header class="cases-header">
     <div>
         <h2>Safety case register</h2>
         <p>Review and manage all adverse drug reaction reports received by APDL.</p>
     </div>
 
-    <div style="display: flex; gap: 9px; flex-wrap: wrap; justify-content: flex-end;">
-        <a class="new-case-button" href="{{ url_for('cases.review_queue') }}" style="background: white; color: #6242d7; border: 1px solid #d8caef; box-shadow: none;">
+    <div class="case-header-actions">
+        <a class="new-case-button secondary-case-button" href="{{ url_for('cases.review_queue') }}">
             Review queue
         </a>
-        <a class="new-case-button" href="{{ url_for('cases.create_case') }}">
+        <a class="new-case-button primary-case-button" href="{{ url_for('cases.create_case') }}">
             + Create safety case
         </a>
-        <a class="new-case-button" href="{{ url_for('cases.extract_case_from_document') }}" style="background: white; color: #6242d7; border: 1px solid #d8caef; box-shadow: none;">
+        <a class="new-case-button secondary-case-button" href="{{ url_for('cases.extract_case_from_document') }}">
             Create from document
         </a>
     </div>
-</section>
+</header>
 
 <section class="case-filter">
     <form method="get" class="filter-grid">
@@ -327,6 +328,17 @@
         </div>
 
         <div class="filter-field">
+            <label for="deadline">Reporting clock</label>
+            <select class="filter-input" id="deadline" name="deadline">
+                <option value="">All cases</option>
+                <option value="overdue" {% if selected_deadline == "overdue" %}selected{% endif %}>Overdue</option>
+                <option value="due_soon" {% if selected_deadline == "due_soon" %}selected{% endif %}>Due within 3 days</option>
+                <option value="open" {% if selected_deadline == "open" %}selected{% endif %}>Clock running</option>
+                <option value="late" {% if selected_deadline == "late" %}selected{% endif %}>Late (overdue or submitted late)</option>
+            </select>
+        </div>
+
+        <div class="filter-field">
             <label for="start_date">From</label>
             <input class="filter-input" id="start_date" name="start_date" type="date" value="{{ start_date }}">
         </div>
@@ -336,45 +348,51 @@
             <input class="filter-input" id="end_date" name="end_date" type="date" value="{{ end_date }}">
         </div>
 
-        <button class="filter-button" type="submit">Apply filters</button>
+        <div class="filter-actions">
+            <button class="filter-button" type="submit">Apply filters</button>
+            <a class="clear-filters" href="{{ url_for('cases.case_list') }}">Clear filters</a>
+        </div>
     </form>
 </section>
 
-<div style="margin:0 0 20px;">
-    <a href="{{ url_for('case_reports.preview_safety_case_reporting_summary', product=selected_product, country=selected_country, status=selected_status, priority=selected_priority, start_date=start_date, end_date=end_date) }}" style="display:inline-block; margin-right:10px; padding:11px 15px; border-radius:8px; background:#5f3ed4; color:white; font-size:13px; font-weight:bold; text-decoration:none;">Preview filtered report</a>
+<div class="report-actions">
+    <a href="{{ url_for('case_reports.preview_safety_case_reporting_summary', product=selected_product, country=selected_country, status=selected_status, priority=selected_priority, start_date=start_date, end_date=end_date) }}">Preview filtered report</a>
 
-    <a href="{{ url_for('case_reports.download_safety_case_reporting_summary', product=selected_product, country=selected_country, status=selected_status, priority=selected_priority, start_date=start_date, end_date=end_date) }}" style="display:inline-block; padding:11px 15px; border-radius:8px; background:#7656e8; color:white; font-size:13px; font-weight:bold; text-decoration:none;">Download report (Word)</a>
+    <a href="{{ url_for('case_reports.download_safety_case_reporting_summary', product=selected_product, country=selected_country, status=selected_status, priority=selected_priority, start_date=start_date, end_date=end_date) }}">Download report (Word)</a>
 </div>
 
-<section class="case-summary">
-    <div class="summary-chip"><strong>{{ cases|length }}</strong> total case(s)</div>
-    <div class="summary-chip"><strong>{{ cases|selectattr("workflow_status", "equalto", "New")|list|length }}</strong> new case(s)</div>
-    <div class="summary-chip"><strong>{{ cases|selectattr("seriousness")|list|length }}</strong> serious case(s)</div>
+<section class="case-summary" aria-label="Filtered safety case totals">
+    <div class="summary-chip"><strong>{{ cases|length }}</strong><span>Matching cases</span></div>
+    <div class="summary-chip"><strong>{{ cases|selectattr("workflow_status", "equalto", "New")|list|length }}</strong><span>New cases</span></div>
+    <div class="summary-chip"><strong>{{ cases|selectattr("seriousness")|list|length }}</strong><span>Serious cases</span></div>
+    <a class="summary-chip summary-chip-link{% if overdue_count %} summary-chip-alert{% endif %}" href="{{ url_for('cases.case_list', deadline='overdue') }}"><strong>{{ overdue_count }}</strong><span>Overdue for reporting</span></a>
 </section>
 
 <section class="case-register">
     <div class="register-toolbar">
         <h3>All safety cases</h3>
-        <span>Newest cases first</span>
+        <span>{{ cases|length }} shown · newest first</span>
     </div>
 
     {% if cases %}
+        <div class="case-table-wrap" role="region" aria-label="Safety cases" tabindex="0">
         <table class="case-table">
             <thead>
                 <tr>
-                    <th>Case number</th>
-                    <th>Product</th>
-                    <th>Country</th>
-                    <th>Event</th>
-                    <th>Status</th>
-                    <th>Received</th>
-                    <th>Priority</th>
+                    <th scope="col">Case number</th>
+                    <th scope="col">Product</th>
+                    <th scope="col">Country</th>
+                    <th scope="col">Event</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Received</th>
+                    <th scope="col">Priority</th>
+                    <th scope="col">Reporting clock</th>
                 </tr>
             </thead>
             <tbody>
                 {% for case in cases %}
                     <tr>
-                        <td class="case-number"><a href="{{ url_for('cases.case_detail', case_id=case.case_id) }}" style="color: inherit; text-decoration: none;">{{ case.case_number }}</a></td>
+                        <td class="case-number"><a href="{{ url_for('cases.case_detail', case_id=case.case_id) }}">{{ case.case_number }}</a></td>
                         <td class="product-name">{{ case.product_name or "Not recorded" }}</td>
                         <td>{{ case.country_name or "Not recorded" }}</td>
                         <td class="event-description" title="{{ case.event_description }}">{{ case.event_description }}</td>
@@ -387,16 +405,29 @@
                                 <span class="routine-pill">Routine</span>
                             {% endif %}
                         </td>
+                        <td>
+                            {% if case.reporting_clock %}
+                                <span class="clock-badge clock-{{ case.reporting_clock.state }}" title="Due {{ case.reporting_clock.due_date.strftime('%d %b %Y') }} ({{ case.reporting_clock.timeline_days }}-day timeline)">{{ case.reporting_clock.label }}</span>
+                            {% endif %}
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     {% else %}
         <div class="empty-state">
             <div class="empty-icon">+</div>
-            <h3>No safety cases yet</h3>
-            <p>Create the first case to start the APDL safety register.</p>
+            {% if selected_product or selected_country or selected_status or selected_priority or selected_deadline or start_date or end_date %}
+                <h3>No matching safety cases</h3>
+                <p>Try changing or clearing one or more filters.</p>
+                <a class="empty-clear-link" href="{{ url_for('cases.case_list') }}">Clear all filters</a>
+            {% else %}
+                <h3>No safety cases yet</h3>
+                <p>Create the first case to start the APDL safety register.</p>
+            {% endif %}
         </div>
     {% endif %}
+</section>
 </section>
 {% endblock %}

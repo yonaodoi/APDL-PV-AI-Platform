@@ -144,3 +144,111 @@ def test_manual_signal_entry_rejects_duplicate_signal_id():
 
     assert response.status_code == 200
     assert b"This Signal ID already exists." in response.data
+
+
+def test_signal_number_normalisation():
+    from app.signals.routes import normalise_signal_number
+
+    assert normalise_signal_number("APDL -SIG-003") == "APDL-SIG-003"
+    assert normalise_signal_number("  APDL - SIG - 7 ") == "APDL-SIG-7"
+    assert normalise_signal_number("apdl-sig-008") == "apdl-sig-008"
+
+
+def _manual_form(**overrides):
+    form_data = {
+        "signal_number": "APDL-SIG-004",
+        "date_detected": date.today().isoformat(),
+        "product_name": "ABPARA",
+        "event_term": "Chills",
+        "signal_source": "ICSR review",
+        "priority": "Low",
+        "signal_description": "Further reports of chills.",
+        "submit": "Save safety signal",
+    }
+    form_data.update(overrides)
+    return form_data
+
+
+def test_signal_id_is_required():
+    app = create_test_app()
+
+    with app.test_client() as client:
+        sign_in(client)
+        with (
+            patch("app.signals.routes.query_one", return_value=None),
+            patch(
+                "app.services.case_follow_up_reminders.get_open_reminder_count",
+                return_value=0,
+            ),
+        ):
+            response = client.post(
+                "/signals/new", data=_manual_form(signal_number="")
+            )
+
+    assert response.status_code == 200
+    assert b"This field is required." in response.data
+
+
+def test_typed_signal_id_is_saved_with_spaces_tidied():
+    app = create_test_app()
+    cursor = Mock()
+
+    with app.test_client() as client:
+        sign_in(client)
+        with (
+            patch("app.signals.routes.query_one", return_value=None),
+            patch(
+                "app.signals.routes.transaction",
+                return_value=nullcontext(cursor),
+            ),
+        ):
+            response = client.post(
+                "/signals/new",
+                data=_manual_form(signal_number="APDL -SIG-004"),
+            )
+
+    assert response.status_code == 302
+    _, parameters = cursor.execute.call_args.args
+    assert parameters[0] == "APDL-SIG-004"
+    assert parameters[7] is None
+
+
+def test_open_duplicate_signal_requires_confirmation():
+    app = create_test_app()
+    cursor = Mock()
+    duplicate = {
+        "signal_id": 1,
+        "signal_number": "APDL-SIG-001",
+        "status": "New",
+        "date_detected": date(2026, 9, 16),
+    }
+
+    def fake_query_one(sql, parameters=()):
+        if "status IN" in sql:
+            return duplicate
+        return None
+
+    with app.test_client() as client:
+        sign_in(client)
+        with (
+            patch("app.signals.routes.query_one", side_effect=fake_query_one),
+            patch(
+                "app.signals.routes.transaction",
+                return_value=nullcontext(cursor),
+            ),
+            patch(
+                "app.services.case_follow_up_reminders.get_open_reminder_count",
+                return_value=0,
+            ),
+        ):
+            warned = client.post("/signals/new", data=_manual_form())
+            confirmed = client.post(
+                "/signals/new",
+                data=_manual_form(confirm_separate_signal="y"),
+            )
+
+    assert warned.status_code == 200
+    assert b"An open signal already covers this product and event." in warned.data
+    assert b"APDL-SIG-001" in warned.data
+    assert confirmed.status_code == 302
+    assert cursor.execute.call_count == 1

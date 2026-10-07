@@ -4,6 +4,7 @@
 {% block page_title %}Safety Signal{% endblock %}
 
 {% block content %}
+<section class="signal-detail-page">
 <style>
     .signal-header {
         display:flex;
@@ -16,7 +17,7 @@
     .back-link {
         display:inline-block;
         margin-bottom:10px;
-        color:#7656e8;
+        color:#34765e;
         font-size:13px;
         font-weight:bold;
         text-decoration:none;
@@ -24,7 +25,7 @@
 
     .signal-header h2 {
         margin:0 0 7px;
-        color:#282037;
+        color:#183d34;
         font-size:28px;
     }
 
@@ -51,8 +52,8 @@
     }
 
     .status-pill {
-        background:#eee9ff;
-        color:#6242d7;
+        background:#e5f2e9;
+        color:#28664f;
     }
 
     .priority-pill {
@@ -61,8 +62,8 @@
     }
 
     .priority-high {
-        background:#ffe9e6;
-        color:#cc5149;
+        background:#fff0e8;
+        color:#a44d38;
     }
 
     .signal-layout {
@@ -75,7 +76,7 @@
     .signal-card {
         margin-bottom:20px;
         overflow:hidden;
-        border:1px solid #e9e2e7;
+        border:1px solid #dce8e1;
         border-radius:14px;
         background:white;
         box-shadow:0 5px 12px rgba(40,32,55,.025);
@@ -95,8 +96,8 @@
         display:grid;
         place-items:center;
         border-radius:8px;
-        background:#eee9ff;
-        color:#6545d8;
+        background:#e5f2e9;
+        color:#237354;
         font-size:12px;
         font-weight:bold;
     }
@@ -134,7 +135,7 @@
         margin:0 20px 20px;
         padding:15px;
         border-radius:10px;
-        background:#faf8fb;
+        background:#f4f8f4;
         color:#635a68;
         font-size:13px;
         line-height:1.55;
@@ -143,7 +144,7 @@
 
     .evaluation-card {
         overflow:hidden;
-        border:1px solid #e9e2e7;
+        border:1px solid #dce8e1;
         border-radius:14px;
         background:white;
         box-shadow:0 5px 12px rgba(40,32,55,.025);
@@ -151,8 +152,8 @@
 
     .evaluation-heading {
         padding:17px 18px;
-        background:#f7f4ff;
-        color:#493273;
+        background:#eef6f0;
+        color:#244a3d;
         font-size:14px;
         font-weight:bold;
     }
@@ -177,7 +178,7 @@
         width:100%;
         box-sizing:border-box;
         padding:10px 11px;
-        border:1px solid #ddd5dc;
+        border:1px solid #d5e2d9;
         border-radius:8px;
         background:#fffeff;
         color:#322a3b;
@@ -192,8 +193,8 @@
 
     .input:focus {
         outline:none;
-        border-color:#9f88ed;
-        box-shadow:0 0 0 3px #eee9ff;
+        border-color:#4b9978;
+        box-shadow:0 0 0 3px rgba(20,125,100,.12);
     }
 
     .save-button {
@@ -201,12 +202,12 @@
         padding:12px;
         border:0;
         border-radius:9px;
-        background:#7656e8;
+        background:#147d64;
         color:white;
         font-size:14px;
         font-weight:bold;
         cursor:pointer;
-        box-shadow:0 7px 15px rgba(118,86,232,.2);
+        box-shadow:0 7px 15px rgba(20,125,100,.16);
     }
 
     .signal-guide {
@@ -220,19 +221,19 @@
     }
 
     @media (max-width:1050px) {
-        .signal-layout { grid-template-columns:1fr; }
+        .signal-detail-page .signal-layout { grid-template-columns:1fr; }
     }
 
     @media (max-width:700px) {
-        .signal-header { display:block; }
-        .signal-badges { margin-top:14px; }
-        .detail-grid { grid-template-columns:1fr; }
+        .signal-detail-page .signal-header { display:block; }
+        .signal-detail-page .signal-badges { margin-top:14px; }
+        .signal-detail-page .detail-grid { grid-template-columns:1fr; }
     }
 </style>
 
-<section class="signal-header">
+<header class="signal-header">
     <div>
-        <a class="back-link" href="{{ url_for('signals.signal_list') }}">← Back to safety signals</a>
+        <a class="back-link" href="{{ url_for('signals.signal_list') }}">Back to safety signals</a>
         <h2>{{ signal.signal_number }}</h2>
         <p>Detected {{ signal.date_detected.strftime("%d %B %Y") }} for {{ signal.product_name }}.</p>
     </div>
@@ -243,7 +244,7 @@
             {{ signal.priority }}
         </span>
     </div>
-</section>
+</header>
 
 <div class="signal-layout">
     <div>
@@ -313,12 +314,12 @@
         <section class="evaluation-card">
             <div class="evaluation-heading">Signal evaluation</div>
 
-            <form method="post" action="{{ url_for('signals.draft_signal_assessment', signal_id=signal.signal_id) }}" class="evaluation-form" style="padding-bottom:0;">
+            <form method="post" action="{{ url_for('signals.draft_signal_assessment', signal_id=signal.signal_id) }}" class="evaluation-form ai-draft-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <p style="margin:0 0 12px; color:#746d7d; font-size:12px; line-height:1.5;">
+                <p class="ai-draft-guidance">
                     Generate a local AI draft from the signal record and linked cases. It will not be saved or decide signal validity, priority, causality, or action.
                 </p>
-                <button type="submit" class="save-button" style="margin-bottom:16px;">Generate AI review draft</button>
+                <button type="submit" class="save-button ai-draft-button">Generate AI review draft</button>
             </form>
 
             {% if ai_assistance %}
@@ -341,22 +342,22 @@
                 {{ evaluation_form.hidden_tag() }}
 
                 <div class="field">
-                    <label>{{ evaluation_form.status.label.text }}</label>
+                    {{ evaluation_form.status.label }}
                     {{ evaluation_form.status(class_="input") }}
                 </div>
 
                 <div class="field">
-                    <label>{{ evaluation_form.owner_name.label.text }}</label>
+                    {{ evaluation_form.owner_name.label }}
                     {{ evaluation_form.owner_name(class_="input", placeholder="Person responsible") }}
                 </div>
 
                 <div class="field">
-                    <label>{{ evaluation_form.assessment_summary.label.text }}</label>
+                    {{ evaluation_form.assessment_summary.label }}
                     {{ evaluation_form.assessment_summary(class_="input", rows="6", placeholder="Record the medical and data assessment.") }}
                 </div>
 
                 <div class="field">
-                    <label>{{ evaluation_form.decision_summary.label.text }}</label>
+                    {{ evaluation_form.decision_summary.label }}
                     {{ evaluation_form.decision_summary(class_="input", rows="6", placeholder="Record the decision, action or monitoring plan.") }}
                 </div>
 
@@ -364,51 +365,52 @@
             </form>
         </section>
 
-        <div class="signal-guide">
+        <div class="signal-guide" role="note">
             Record decisions using verified safety evidence. Any validated signal should be assessed for regulatory, labelling and risk-minimisation action.
         </div>
     </aside>
 </div>
 
 {% if supporting_cases %}
-<section style="margin-top:24px; overflow:hidden; border:1px solid #e9e2e7; border-radius:14px; background:white;">
-    <div style="padding:16px 20px; border-bottom:1px solid #eee8ec;">
-        <h3 style="margin:0 0 5px; color:#403748;">Supporting ADR cases</h3>
-        <p style="margin:0; color:#746d7d; font-size:13px;">
+<section class="supporting-cases-card" aria-labelledby="supporting-cases-title">
+    <div class="supporting-cases-heading">
+        <h3 id="supporting-cases-title">Supporting ADR cases</h3>
+        <p>
             ADR cases linked by the automated signal-screening rule. Review before validating this potential signal.
         </p>
     </div>
 
-    <table style="width:100%; border-collapse:collapse;">
+    <div class="supporting-cases-table-wrap" role="region" aria-label="Supporting ADR cases" tabindex="0">
+    <table class="supporting-cases-table">
         <thead>
-            <tr style="background:#fffdfe;">
-                <th style="padding:12px 16px; text-align:left; font-size:10px;">Case number</th>
-                <th style="padding:12px 16px; text-align:left; font-size:10px;">Country</th>
-                <th style="padding:12px 16px; text-align:left; font-size:10px;">Received</th>
-                <th style="padding:12px 16px; text-align:left; font-size:10px;">Event</th>
-                <th style="padding:12px 16px; text-align:left; font-size:10px;">Priority</th>
+            <tr>
+                <th scope="col">Case number</th>
+                <th scope="col">Country</th>
+                <th scope="col">Received</th>
+                <th scope="col">Event</th>
+                <th scope="col">Priority</th>
             </tr>
         </thead>
         <tbody>
             {% for supporting_case in supporting_cases %}
             <tr>
-                <td style="padding:14px 16px; border-top:1px solid #f0ebee;">
-                    <a href="{{ url_for('cases.case_detail', case_id=supporting_case.case_id) }}" style="color:#5f3ed4; font-weight:bold; text-decoration:none;">
+                <td>
+                    <a class="supporting-case-link" href="{{ url_for('cases.case_detail', case_id=supporting_case.case_id) }}">
                         {{ supporting_case.case_number }}
                     </a>
                 </td>
-                <td style="padding:14px 16px; border-top:1px solid #f0ebee;">
+                <td>
                     {{ supporting_case.country_name or "Not recorded" }}
                 </td>
-                <td style="padding:14px 16px; border-top:1px solid #f0ebee;">
+                <td>
                     {{ supporting_case.received_date.strftime("%d %b %Y") }}
                 </td>
-                <td style="padding:14px 16px; border-top:1px solid #f0ebee;">
+                <td>
                     {{ supporting_case.event_description }}
                 </td>
-                <td style="padding:14px 16px; border-top:1px solid #f0ebee;">
+                <td>
                     {% if supporting_case.seriousness %}
-                        <span style="color:#cc5149; font-weight:bold;">Serious</span>
+                        <span class="supporting-case-serious">Serious</span>
                     {% else %}
                         Routine
                     {% endif %}
@@ -417,6 +419,8 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </section>
 {% endif %}
+</section>
 {% endblock %}

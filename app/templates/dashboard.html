@@ -4,176 +4,6 @@
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-<style>
-    .dashboard-page {
-        max-width: 1160px;
-        margin: 0 auto;
-    }
-
-    .welcome-panel {
-        display: flex;
-        justify-content: space-between;
-        gap: 30px;
-        align-items: center;
-        margin-bottom: 25px;
-        padding: 31px 33px;
-        overflow: hidden;
-        border-radius: 17px;
-        background: linear-gradient(135deg, #40305d, #7252d6);
-        box-shadow: 0 12px 28px rgba(72, 47, 120, .18);
-    }
-
-    .welcome-kicker {
-        margin: 0 0 10px;
-        color: #dcd2ff;
-        font-size: 11px;
-        font-weight: bold;
-        letter-spacing: 1.1px;
-    }
-
-    .welcome-panel h2 {
-        margin: 0 0 9px;
-        color: white;
-        font-size: 29px;
-    }
-
-    .welcome-panel p {
-        max-width: 650px;
-        margin: 0;
-        color: #eeeaff;
-        font-size: 14px;
-        line-height: 1.55;
-    }
-
-    .analytics-button {
-        flex: none;
-        padding: 12px 16px;
-        border-radius: 9px;
-        background: white;
-        color: #5e40c4;
-        font-size: 13px;
-        font-weight: bold;
-        text-decoration: none;
-        white-space: nowrap;
-    }
-
-    .workspace-heading {
-        margin: 0 0 6px;
-        color: #332a3b;
-        font-size: 19px;
-    }
-
-    .workspace-intro {
-        margin: 0 0 18px;
-        color: #766d7c;
-        font-size: 14px;
-    }
-
-    .module-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 17px;
-    }
-
-    .module-card {
-        display: block;
-        min-height: 146px;
-        padding: 20px;
-        border: 1px solid #e9e2e7;
-        border-radius: 14px;
-        background: white;
-        color: inherit;
-        text-decoration: none;
-        box-shadow: 0 5px 12px rgba(40, 32, 55, .035);
-        transition: transform .16s ease, box-shadow .16s ease;
-    }
-
-    .module-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 11px 23px rgba(40, 32, 55, .10);
-    }
-
-    .module-icon {
-        display: grid;
-        width: 37px;
-        height: 37px;
-        place-items: center;
-        border-radius: 10px;
-        background: #eee9ff;
-        color: #6849d6;
-        font-size: 14px;
-        font-weight: bold;
-    }
-
-    .module-card.complaints .module-icon {
-        background: #fff1e9;
-        color: #c46c3d;
-    }
-
-    .module-card.signals .module-icon {
-        background: #fff0ee;
-        color: #ce564d;
-    }
-
-    .module-card.psur .module-icon {
-        background: #eaf5ff;
-        color: #4176a8;
-    }
-
-    .module-card.reference .module-icon {
-        background: #e9f7f0;
-        color: #327d5d;
-    }
-
-    .module-card.analytics .module-icon {
-        background: #f4edff;
-        color: #7044c6;
-    }
-
-    .module-card h3 {
-        margin: 17px 0 6px;
-        color: #3d3445;
-        font-size: 15px;
-    }
-
-    .module-card p {
-        margin: 0;
-        color: #766c7a;
-        font-size: 13px;
-        line-height: 1.48;
-    }
-
-    .module-arrow {
-        display: block;
-        margin-top: 13px;
-        color: #7251d5;
-        font-size: 12px;
-        font-weight: bold;
-    }
-
-    @media (max-width: 860px) {
-        .module-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-    }
-
-    @media (max-width: 620px) {
-        .welcome-panel {
-            display: block;
-            padding: 25px;
-        }
-
-        .analytics-button {
-            display: inline-block;
-            margin-top: 18px;
-        }
-
-        .module-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-</style>
-
 <section class="dashboard-page">
     <section class="welcome-panel">
         <div>
@@ -195,11 +25,16 @@
 
     {% if open_follow_up_reminder_count %}
         <a
+            class="dashboard-reminder"
             href="{{ url_for('case_review.follow_up_reminders') }}"
-            style="display: block; margin-bottom: 25px; padding: 17px 20px; border: 1px solid #f0c8c3; border-radius: 12px; background: #fff4f2; color: #8f3f39; text-decoration: none;"
+            role="status"
         >
-            <strong>{{ open_follow_up_reminder_count }} overdue follow-up reminder{% if open_follow_up_reminder_count != 1 %}s{% endif %}</strong>
-            <span style="display: block; margin-top: 5px; font-size: 13px;">Review overdue requests and acknowledge each reminder.</span>
+            <span class="dashboard-reminder-icon" aria-hidden="true">!</span>
+            <span class="dashboard-reminder-copy">
+                <strong>{{ open_follow_up_reminder_count }} overdue follow-up reminder{% if open_follow_up_reminder_count != 1 %}s{% endif %}</strong>
+                <span>Review overdue requests and acknowledge each reminder.</span>
+            </span>
+            <span class="dashboard-reminder-action">Review reminders <span aria-hidden="true">→</span></span>
         </a>
     {% endif %}
 
@@ -208,44 +43,44 @@
         Select a module to record, assess, review or report safety information.
     </p>
 
-    <section class="module-grid">
+    <section class="module-grid" aria-label="Available workspaces">
         <a class="module-card" href="{{ url_for('cases.case_list') }}">
-            <span class="module-icon">C</span>
+            <span class="module-icon" aria-hidden="true">C</span>
             <h3>Safety cases</h3>
             <p>Capture, assess and follow up individual safety reports.</p>
             <span class="module-arrow">Open safety cases →</span>
         </a>
 
         <a class="module-card complaints" href="{{ url_for('complaints.complaint_list') }}">
-            <span class="module-icon">Q</span>
+            <span class="module-icon" aria-hidden="true">Q</span>
             <h3>Product quality complaints</h3>
             <p>Record and investigate product-quality complaints.</p>
             <span class="module-arrow">Open product quality complaints →</span>
         </a>
 
         <a class="module-card signals" href="{{ url_for('signals.signal_list') }}">
-            <span class="module-icon">S</span>
+            <span class="module-icon" aria-hidden="true">S</span>
             <h3>Safety signals</h3>
             <p>Review detected signals and document their evaluation.</p>
             <span class="module-arrow">Open safety signals →</span>
         </a>
 
         <a class="module-card psur" href="{{ url_for('psur.psur_list') }}">
-            <span class="module-icon">R</span>
+            <span class="module-icon" aria-hidden="true">R</span>
             <h3>PSURs</h3>
             <p>Create, author and export periodic safety reports.</p>
             <span class="module-arrow">Open PSURs →</span>
         </a>
 
         <a class="module-card reference" href="{{ url_for('rsi.rsi_list') }}">
-            <span class="module-icon">I</span>
+            <span class="module-icon" aria-hidden="true">I</span>
             <h3>Reference safety information</h3>
             <p>Maintain approved documents used in safety assessment.</p>
             <span class="module-arrow">Open reference library →</span>
         </a>
 
         <a class="module-card analytics" href="{{ url_for('core.analytics_home') }}">
-            <span class="module-icon">A</span>
+            <span class="module-icon" aria-hidden="true">A</span>
             <h3>PV and Regulatory Analytics</h3>
             <p>Open focused registers, reporting figures and data views.</p>
             <span class="module-arrow">Open Analytics Centre →</span>

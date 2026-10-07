@@ -170,6 +170,39 @@
         font-size: 12px;
     }
 
+    .field-hint {
+        margin: 6px 0 0;
+        color: #71817c;
+        font-size: 12px;
+    }
+
+    .duplicate-signal-warning {
+        margin: 18px 0 0;
+        padding: 14px 16px;
+        border: 1px solid #f1d5a6;
+        border-radius: 10px;
+        background: #fffaf0;
+        color: #665a4c;
+        font-size: 13px;
+    }
+
+    .duplicate-signal-warning p {
+        margin: 6px 0 10px;
+    }
+
+    .duplicate-signal-warning a {
+        color: #0d6652;
+        font-weight: 800;
+    }
+
+    .duplicate-signal-confirm {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        color: #18342f;
+        font-weight: 700;
+    }
+
     .form-actions {
         display: flex;
         justify-content: flex-end;
@@ -282,8 +315,8 @@
 
             <div class="form-grid">
                 <div class="field">
-                    <label>{{ form.signal_number.label.text }} <span class="required">*</span></label>
-                    {{ form.signal_number(placeholder="For example: APDL-SIG-2026-0001") }}
+                    <label for="signal_number">{{ form.signal_number.label.text }} <span class="required">*</span></label>
+                    {{ form.signal_number(placeholder="For example: APDL-SIG-004") }}
                     {% for error in form.signal_number.errors %}
                         <p class="field-error">{{ error }}</p>
                     {% endfor %}
@@ -345,6 +378,21 @@
                     <p class="field-error">{{ error }}</p>
                 {% endfor %}
             </div>
+
+            {% if duplicate_signal %}
+                <div class="duplicate-signal-warning" role="alert">
+                    <strong>An open signal already covers this product and event.</strong>
+                    <p>
+                        <a href="{{ url_for('signals.signal_detail', signal_id=duplicate_signal.signal_id) }}">{{ duplicate_signal.signal_number }}</a>
+                        ({{ duplicate_signal.status }}, detected {{ duplicate_signal.date_detected.strftime("%d %b %Y") }}).
+                        Add the new evidence to that signal instead, or confirm this is a separate signal.
+                    </p>
+                    <label class="duplicate-signal-confirm">
+                        {{ form.confirm_separate_signal() }}
+                        {{ form.confirm_separate_signal.label.text }}
+                    </label>
+                </div>
+            {% endif %}
 
             <div class="form-actions">
                 <a class="cancel-link" href="{{ url_for('signals.signal_list') }}">Cancel</a>

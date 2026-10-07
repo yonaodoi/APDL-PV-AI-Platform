@@ -22,11 +22,13 @@ from app.db import query_all, query_one, transaction
 from app.security import login_required
 from .forms import SafetyCaseForm
 from app.services.signal_detection import (
-    detect_potential_signals_for_case,
+    screen_case_for_signals,
+    summarise_screening,
 )
 from app.services.case_completeness import (
     refresh_case_completeness,
 )
+from app.services.reporting_clock import evaluate_reporting_clock
 from app.services.case_document_extraction import (
     MAX_DOCUMENT_BYTES,
     SUPPORTED_EXTENSIONS,
@@ -36,6 +38,13 @@ from app.services.case_document_extraction import (
 
 
 bp = Blueprint("cases", __name__, url_prefix="/cases")
+
+DEADLINE_FILTERS = {
+    "overdue": {"overdue"},
+    "due_soon": {"due_soon"},
+    "open": {"overdue", "due_soon", "on_track"},
+    "late": {"overdue", "submitted_late"},
+}
 
 
 def _set_country_choices(form):
@@ -179,6 +188,7 @@ def case_list():
     selected_country = request.args.get("country", "").strip()
     selected_status = request.args.get("status", "").strip()
     selected_priority = request.args.get("priority", "").strip()
+    selected_deadline = request.args.get("deadline", "").strip()
     start_date = request.args.get("start_date", "").strip()
     end_date = request.args.get("end_date", "").strip()
 
@@ -224,6 +234,7 @@ def case_list():
             safety_cases.received_date,
             safety_cases.seriousness,
             safety_cases.event_description,
+            safety_cases.regulatory_submitted_date,
             countries.country_name,
             case_products.product_name
         FROM pv.safety_cases AS safety_cases
@@ -236,6 +247,27 @@ def case_list():
         """,
         tuple(parameters),
     )
+
+    cases = [
+        {**case, "reporting_clock": evaluate_reporting_clock(case)}
+        for case in cases
+    ]
+    overdue_count = len(
+        {
+            case["case_id"]
+            for case in cases
+            if case["reporting_clock"]
+            and case["reporting_clock"]["state"] == "overdue"
+        }
+    )
+    if selected_deadline in DEADLINE_FILTERS:
+        wanted_states = DEADLINE_FILTERS[selected_deadline]
+        cases = [
+            case
+            for case in cases
+            if case["reporting_clock"]
+            and case["reporting_clock"]["state"] in wanted_states
+        ]
 
     products = query_all(
         """
@@ -274,6 +306,8 @@ def case_list():
         selected_country=selected_country,
         selected_status=selected_status,
         selected_priority=selected_priority,
+        selected_deadline=selected_deadline,
+        overdue_count=overdue_count,
         start_date=start_date,
         end_date=end_date,
     )
@@ -313,6 +347,24 @@ def case_detail(case_id):
 
     duplicate_candidates = find_possible_duplicates(case, products)
 
+    linked_signals = query_all(
+        """
+        SELECT
+            safety_signals.signal_id,
+            safety_signals.signal_number,
+            safety_signals.event_term,
+            safety_signals.priority,
+            safety_signals.status,
+            safety_signals.auto_detected
+        FROM pv.safety_signal_cases AS safety_signal_cases
+        INNER JOIN pv.safety_signals AS safety_signals
+            ON safety_signals.signal_id = safety_signal_cases.signal_id
+        WHERE safety_signal_cases.case_id = %s
+        ORDER BY safety_signals.date_detected DESC, safety_signals.signal_id DESC
+        """,
+        (case_id,),
+    )
+
     audit_log = query_all(
         """
         SELECT
@@ -336,6 +388,8 @@ def case_detail(case_id):
         completeness_checks=completeness_checks,
         duplicate_candidates=duplicate_candidates,
         audit_log=audit_log,
+        reporting_clock=evaluate_reporting_clock(case),
+        linked_signals=linked_signals,
     )
 
 
@@ -620,13 +674,11 @@ def create_case():
                 ),
             )
 
-        try:
-            detected_signals = detect_potential_signals_for_case(
-                case_id=case_id,
-                actor_user_id=session["user_id"],
-            )
-        except Exception:
-            detected_signals = []
+        detected_signals, screening_failed = screen_case_for_signals(
+            case_id,
+            actor_user_id=session["user_id"],
+        )
+        if screening_failed:
             flash(
                 "Safety case was saved, but automated signal "
                 "screening could not run.",
@@ -659,12 +711,9 @@ def create_case():
             )
             return redirect(url_for("core.dashboard"))
 
-        if detected_signals:
-            flash(
-                "Potential safety signal detected from ADR case "
-                "screening. QPPV review is required.",
-                "warning",
-            )
+        screening_message = summarise_screening(detected_signals)
+        if screening_message:
+            flash(screening_message, "warning")
         flash(f"Safety case {case_number} was created.", "success")
         if duplicate_candidates:
             flash(
@@ -920,6 +969,19 @@ def edit_case(case_id):
         )
 
         flash("Safety case updated successfully.", "success")
+
+        detected_signals, screening_failed = screen_case_for_signals(
+            case_id,
+            actor_user_id=session["user_id"],
+        )
+        screening_message = summarise_screening(detected_signals)
+        if screening_message:
+            flash(screening_message, "warning")
+        elif screening_failed:
+            flash(
+                "Automated signal screening could not run for this case.",
+                "warning",
+            )
         return redirect(url_for("cases.case_detail", case_id=case_id))
 
     populate_case_form(form, case, product)

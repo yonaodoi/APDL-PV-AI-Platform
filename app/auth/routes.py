@@ -43,7 +43,7 @@ def login():
                     r.role_name
                 FROM pv.users AS u
                 JOIN pv.roles AS r ON r.role_id = u.role_id
-                WHERE u.username = %s
+                WHERE LOWER(u.username) = LOWER(%s)
                 """,
                 (username,),
             )

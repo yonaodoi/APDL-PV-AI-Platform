@@ -33,6 +33,10 @@ from app.rsi.forms import (
     ReferenceSafetyInformationForm,
 )
 from app.security import login_required, roles_required
+from app.services.signal_detection import (
+    screen_case_for_signals,
+    summarise_screening,
+)
 
 
 bp = Blueprint("rsi", __name__, url_prefix="/reference-safety")
@@ -472,6 +476,7 @@ def assess_case(case_id):
         )
 
         flash("Safety assessment saved successfully.", "success")
+        _flash_signal_screening(case_id)
         return redirect(url_for("cases.case_detail", case_id=case_id))
 
     if existing_assessment:
@@ -970,7 +975,18 @@ def automatic_case_assessment(case_id):
         "Automatic safety assessment completed from the official product label.",
         "success",
     )
+    _flash_signal_screening(case_id)
     return redirect(url_for("rsi.assess_case", case_id=case_id))
+
+
+def _flash_signal_screening(case_id):
+    """Re-screen a case for signals after its listedness changes."""
+    results, _ = screen_case_for_signals(
+        case_id, actor_user_id=session["user_id"]
+    )
+    message = summarise_screening(results)
+    if message:
+        flash(message, "warning")
 
 def normalise_rsi_text(value):
     return " ".join(

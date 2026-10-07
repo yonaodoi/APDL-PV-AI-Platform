@@ -5,6 +5,7 @@
 {% block page_title %}Safety Case{% endblock %}
 
 {% block content %}
+<section class="case-detail-page">
 <style>
     .case-top {
         display: flex;
@@ -293,15 +294,18 @@
             <span class="badge badge-routine">Routine case</span>
 
         {% endif %}
-      <a href="{{ url_for('rsi.assess_case', case_id=case.case_id) }}" style="padding: 8px 11px; border: 1px solid #d8caef; border-radius: 20px; background: #f7f3ff; color: #5f3ed4; font-size: 12px; font-weight: bold; text-decoration: none;">Listedness / Expectedness</a>
+        {% if reporting_clock %}
+            <span class="badge clock-badge clock-{{ reporting_clock.state }}" title="Due {{ reporting_clock.due_date.strftime('%d %b %Y') }}">{{ reporting_clock.label }}</span>
+        {% endif %}
+      <a class="case-action-link" href="{{ url_for('rsi.assess_case', case_id=case.case_id) }}">Listedness / Expectedness</a>
 
-<a href="{{ url_for('cases.edit_case', case_id=case.case_id) }}" style="padding: 8px 11px; border: 1px solid #ded4e3; border-radius: 20px; background: white; color: #6242d7; font-size: 12px; font-weight: bold; text-decoration: none;">Edit safety case</a>
+<a class="case-action-link" href="{{ url_for('cases.edit_case', case_id=case.case_id) }}">Edit safety case</a>
 
-<a href="{{ url_for('attachments.manage_attachments', record_type='case', record_id=case.case_id) }}" style="padding: 8px 11px; border: 1px solid #ded4e3; border-radius: 20px; background: white; color: #6242d7; font-size: 12px; font-weight: bold; text-decoration: none;">Attachments</a>
+<a class="case-action-link" href="{{ url_for('attachments.manage_attachments', record_type='case', record_id=case.case_id) }}">Attachments</a>
 
-<a href="{{ url_for('case_ai_reports.view_ai_case_assessment', case_id=case.case_id) }}" style="padding: 8px 11px; border-radius: 20px; background: #5f3ed4; color: white; font-size: 12px; font-weight: bold; text-decoration: none;">AI assessment report</a>
+<a class="case-action-link primary" href="{{ url_for('case_ai_reports.view_ai_case_assessment', case_id=case.case_id) }}">AI assessment report</a>
 
-<a href="{{ url_for('case_reports.download_adr_report', case_id=case.case_id) }}" style="padding: 8px 11px; border-radius: 20px; background: #7656e8; color: white; font-size: 12px; font-weight: bold; text-decoration: none;">Download ADR report</a>
+<a class="case-action-link primary" href="{{ url_for('case_reports.download_adr_report', case_id=case.case_id) }}">Download ADR report</a>
     </div>
 </section>
 
@@ -332,6 +336,23 @@
                         <button name="review_status" value="Not a duplicate" type="submit" style="padding: 7px 10px; border: 1px solid #d8caef; border-radius: 7px; background: white; color: #6242d7; cursor: pointer; font-size: 12px; font-weight: bold;">Not a duplicate</button>
                     </form>
                 </article>
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
+
+{% if linked_signals %}
+    <section class="detail-section linked-signals">
+        <div class="section-title">
+            Safety signals linked to this case
+        </div>
+        <div class="detail-content">
+            {% for signal in linked_signals %}
+                <div class="linked-signal-row">
+                    <a href="{{ url_for('signals.signal_detail', signal_id=signal.signal_id) }}">{{ signal.signal_number }}</a>
+                    <span class="linked-signal-term">{{ signal.event_term }}</span>
+                    <span class="linked-signal-meta">{{ signal.status }} · {{ signal.priority }}{% if signal.auto_detected %} · system-detected{% endif %}</span>
+                </div>
             {% endfor %}
         </div>
     </section>
@@ -566,6 +587,19 @@
     </div>
 
     <aside class="side-panel">
+        {% if reporting_clock %}
+            <div class="side-heading">Regulatory reporting clock</div>
+            <div class="reporting-clock-panel clock-{{ reporting_clock.state }}">
+                <div class="reporting-clock-label">{{ reporting_clock.label }}</div>
+                <dl class="reporting-clock-facts">
+                    <div><dt>Day 0 (received)</dt><dd>{{ case.received_date.strftime("%d %b %Y") }}</dd></div>
+                    <div><dt>Timeline</dt><dd>{{ reporting_clock.timeline_days }} calendar days ({{ "serious" if case.seriousness else "non-serious" }})</dd></div>
+                    <div><dt>Due date</dt><dd>{{ reporting_clock.due_date.strftime("%d %b %Y") }}</dd></div>
+                    <div><dt>Submitted</dt><dd>{{ reporting_clock.submitted_date.strftime("%d %b %Y") if reporting_clock.submitted_date else "Not yet" }}</dd></div>
+                </dl>
+            </div>
+        {% endif %}
+
         <div class="side-heading">Case workflow review</div>
 
         <form method="post" action="{{ url_for('case_review.review_case', case_id=case.case_id) }}" style="padding: 16px 18px; border-bottom: 1px solid #eee8ec;">
@@ -596,6 +630,10 @@
 
             <label style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Follow-up due date</label>
             <input type="date" name="follow_up_due_date" value="{{ case.follow_up_due_date.strftime('%Y-%m-%d') if case.follow_up_due_date else '' }}" style="width: 100%; margin-bottom: 14px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px;">
+
+            <label for="regulatory_submitted_date" style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Regulatory submission date</label>
+            <input type="date" id="regulatory_submitted_date" name="regulatory_submitted_date" value="{{ case.regulatory_submitted_date.strftime('%Y-%m-%d') if case.regulatory_submitted_date else '' }}" style="width: 100%; margin-bottom: 4px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px;">
+            <p style="margin: 0 0 14px; color: #776e7d; font-size: 11px;">Stops the reporting clock. Set automatically to today when the status changes to Submitted.</p>
 
             <button type="submit" style="width: 100%; padding: 10px; border: 0; border-radius: 8px; background: #7656e8; color: white; cursor: pointer; font-size: 12px; font-weight: bold;">Save review</button>
         </form>
@@ -630,4 +668,5 @@
         </div>
     </aside>
 </div>
+</section>
 {% endblock %}

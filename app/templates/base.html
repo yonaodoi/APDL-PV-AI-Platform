@@ -260,12 +260,13 @@
     </style>
     <link
         rel="stylesheet"
-        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-1') }}"
+        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-9') }}"
     >
 </head>
 <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="app-shell">
-        <aside class="sidebar">
+        <aside class="sidebar" aria-label="Application sidebar">
             <div class="brand">
                 <div class="brand-mark">PV</div>
                 <div>
@@ -274,33 +275,71 @@
                 </div>
             </div>
 
-            <div class="nav-label">WORKSPACE</div>
-            <a class="nav-link {% if request.endpoint == 'core.dashboard' %}active{% endif %}" href="{{ url_for('core.dashboard') }}">Dashboard</a>
-            <a class="nav-link {% if request.endpoint in ('cases.case_list', 'cases.create_case', 'cases.case_detail') %}active{% endif %}" href="{{ url_for('cases.case_list') }}">Safety Cases</a>
-            <a class="nav-link {% if request.endpoint in ('case_review.review_queue', 'case_review.follow_up_tasks') %}active{% endif %}" href="{{ url_for('case_review.follow_up_tasks') }}">Follow-up Tasks</a>
-            <a class="nav-link {% if request.endpoint == 'case_review.follow_up_reminders' %}active{% endif %}" href="{{ url_for('case_review.follow_up_reminders') }}">Overdue Reminders{% if open_follow_up_reminder_count %} ({{ open_follow_up_reminder_count }}){% endif %}</a>
-            <a class="nav-link {% if request.endpoint in ('complaints.complaint_list', 'complaints.create_complaint', 'complaints.extract_complaint_from_document', 'complaints.complaint_detail') %}active{% endif %}" href="{{ url_for('complaints.complaint_list') }}">Product Quality Complaints</a>
+            <nav class="primary-nav" aria-label="Primary navigation">
+                <div class="nav-group">
+                    <div class="nav-label">WORKSPACE</div>
+                    <a
+                        class="nav-link {% if request.endpoint == 'core.dashboard' %}active{% endif %}"
+                        href="{{ url_for('core.dashboard') }}"
+                        {% if request.endpoint == 'core.dashboard' %}aria-current="page"{% endif %}
+                    >Dashboard</a>
+                    <a
+                        class="nav-link {% if request.endpoint.startswith('cases.') or request.endpoint.startswith('case_ai_reports.') %}active{% endif %}"
+                        href="{{ url_for('cases.case_list') }}"
+                        {% if request.endpoint.startswith('cases.') or request.endpoint.startswith('case_ai_reports.') %}aria-current="page"{% endif %}
+                    >Safety Cases</a>
+                    <a
+                        class="nav-link {% if request.endpoint in ('case_review.review_queue', 'case_review.follow_up_tasks', 'case_review.complete_follow_up_task', 'case_review.download_follow_up_document', 'case_review.download_follow_up_docx', 'case_review.send_follow_up_email_route', 'case_review.download_follow_up_email_draft', 'case_review.download_follow_up_email_docx') %}active{% endif %}"
+                        href="{{ url_for('case_review.follow_up_tasks') }}"
+                        {% if request.endpoint in ('case_review.review_queue', 'case_review.follow_up_tasks', 'case_review.complete_follow_up_task', 'case_review.download_follow_up_document', 'case_review.download_follow_up_docx', 'case_review.send_follow_up_email_route', 'case_review.download_follow_up_email_draft', 'case_review.download_follow_up_email_docx') %}aria-current="page"{% endif %}
+                    >Follow-up Tasks</a>
+                    <a
+                        class="nav-link {% if request.endpoint in ('case_review.follow_up_reminders', 'case_review.acknowledge_follow_up_reminder') %}active{% endif %}"
+                        href="{{ url_for('case_review.follow_up_reminders') }}"
+                        {% if request.endpoint in ('case_review.follow_up_reminders', 'case_review.acknowledge_follow_up_reminder') %}aria-current="page"{% endif %}
+                    >
+                        Overdue Reminders
+                        {% if open_follow_up_reminder_count %}
+                            <span class="nav-count" aria-label="{{ open_follow_up_reminder_count }} open reminders">{{ open_follow_up_reminder_count }}</span>
+                        {% endif %}
+                    </a>
+                    <a
+                        class="nav-link {% if request.endpoint.startswith('complaints.') %}active{% endif %}"
+                        href="{{ url_for('complaints.complaint_list') }}"
+                        {% if request.endpoint.startswith('complaints.') %}aria-current="page"{% endif %}
+                    >Product Quality Complaints</a>
+                </div>
 
-            <div class="nav-label">SAFETY MANAGEMENT</div>
-          <a
-    class="nav-link {% if request.endpoint in (
-        'core.analytics_home',
-        'core.analytics_metric_detail',
-        'core.regulatory_reporting'
-    ) %}active{% endif %}"
-    href="{{ url_for('core.analytics_home') }}"
->
-    PV & Regulatory Analytics
-</a>
+                <div class="nav-group">
+                    <div class="nav-label">SAFETY MANAGEMENT</div>
+                    <a
+                        class="nav-link {% if request.endpoint in ('core.analytics_home', 'core.analytics_metric_detail', 'core.regulatory_reporting') %}active{% endif %}"
+                        href="{{ url_for('core.analytics_home') }}"
+                        {% if request.endpoint in ('core.analytics_home', 'core.analytics_metric_detail', 'core.regulatory_reporting') %}aria-current="page"{% endif %}
+                    >PV &amp; Regulatory Analytics</a>
+                    <a
+                        class="nav-link {% if request.endpoint.startswith('signals.') %}active{% endif %}"
+                        href="{{ url_for('signals.signal_list') }}"
+                        {% if request.endpoint.startswith('signals.') %}aria-current="page"{% endif %}
+                    >Safety Signals</a>
+                    <a
+                        class="nav-link {% if request.endpoint.startswith('psur.') or request.endpoint.startswith('psur_sections.') or request.endpoint.startswith('psur_builder.') %}active{% endif %}"
+                        href="{{ url_for('psur.psur_list') }}"
+                        {% if request.endpoint.startswith('psur.') or request.endpoint.startswith('psur_sections.') or request.endpoint.startswith('psur_builder.') %}aria-current="page"{% endif %}
+                    >PSURs</a>
+                </div>
 
-            <a class="nav-link {% if request.endpoint in ('signals.signal_list', 'signals.create_signal', 'signals.signal_detail') %}active{% endif %}" href="{{ url_for('signals.signal_list') }}">Safety Signals</a>
-
-            <a class="nav-link {% if request.endpoint in ('psur.psur_list', 'psur.create_psur', 'psur.psur_detail', 'psur.edit_psur', 'psur_sections.manage_psur_sections') %}active{% endif %}" href="{{ url_for('psur.psur_list') }}">PSURs</a>
-
-            <div class="nav-label">SYSTEM</div>
-            {% if session.get('role') == 'System Administrator' %}
-                <a class="nav-link {% if request.endpoint in ('administration.user_list', 'administration.create_user', 'administration.audit_log') %}active{% endif %}" href="{{ url_for('administration.user_list') }}">Administration</a>
-            {% endif %}
+                {% if session.get('role') == 'System Administrator' %}
+                    <div class="nav-group">
+                        <div class="nav-label">SYSTEM</div>
+                        <a
+                            class="nav-link {% if request.endpoint.startswith('administration.') %}active{% endif %}"
+                            href="{{ url_for('administration.user_list') }}"
+                            {% if request.endpoint.startswith('administration.') %}aria-current="page"{% endif %}
+                        >Administration</a>
+                    </div>
+                {% endif %}
+            </nav>
         </aside>
 
         <div class="main-area">
@@ -334,7 +373,7 @@
                 </details>
             </header>
 
-            <main class="content">
+            <main class="content" id="main-content" tabindex="-1">
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% for category, message in messages %}
                         <div class="flash">{{ message }}</div>

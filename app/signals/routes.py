@@ -1,4 +1,6 @@
 import json
+import re
+
 from flask import (
     Blueprint,
     abort,
@@ -27,6 +29,31 @@ from app.services.safety_signal_assistance import (
 )
 
 bp = Blueprint("signals", __name__, url_prefix="/signals")
+
+OPEN_SIGNAL_STATUSES = ("New", "Under evaluation", "Validated")
+
+
+def normalise_signal_number(value):
+    """Remove stray spaces around hyphens, e.g. 'APDL -SIG-003' -> 'APDL-SIG-003'."""
+    value = re.sub(r"\s+", " ", (value or "").strip())
+    return re.sub(r"\s*-\s*", "-", value)
+
+
+def find_open_duplicate_signal(product_name, event_term):
+    return query_one(
+        """
+        SELECT signal_id, signal_number, status, date_detected
+        FROM pv.safety_signals
+        WHERE LOWER(REGEXP_REPLACE(TRIM(product_name), '\\s+', ' ', 'g'))
+              = LOWER(REGEXP_REPLACE(TRIM(%s), '\\s+', ' ', 'g'))
+          AND LOWER(REGEXP_REPLACE(TRIM(event_term), '\\s+', ' ', 'g'))
+              = LOWER(REGEXP_REPLACE(TRIM(%s), '\\s+', ' ', 'g'))
+          AND status IN %s
+        ORDER BY date_detected DESC, signal_id DESC
+        LIMIT 1
+        """,
+        (product_name, event_term, OPEN_SIGNAL_STATUSES),
+    )
 
 
 @bp.get("/")
@@ -108,6 +135,16 @@ def signal_list():
         {"priority": "Critical"},
     ]
 
+    unread_notification_count = query_one(
+        """
+        SELECT COUNT(*) AS total
+        FROM pv.safety_signal_notifications
+        WHERE user_id = %s
+          AND is_read = FALSE
+        """,
+        (session["user_id"],),
+    )["total"]
+
     return render_template(
         "signals/signal_list.html",
         signals=signals,
@@ -119,6 +156,7 @@ def signal_list():
         selected_priority=selected_priority,
         start_date=start_date,
         end_date=end_date,
+        unread_notification_count=unread_notification_count,
     )
 @bp.get("/notifications")
 @login_required
@@ -167,21 +205,24 @@ def screen_adr_cases():
         actor_user_id=session["user_id"],
     )
 
-    created_count = sum(
-        1 for signal in detected_signals
-        if signal["created"]
+    created_count = len(
+        {signal["signal_id"] for signal in detected_signals if signal["created"]}
+    )
+    linked_count = sum(
+        signal["newly_linked_cases"] for signal in detected_signals
     )
 
-    if created_count:
+    if created_count or linked_count:
         flash(
-            f"{created_count} potential safety signal(s) "
-            "were detected. QPPV review is required.",
+            f"Screening complete: {created_count} new potential signal(s), "
+            f"{linked_count} case link(s) added to signals. "
+            "QPPV review is required.",
             "warning",
         )
     else:
         flash(
-            "ADR case screening completed. No new potential "
-            "safety signals met the current threshold.",
+            "Screening complete. No new potential signals met the "
+            "current triggers.",
             "success",
         )
 
@@ -191,22 +232,37 @@ def screen_adr_cases():
 def create_signal():
     form = SafetySignalForm()
 
+    def render_form(duplicate_signal=None):
+        return render_template(
+            "signals/create_signal.html",
+            form=form,
+            duplicate_signal=duplicate_signal,
+        )
+
     if form.validate_on_submit():
+        signal_number = normalise_signal_number(form.signal_number.data)
+
         existing_signal = query_one(
             """
             SELECT signal_id
             FROM pv.safety_signals
             WHERE signal_number = %s
             """,
-            (form.signal_number.data.strip(),),
+            (signal_number,),
         )
 
         if existing_signal:
             form.signal_number.errors.append(
                 "This Signal ID already exists."
             )
+            return render_form()
 
-            return render_template("signals/create_signal.html", form=form)
+        duplicate_signal = find_open_duplicate_signal(
+            form.product_name.data,
+            form.event_term.data,
+        )
+        if duplicate_signal and not form.confirm_separate_signal.data:
+            return render_form(duplicate_signal)
 
         with transaction() as cursor:
             cursor.execute(
@@ -226,22 +282,22 @@ def create_signal():
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, FALSE, %s)
                 """,
                 (
-                    form.signal_number.data.strip(),
+                    signal_number,
                     form.date_detected.data,
                     form.product_name.data.strip(),
                     form.event_term.data.strip(),
                     form.signal_source.data,
                     form.signal_description.data.strip(),
                     form.priority.data,
-                    form.owner_name.data.strip() or None,
+                    (form.owner_name.data or "").strip() or None,
                     session["user_id"],
                 ),
             )
 
-        flash("Safety signal saved successfully.", "success")
+        flash(f"Safety signal {signal_number} saved successfully.", "success")
         return redirect(url_for("signals.signal_list"))
 
-    return render_template("signals/create_signal.html", form=form)
+    return render_form()
 
 
 @bp.get("/<int:signal_id>")
@@ -381,9 +437,9 @@ def evaluate_signal(signal_id):
             """,
             (
                 form.status.data,
-                form.assessment_summary.data.strip() or None,
-                form.decision_summary.data.strip() or None,
-                form.owner_name.data.strip() or None,
+                (form.assessment_summary.data or "").strip() or None,
+                (form.decision_summary.data or "").strip() or None,
+                (form.owner_name.data or "").strip() or None,
                 signal_id,
             ),
         )

@@ -264,12 +264,12 @@
         <p>Track product quality, packaging, labelling and other complaints.</p>
     </div>
 
-    <div class="complaints-header-actions" style="display: flex; flex-wrap: wrap; gap: 9px; justify-content: flex-end;">
+    <div class="complaints-header-actions">
         <a class="new-complaint-button document-action" href="{{ url_for('complaints.extract_complaint_from_document') }}">
             Create product quality complaint from document
         </a>
         <a class="new-complaint-button" href="{{ url_for('complaints.create_complaint') }}">
-            + Create product quality complaint
+            + New complaint
         </a>
     </div>
 </header>
@@ -334,7 +334,10 @@
             <input class="filter-input" id="end_date" name="end_date" type="date" value="{{ end_date }}">
         </div>
 
-        <button class="filter-button" type="submit">Apply filters</button>
+        <div class="filter-actions">
+            <button class="filter-button" type="submit">Apply filters</button>
+            <a class="clear-filters" href="{{ url_for('complaints.complaint_list') }}">Clear filters</a>
+        </div>
     </form>
 </section>
 
@@ -344,31 +347,31 @@
     <a href="{{ url_for('complaints.download_product_complaint_reporting_summary', product=selected_product, country=selected_country, status=selected_status, severity=selected_severity, start_date=start_date, end_date=end_date) }}">Download report (Word)</a>
 </div>
 
-<section class="complaint-summary">
-    <div class="summary-chip"><strong>{{ complaints|length }}</strong> total complaint(s)</div>
-    <div class="summary-chip"><strong>{{ complaints|selectattr("status", "equalto", "New")|list|length }}</strong> new complaint(s)</div>
-    <div class="summary-chip"><strong>{{ complaints|selectattr("severity", "equalto", "Critical")|list|length }}</strong> critical complaint(s)</div>
+<section class="complaint-summary" aria-label="Filtered complaint totals">
+    <div class="summary-chip"><strong>{{ complaints|length }}</strong><span>Matching complaints</span></div>
+    <div class="summary-chip"><strong>{{ complaints|selectattr("status", "equalto", "Under investigation")|list|length }}</strong><span>Under investigation</span></div>
+    <div class="summary-chip"><strong>{{ complaints|selectattr("severity", "equalto", "Serious")|list|length }}</strong><span>Serious complaints</span></div>
 </section>
 
 <section class="complaint-register">
     <div class="register-toolbar">
         <h3>All product quality complaints</h3>
-        <span>Newest complaints first</span>
+        <span>{{ complaints|length }} shown · newest first</span>
     </div>
 
     {% if complaints %}
-        <div class="complaint-table-wrap">
+        <div class="complaint-table-wrap" role="region" aria-label="Product quality complaints" tabindex="0">
         <table class="complaint-table">
             <thead>
                 <tr>
-                    <th>Complaint ID</th>
-                    <th>Product</th>
-                    <th>Batch</th>
-                    <th>Country</th>
-                    <th>Category</th>
-                    <th>Status</th>
-                    <th>Received</th>
-                    <th>Severity</th>
+                    <th scope="col">Complaint ID</th>
+                    <th scope="col">Product</th>
+                    <th scope="col">Batch</th>
+                    <th scope="col">Country</th>
+                    <th scope="col">Category</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Received</th>
+                    <th scope="col">Severity</th>
                 </tr>
             </thead>
             <tbody>
@@ -397,9 +400,15 @@
         </div>
     {% else %}
         <div class="empty-state">
-            <div class="empty-icon">+</div>
-            <h3>No product quality complaints yet</h3>
-            <p>Create the first product quality complaint to begin tracking investigations and actions.</p>
+            <div class="empty-icon" aria-hidden="true">+</div>
+            {% if selected_product or selected_country or selected_status or selected_severity or start_date or end_date %}
+                <h3>No matching complaints</h3>
+                <p>Try changing or clearing one or more filters.</p>
+                <a class="empty-clear-link" href="{{ url_for('complaints.complaint_list') }}">Clear all filters</a>
+            {% else %}
+                <h3>No product quality complaints yet</h3>
+                <p>Create the first product quality complaint to begin tracking investigations and actions.</p>
+            {% endif %}
         </div>
     {% endif %}
 </section>

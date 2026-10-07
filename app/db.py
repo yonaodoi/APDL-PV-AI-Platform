@@ -45,7 +45,6 @@ def query_one(sql, parameters=()):
         cursor.execute(sql, parameters)
         return cursor.fetchone()
 
-
 def query_all(sql, parameters=()):
     with get_db().cursor(
         cursor_factory=RealDictCursor

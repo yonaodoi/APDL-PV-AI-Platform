@@ -240,7 +240,8 @@
     }
 </style>
 
-<section class="psur-header">
+<section class="psur-workspace-page">
+<header class="psur-header">
     <div>
         <h2>PSUR register</h2>
         <p>Manage periodic safety reports, data lock points and reporting periods.</p>
@@ -249,12 +250,12 @@
     <a class="new-psur-button" href="{{ url_for('psur.create_psur') }}">
         + Create PSUR record
     </a>
-</section>
+</header>
 
-<section class="psur-summary">
-    <div class="summary-chip"><strong>{{ reports|length }}</strong> total PSUR(s)</div>
-    <div class="summary-chip"><strong>{{ reports|selectattr("status", "equalto", "Draft")|list|length }}</strong> draft PSUR(s)</div>
-    <div class="summary-chip"><strong>{{ reports|selectattr("status", "equalto", "Finalised")|list|length }}</strong> finalised PSUR(s)</div>
+<section class="psur-summary" aria-label="Filtered PSUR totals">
+    <div class="summary-chip"><strong>{{ reports|length }}</strong><span>Matching reports</span></div>
+    <div class="summary-chip"><strong>{{ reports|selectattr("status", "equalto", "Draft")|list|length }}</strong><span>Draft reports</span></div>
+    <div class="summary-chip"><strong>{{ reports|selectattr("status", "equalto", "Finalised")|list|length }}</strong><span>Finalised reports</span></div>
 </section>
 <section class="psur-filter">
     <form method="get" class="filter-grid">
@@ -292,33 +293,37 @@
             <input class="filter-input" id="end_date" name="end_date" type="date" value="{{ end_date }}">
         </div>
 
-        <button class="filter-button" type="submit">Apply filters</button>
+        <div class="filter-actions">
+            <button class="filter-button" type="submit">Apply filters</button>
+            <a class="clear-filters" href="{{ url_for('psur.psur_list') }}">Clear filters</a>
+        </div>
     </form>
 </section>
 
 <section class="psur-register">
     <div class="register-toolbar">
         <h3>All PSUR records</h3>
-        <span>Latest reporting periods first</span>
+        <span>{{ reports|length }} shown · latest reporting periods first</span>
     </div>
 
     {% if reports %}
+        <div class="psur-table-wrap" role="region" aria-label="Periodic safety reports" tabindex="0">
         <table class="psur-table">
             <thead>
                 <tr>
-                    <th>PSUR ID</th>
-                    <th>Product</th>
-                    <th>Reporting period</th>
-                    <th>Data lock point</th>
-                    <th>Prepared by</th>
-                    <th>Status</th>
+                    <th scope="col">PSUR ID</th>
+                    <th scope="col">Product</th>
+                    <th scope="col">Reporting period</th>
+                    <th scope="col">Data lock point</th>
+                    <th scope="col">Prepared by</th>
+                    <th scope="col">Status</th>
                 </tr>
             </thead>
             <tbody>
                 {% for report in reports %}
                     <tr>
                         <td class="psur-number">
-                            <a href="{{ url_for('psur.psur_detail', psur_id=report.psur_id) }}" style="color: inherit; text-decoration: none;">
+                            <a href="{{ url_for('psur.psur_detail', psur_id=report.psur_id) }}">
                                 {{ report.report_number }}
                             </a>
                         </td>
@@ -330,17 +335,25 @@
                         </td>
                         <td>{{ report.data_lock_point.strftime("%d %b %Y") }}</td>
                         <td>{{ report.prepared_by or "Not recorded" }}</td>
-                        <td><span class="status-pill">{{ report.status }}</span></td>
+                        <td><span class="status-pill status-{{ report.status|lower|replace(' ', '-') }}">{{ report.status }}</span></td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     {% else %}
         <div class="empty-state">
-            <div class="empty-icon">+</div>
-            <h3>No PSUR records yet</h3>
-            <p>Create the first PSUR record to start period and report management.</p>
+            <div class="empty-icon" aria-hidden="true">+</div>
+            {% if selected_product or selected_status or start_date or end_date %}
+                <h3>No matching PSUR records</h3>
+                <p>Try changing or clearing one or more filters.</p>
+                <a class="empty-clear-link" href="{{ url_for('psur.psur_list') }}">Clear all filters</a>
+            {% else %}
+                <h3>No PSUR records yet</h3>
+                <p>Create the first PSUR record to start period and report management.</p>
+            {% endif %}
         </div>
     {% endif %}
+</section>
 </section>
 {% endblock %}

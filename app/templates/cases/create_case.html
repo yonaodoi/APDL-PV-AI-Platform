@@ -5,98 +5,52 @@
 {% block page_title %}{% if editing %}Edit Safety Case{% else %}New Safety Case{% endif %}{% endblock %}
 
 {% block content %}
-<style>
-    .page-header { display:flex; justify-content:space-between; gap:20px; align-items:flex-end; margin-bottom:22px; }
-    .page-header h2 { margin:0 0 7px; color:#282037; font-size:28px; }
-    .page-header p { margin:0; color:#746d7d; font-size:14px; }
-    .case-label { padding:8px 11px; border-radius:20px; background:#eee9ff; color:#6545d8; font-size:12px; font-weight:bold; }
-
-    .progress { display:grid; grid-template-columns:repeat(4, 1fr); overflow:hidden; margin-bottom:22px; border:1px solid #e6dff3; border-radius:12px; background:white; }
-    .progress-item { padding:14px 15px; color:#6242d7; background:#f6f3ff; font-size:12px; font-weight:bold; }
-    .progress-item span { display:inline-grid; width:20px; height:20px; place-items:center; margin-right:7px; border-radius:50%; background:#7656e8; color:white; font-size:11px; }
-
-    .layout { display:grid; grid-template-columns:minmax(0, 1fr) 280px; gap:22px; align-items:start; }
-    .section { margin-bottom:20px; padding:24px; border:1px solid #e9e2e7; border-radius:14px; background:white; box-shadow:0 5px 12px rgba(40,32,55,.025); }
-    .section-title { display:flex; gap:12px; align-items:flex-start; margin-bottom:21px; }
-    .section-number { width:29px; height:29px; display:grid; place-items:center; flex:0 0 29px; border-radius:9px; background:#eee9ff; color:#6545d8; font-size:13px; font-weight:bold; }
-    .section-title h3 { margin:1px 0 4px; color:#282037; font-size:16px; }
-    .section-title p { margin:0; color:#847b89; font-size:12px; line-height:1.4; }
-
-    .grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:17px; }
-    .grid.three { grid-template-columns:repeat(3, minmax(0, 1fr)); }
-    .field.full { grid-column:1 / -1; }
-    .field label { display:block; margin-bottom:7px; color:#554d5d; font-size:12px; font-weight:bold; }
-    .required { color:#d85c54; }
-    .input { width:100%; padding:10px 11px; border:1px solid #ddd5dc; border-radius:8px; background:#fffeff; color:#322a3b; font:inherit; font-size:14px; }
-    textarea.input { min-height:100px; resize:vertical; }
-    .input:focus { outline:none; border-color:#9f88ed; box-shadow:0 0 0 3px #eee9ff; }
-    .error { margin-top:6px; color:#d85c54; font-size:12px; }
-
-    .checkbox { display:flex; gap:9px; align-items:center; min-height:40px; padding:10px 12px; border:1px solid #e5dfe6; border-radius:8px; background:#fdfbfc; color:#514957; font-size:13px; }
-    .checkbox input { width:17px; height:17px; accent-color:#7656e8; }
-
-    .actions { display:flex; justify-content:flex-end; gap:12px; margin-top:8px; }
-    .button { padding:12px 18px; border-radius:9px; font-size:14px; font-weight:bold; cursor:pointer; }
-    .primary { border:0; background:#7656e8; color:white; box-shadow:0 7px 15px rgba(118,86,232,.2); }
-    .secondary { border:1px solid #ded6dd; background:white; color:#655c6a; text-decoration:none; }
-
-    .guide { overflow:hidden; border:1px solid #e9e2e7; border-radius:14px; background:white; box-shadow:0 5px 12px rgba(40,32,55,.025); }
-    .guide-heading { padding:17px 18px; background:#f7f4ff; color:#493273; font-size:14px; font-weight:bold; }
-    .guide-content { padding:18px; }
-    .guide-item { display:flex; gap:10px; padding:12px 0; border-bottom:1px solid #f0ebee; }
-    .guide-item:last-child { border-bottom:0; }
-    .dot { width:8px; height:8px; flex:0 0 8px; margin-top:5px; border-radius:50%; background:#7656e8; }
-    .dot.coral { background:#d85c54; }
-    .guide-item strong { display:block; margin-bottom:3px; color:#4d4555; font-size:12px; }
-    .guide-item span { color:#817887; font-size:12px; line-height:1.4; }
-    .privacy { margin:0 18px 18px; padding:12px; border-radius:9px; background:#fcf7ee; color:#876940; font-size:11px; line-height:1.5; }
-
-    @media (max-width:1050px) { .layout { grid-template-columns:1fr; } .guide { display:none; } }
-    @media (max-width:760px) {
-        .page-header { display:block; } .case-label { display:inline-block; margin-top:14px; }
-        .progress, .grid, .grid.three { grid-template-columns:1fr; }
-        .section { padding:19px; }
-    }
-</style>
-
 {% macro errors(field) %}
     {% for error in field.errors %}
-        <div class="error">{{ error }}</div>
+        <div class="error" id="{{ field.id }}-error" role="alert">{{ error }}</div>
     {% endfor %}
 {% endmacro %}
 
-<section class="page-header">
+{% macro field_label(field, required=false) %}
+    <label for="{{ field.id }}">
+        {{ field.label.text }}
+        {% if required %}<span class="required" aria-hidden="true">*</span>{% endif %}
+    </label>
+{% endmacro %}
+
+<section class="safety-case-form-page">
+<header class="page-header">
     <div>
         <h2>{% if editing %}Edit safety case{% else %}Capture adverse drug reaction{% endif %}</h2>
         <p>Record the information exactly as received. Enter the APDL ICSR Case ID exactly as assigned before saving.</p>
     </div>
     <span class="case-label">Official ADR form</span>
-</section>
+</header>
 
-<section class="progress">
-    <div class="progress-item"><span>1</span>Receipt</div>
-    <div class="progress-item"><span>2</span>Patient and product</div>
-    <div class="progress-item"><span>3</span>ADR assessment</div>
-    <div class="progress-item"><span>4</span>Save case</div>
-</section>
+<nav class="progress" aria-label="Form sections">
+    <a class="progress-item" href="#report-details"><span aria-hidden="true">1</span>Receipt</a>
+    <a class="progress-item" href="#patient-information"><span aria-hidden="true">2</span>Patient and product</a>
+    <a class="progress-item" href="#product-details"><span aria-hidden="true">3</span>Product details</a>
+    <a class="progress-item" href="#event-assessment"><span aria-hidden="true">4</span>ADR assessment</a>
+</nav>
 
 {% if extraction_filename %}
-    <section style="margin-bottom: 20px; padding: 15px 18px; border: 1px solid #ead6a8; border-radius: 10px; background: #fff9ed; color: #76521c;">
+    <section class="extraction-notice" role="status">
         <strong>AI-extracted draft from {{ extraction_filename }}</strong>
-        <p style="margin: 6px 0 0; font-size: 13px; line-height: 1.5;">
+        <p>
             Verify each value against the source document before saving. AI has not assigned an APDL case ID or assessed seriousness or causality.
         </p>
         {% if uncertain_fields %}
-            <p style="margin: 8px 0 0; font-size: 13px;"><strong>Review these fields carefully:</strong> {{ uncertain_fields|join(", ") }}</p>
+            <p class="uncertain-fields"><strong>Review these fields carefully:</strong> {{ uncertain_fields|join(", ") }}</p>
         {% endif %}
     </section>
 {% endif %}
 
 <div class="layout">
-    <form method="post" novalidate {% if not editing %}data-guided-voice="true"{% endif %}>
+    <form id="safety-case-form" method="post" {% if not editing %}data-guided-voice="true"{% endif %}>
         {{ form.hidden_tag() }}
 
-        <section class="section">
+        <section class="section" id="report-details">
             <div class="section-title">
                 <span class="section-number">1</span>
                 <div>
@@ -107,67 +61,67 @@
 
             <div class="grid three">
                 <div class="field">
-                    <label>{{ form.icsr_case_id.label.text }} <span class="required">*</span></label>
+                    {{ field_label(form.icsr_case_id, true) }}
                     {% if editing %}
-    {{ form.icsr_case_id(class_="input", readonly=true) }}
+                        {{ form.icsr_case_id(class_="input", readonly=true, required=true) }}
 {% else %}
-    {{ form.icsr_case_id(class_="input", placeholder="For example: APDL/ICSR/2026/0001") }}
+    {{ form.icsr_case_id(class_="input", placeholder="For example: APDL/ICSR/2026/0001", required=true) }}
 {% endif %}
                     {{ errors(form.icsr_case_id) }}
                 </div>
 
                 <div class="field">
-                    <label>{{ form.received_date.label.text }} <span class="required">*</span></label>
-                    {{ form.received_date(class_="input", type="date") }}
+                    {{ field_label(form.received_date, true) }}
+                    {{ form.received_date(class_="input", type="date", required=true) }}
                     {{ errors(form.received_date) }}
                 </div>
                 <div class="field">
-                    <label>{{ form.country_id.label.text }} <span class="required">*</span></label>
-                    {{ form.country_id(class_="input") }}
+                    {{ field_label(form.country_id, true) }}
+                    {{ form.country_id(class_="input", required=true) }}
                     {{ errors(form.country_id) }}
                 </div>
                 <div class="field">
-                    <label>{{ form.source.label.text }} <span class="required">*</span></label>
-                    {{ form.source(class_="input") }}
+                    {{ field_label(form.source, true) }}
+                    {{ form.source(class_="input", required=true) }}
                     {{ errors(form.source) }}
                 </div>
                 <div class="field">
-                    <label>{{ form.report_type.label.text }} <span class="required">*</span></label>
-                    {{ form.report_type(class_="input") }}
+                    {{ field_label(form.report_type, true) }}
+                    {{ form.report_type(class_="input", required=true) }}
                 </div>
                 <div class="field">
-                    <label>{{ form.report_title.label.text }}</label>
+                    {{ field_label(form.report_title) }}
                     {{ form.report_title(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.form_id.label.text }}</label>
+                    {{ field_label(form.form_id) }}
                     {{ form.form_id(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.reporter_name.label.text }}</label>
+                    {{ field_label(form.reporter_name) }}
                     {{ form.reporter_name(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.reporter_profession.label.text }}</label>
+                    {{ field_label(form.reporter_profession) }}
                     {{ form.reporter_profession(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.reporter_organisation.label.text }}</label>
+                    {{ field_label(form.reporter_organisation) }}
                     {{ form.reporter_organisation(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.reporter_phone.label.text }}</label>
+                    {{ field_label(form.reporter_phone) }}
                     {{ form.reporter_phone(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.reporter_email.label.text }}</label>
+                    {{ field_label(form.reporter_email) }}
                     {{ form.reporter_email(class_="input", type="email") }}
                     {{ errors(form.reporter_email) }}
                 </div>
             </div>
         </section>
 
-        <section class="section">
+        <section class="section" id="patient-information">
             <div class="section-title">
                 <span class="section-number">2</span>
                 <div>
@@ -178,50 +132,50 @@
 
             <div class="grid three">
                 <div class="field">
-                    <label>{{ form.patient_initials.label.text }}</label>
+                    {{ field_label(form.patient_initials) }}
                     {{ form.patient_initials(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.patient_date_of_birth.label.text }}</label>
+                    {{ field_label(form.patient_date_of_birth) }}
                     {{ form.patient_date_of_birth(class_="input", type="date") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.patient_age_years.label.text }}</label>
+                    {{ field_label(form.patient_age_years) }}
                     {{ form.patient_age_years(class_="input", type="number", min="0", max="150") }}
                     {{ errors(form.patient_age_years) }}
                 </div>
                 <div class="field">
-                    <label>{{ form.patient_sex.label.text }}</label>
+                    {{ field_label(form.patient_sex) }}
                     {{ form.patient_sex(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.patient_weight_kg.label.text }}</label>
+                    {{ field_label(form.patient_weight_kg) }}
                     {{ form.patient_weight_kg(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.patient_pregnancy_status.label.text }}</label>
+                    {{ field_label(form.patient_pregnancy_status) }}
                     {{ form.patient_pregnancy_status(class_="input") }}
                 </div>
                 <div class="field full">
-                    <label>{{ form.patient_address.label.text }}</label>
+                    {{ field_label(form.patient_address) }}
                     {{ form.patient_address(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.patient_phone.label.text }}</label>
+                    {{ field_label(form.patient_phone) }}
                     {{ form.patient_phone(class_="input") }}
                 </div>
                 <div class="field full">
-                    <label>{{ form.medical_history.label.text }}</label>
+                    {{ field_label(form.medical_history) }}
                     {{ form.medical_history(class_="input") }}
                 </div>
                 <div class="field full">
-                    <label>{{ form.concomitant_medicines.label.text }}</label>
+                    {{ field_label(form.concomitant_medicines) }}
                     {{ form.concomitant_medicines(class_="input") }}
                 </div>
             </div>
         </section>
 
-        <section class="section">
+        <section class="section" id="product-details">
             <div class="section-title">
                 <span class="section-number">3</span>
                 <div>
@@ -232,62 +186,62 @@
 
             <div class="grid three">
                 <div class="field">
-                    <label>{{ form.product_name.label.text }} <span class="required">*</span></label>
-                    {{ form.product_name(class_="input") }}
+                    {{ field_label(form.product_name, true) }}
+                    {{ form.product_name(class_="input", required=true) }}
                     {{ errors(form.product_name) }}
                 </div>
                 <div class="field">
-                    <label>{{ form.generic_name.label.text }}</label>
+                    {{ field_label(form.generic_name) }}
                     {{ form.generic_name(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.batch_number.label.text }}</label>
+                    {{ field_label(form.batch_number) }}
                     {{ form.batch_number(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.strength.label.text }}</label>
+                    {{ field_label(form.strength) }}
                     {{ form.strength(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.dosage_form.label.text }}</label>
+                    {{ field_label(form.dosage_form) }}
                     {{ form.dosage_form(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.expiry_date.label.text }}</label>
+                    {{ field_label(form.expiry_date) }}
                     {{ form.expiry_date(class_="input", type="date") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.dose.label.text }}</label>
+                    {{ field_label(form.dose) }}
                     {{ form.dose(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.route.label.text }}</label>
+                    {{ field_label(form.route) }}
                     {{ form.route(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.frequency.label.text }}</label>
+                    {{ field_label(form.frequency) }}
                     {{ form.frequency(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.therapy_start_date.label.text }}</label>
+                    {{ field_label(form.therapy_start_date) }}
                     {{ form.therapy_start_date(class_="input", type="date") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.therapy_end_date.label.text }}</label>
+                    {{ field_label(form.therapy_end_date) }}
                     {{ form.therapy_end_date(class_="input", type="date") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.indication.label.text }}</label>
+                    {{ field_label(form.indication) }}
                     {{ form.indication(class_="input") }}
                 </div>
                 <div class="field full">
-                    <label>{{ form.action_taken.label.text }}</label>
+                    {{ field_label(form.action_taken) }}
                     {{ form.action_taken(class_="input") }}
                 </div>
             </div>
         </section>
 
-        <section class="section">
+        <section class="section" id="event-assessment">
             <div class="section-title">
                 <span class="section-number">4</span>
                 <div>
@@ -298,36 +252,36 @@
 
             <div class="grid three">
                 <div class="field full">
-                    <label>{{ form.event_description.label.text }} <span class="required">*</span></label>
-                    {{ form.event_description(class_="input") }}
+                    {{ field_label(form.event_description, true) }}
+                    {{ form.event_description(class_="input", required=true) }}
                     {{ errors(form.event_description) }}
                 </div>
                 <div class="field full">
-                    <label>{{ form.treatment_given.label.text }}</label>
+                    {{ field_label(form.treatment_given) }}
                     {{ form.treatment_given(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.event_onset_date.label.text }}</label>
+                    {{ field_label(form.event_onset_date) }}
                     {{ form.event_onset_date(class_="input", type="date") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.event_onset_time.label.text }}</label>
+                    {{ field_label(form.event_onset_time) }}
                     {{ form.event_onset_time(class_="input", type="time") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.event_end_date.label.text }}</label>
+                    {{ field_label(form.event_end_date) }}
                     {{ form.event_end_date(class_="input", type="date") }}
                 </div>
                 <div class="field full">
-                    <label>{{ form.laboratory_results.label.text }}</label>
+                    {{ field_label(form.laboratory_results) }}
                     {{ form.laboratory_results(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.event_outcome.label.text }}</label>
+                    {{ field_label(form.event_outcome) }}
                     {{ form.event_outcome(class_="input") }}
                 </div>
                 <div class="field">
-                    <label>{{ form.causality_assessment.label.text }}</label>
+                    {{ field_label(form.causality_assessment) }}
                     {{ form.causality_assessment(class_="input") }}
                 </div>
                 <div class="field">
@@ -337,11 +291,11 @@
                     </label>
                 </div>
                 <div class="field full">
-                    <label>{{ form.seriousness_criteria.label.text }}</label>
+                    {{ field_label(form.seriousness_criteria) }}
                     {{ form.seriousness_criteria(class_="input", placeholder="For example: hospitalization, life-threatening event, disability or fatal outcome") }}
                 </div>
                 <div class="field full">
-                    <label>{{ form.case_narrative.label.text }}</label>
+                    {{ field_label(form.case_narrative) }}
                     {{ form.case_narrative(class_="input") }}
                 </div>
                 <div class="field">
@@ -351,7 +305,7 @@
                     </label>
                 </div>
                 <div class="field">
-                    <label>{{ form.follow_up_due_date.label.text }}</label>
+                    {{ field_label(form.follow_up_due_date) }}
                     {{ form.follow_up_due_date(class_="input", type="date") }}
                 </div>
             </div>
@@ -363,8 +317,8 @@
         </div>
     </form>
 
-    <aside class="guide">
-        <div class="guide-heading">Official ADR form guide</div>
+    <aside class="guide" aria-label="ADR form guidance">
+        <h3 class="guide-heading">Official ADR form guide</h3>
         <div class="guide-content">
             <div class="guide-item">
                 <span class="dot"></span>
@@ -393,4 +347,5 @@
         </div>
     </aside>
 </div>
+</section>
 {% endblock %}

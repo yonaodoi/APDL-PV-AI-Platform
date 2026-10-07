@@ -90,7 +90,7 @@ VALID_STATUSES = {
 def review_case(case_id):
     case = query_one(
         """
-        SELECT case_id, case_number
+        SELECT case_id, case_number, received_date, regulatory_submitted_date
         FROM pv.safety_cases
         WHERE case_id = %s
         """,
@@ -109,8 +109,36 @@ def review_case(case_id):
     follow_up_required = request.form.get("follow_up_required") == "on"
     follow_up_due_date = request.form.get("follow_up_due_date", "").strip()
 
+    submitted_date_text = request.form.get(
+        "regulatory_submitted_date", ""
+    ).strip()
+
     if workflow_status not in VALID_STATUSES:
         abort(400)
+
+    try:
+        submitted_date = (
+            datetime.strptime(submitted_date_text, "%Y-%m-%d").date()
+            if submitted_date_text
+            else case["regulatory_submitted_date"]
+        )
+    except ValueError:
+        flash("Regulatory submission date is not valid.", "error")
+        return redirect(url_for("cases.case_detail", case_id=case_id))
+
+    if workflow_status == "Submitted" and submitted_date is None:
+        submitted_date = date.today()
+
+    if submitted_date and submitted_date > date.today():
+        flash("Regulatory submission date cannot be in the future.", "error")
+        return redirect(url_for("cases.case_detail", case_id=case_id))
+
+    if submitted_date and submitted_date < case["received_date"]:
+        flash(
+            "Regulatory submission date cannot be before the case was received.",
+            "error",
+        )
+        return redirect(url_for("cases.case_detail", case_id=case_id))
 
     try:
         parsed_follow_up_date = (
@@ -130,6 +158,7 @@ def review_case(case_id):
                 causality_assessment = %s,
                 follow_up_required = %s,
                 follow_up_due_date = %s,
+                regulatory_submitted_date = %s,
                 updated_at = CURRENT_TIMESTAMP
             WHERE case_id = %s
             """,
@@ -138,12 +167,19 @@ def review_case(case_id):
                 causality_assessment or None,
                 follow_up_required,
                 parsed_follow_up_date,
+                submitted_date,
                 case_id,
             ),
         )
 
         details = (
             f"Status changed to {workflow_status}."
+            + (
+                f" Regulatory submission date: {submitted_date:%d %b %Y}."
+                if submitted_date
+                and submitted_date != case["regulatory_submitted_date"]
+                else ""
+            )
             + (f" Review note: {review_notes}" if review_notes else "")
         )
 

@@ -66,7 +66,7 @@ def create_app(config_class=Config):
                 SELECT u.user_id, u.username, u.full_name, r.role_name
                 FROM pv.users AS u
                 JOIN pv.roles AS r ON r.role_id = u.role_id
-                WHERE u.username = %s
+                WHERE LOWER(u.username) = LOWER(%s)
                   AND u.is_active = TRUE
                 """,
                 (app.config["DEV_AUTO_LOGIN_USERNAME"],),
