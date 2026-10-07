@@ -12,6 +12,7 @@ from flask import (
     send_file,
 )
 
+from app.services.psur_rules import is_locked
 from app.db import query_all, query_one, transaction
 from app.security import login_required
 from app.psur.section_definitions import PSUR_SECTION_TITLES
@@ -23,6 +24,22 @@ from app.services.psur_builder_docx import (
     build_psur_builder_docx,
 )
 bp = Blueprint("psur_builder", __name__, url_prefix="/psur")
+
+
+def locked_psur_redirect(psur_id):
+    """Redirect with a message if the PSUR is finalised; otherwise None."""
+    report = query_one(
+        "SELECT status FROM pv.psur_reports WHERE psur_id = %s",
+        (psur_id,),
+    )
+    if report and is_locked(report):
+        flash(
+            "This PSUR is finalised and locked. A QPPV must reopen it before "
+            "its content can be changed.",
+            "error",
+        )
+        return redirect(url_for("psur.psur_detail", psur_id=psur_id))
+    return None
 
 
 def get_or_create_psur_builder(psur_id):
@@ -296,6 +313,10 @@ def psur_builder_section(psur_id, section_key):
 @bp.post("/<int:psur_id>/builder/sections/<section_key>/save")
 @login_required
 def save_psur_builder_section(psur_id, section_key):
+    locked = locked_psur_redirect(psur_id)
+    if locked:
+        return locked
+
     report, psur_builder_id = get_or_create_psur_builder(psur_id)
 
     section = query_one(
@@ -379,6 +400,10 @@ def save_psur_builder_section(psur_id, section_key):
 @bp.post("/<int:psur_id>/builder/sections/<section_key>/propose")
 @login_required
 def propose_psur_builder_content(psur_id, section_key):
+    locked = locked_psur_redirect(psur_id)
+    if locked:
+        return locked
+
     proposal_type = request.form.get("proposal_type", "suggestion").strip()
     if proposal_type not in ("suggestion", "paraphrase"):
         abort(400)
@@ -511,6 +536,10 @@ def decide_psur_builder_proposal(
     proposal_id,
     decision,
 ):
+    locked = locked_psur_redirect(psur_id)
+    if locked:
+        return locked
+
     if decision not in ("accepted", "rejected"):
         abort(404)
 

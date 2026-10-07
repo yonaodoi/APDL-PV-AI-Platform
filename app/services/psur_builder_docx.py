@@ -175,6 +175,90 @@ def _insert_section_content_after(paragraph, content):
     for text in _text(content).splitlines():
         anchor = _insert_paragraph_after(anchor, text)
 
+    return anchor
+
+
+TABULATION_HEADERS = (
+    "System organ class / preferred term",
+    "Interval serious",
+    "Interval non-serious",
+    "Cumulative serious",
+    "Cumulative non-serious",
+)
+TABULATION_KEYS = (
+    "interval_serious",
+    "interval_non_serious",
+    "cumulative_serious",
+    "cumulative_non_serious",
+)
+
+
+def _insert_tabulation_after(document, paragraph, tabulation):
+    """Insert the SOC / preferred-term summary tabulation as a Word table."""
+    if not tabulation["groups"]:
+        return paragraph
+
+    rows = 1 + sum(len(group["terms"]) + 1 for group in tabulation["groups"]) + 1
+    table = document.add_table(rows=rows, cols=len(TABULATION_HEADERS))
+    table.style = "Table Grid" if "Table Grid" in [
+        style.name for style in document.styles
+    ] else table.style
+
+    for column, header in enumerate(TABULATION_HEADERS):
+        cell = table.cell(0, column)
+        _set_cell_text(cell, header, size=9, bold=True)
+        _set_cell_shading(cell, "D9E8E0")
+
+    row_index = 1
+    for group in tabulation["groups"]:
+        _set_cell_text(
+            table.cell(row_index, 0),
+            group["system_organ_class"],
+            size=9,
+            bold=True,
+        )
+        for column, key in enumerate(TABULATION_KEYS, start=1):
+            _set_cell_text(
+                table.cell(row_index, column),
+                group["totals"][key],
+                size=9,
+                bold=True,
+            )
+        for column in range(len(TABULATION_HEADERS)):
+            _set_cell_shading(table.cell(row_index, column), "F2F7F4")
+        row_index += 1
+
+        for term in group["terms"]:
+            _set_cell_text(table.cell(row_index, 0), term["preferred_term"], size=9)
+            table.cell(row_index, 0).paragraphs[0].paragraph_format.left_indent = (
+                Pt(10)
+            )
+            for column, key in enumerate(TABULATION_KEYS, start=1):
+                _set_cell_text(table.cell(row_index, column), term[key], size=9)
+            row_index += 1
+
+    _set_cell_text(table.cell(row_index, 0), "Total", size=9, bold=True)
+    for column, key in enumerate(TABULATION_KEYS, start=1):
+        _set_cell_text(
+            table.cell(row_index, column),
+            tabulation["totals"][key],
+            size=9,
+            bold=True,
+        )
+
+    from docx.shared import Inches
+
+    widths = (Inches(2.6),) + (Inches(0.95),) * (len(TABULATION_HEADERS) - 1)
+    table.autofit = False
+    for column, width in zip(table.columns, widths):
+        column.width = width
+    for row in table.rows:
+        for cell, width in zip(row.cells, widths):
+            cell.width = width
+
+    paragraph._p.addnext(table._tbl)
+    return paragraph
+
 def _fill_front_matter(document, report):
     replacements = {
         "ACTIVE SUBSTANCE(S):": report.get("active_substances"),
@@ -410,14 +494,25 @@ def build_psur_builder_docx(report, sections):
         if section["final_content"]
     }
 
+    from app.psur.section_definitions import PSUR_SECTION_TITLES
+    from app.services.psur_tabulations import build_report_tabulation
+
+    tabulation_heading = _normalise_heading(
+        PSUR_SECTION_TITLES["post_marketing_tabulations"]
+    )
+    tabulation = build_report_tabulation(report)
+
     for paragraph in list(document.paragraphs):
         heading = _normalise_heading(paragraph.text)
 
+        anchor = paragraph
         if heading in content_by_heading:
-            _insert_section_content_after(
+            anchor = _insert_section_content_after(
                 paragraph,
                 content_by_heading[heading],
             )
+        if heading == tabulation_heading:
+            _insert_tabulation_after(document, anchor, tabulation)
     _append_signatory_table(document, report)
 
     for section in document.sections:

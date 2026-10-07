@@ -4290,3 +4290,199 @@ summary:focus-visible {
     font-weight: 800;
     text-decoration: none;
 }
+
+/* Adverse-event complaints */
+.ae-complaint-banner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 0 20px;
+    padding: 16px 18px;
+    border: 1px solid #f2c4bc;
+    border-radius: 14px;
+    background: #fff6f4;
+    color: #5c3a35;
+    font-size: 13px;
+}
+
+.ae-complaint-banner strong {
+    color: #8f2e24;
+    font-size: 14px;
+}
+
+.ae-complaint-banner p {
+    margin: 4px 0 0;
+}
+
+.ae-complaint-banner.ae-linked {
+    border-color: #cfe1d6;
+    background: #f4f9f6;
+    color: #18342f;
+}
+
+.ae-complaint-banner.ae-linked strong {
+    color: #0d6652;
+}
+
+.ae-complaint-banner a {
+    color: #0d6652;
+    font-weight: 800;
+}
+
+.ae-complaint-banner .ae-create-case {
+    padding: 10px 16px;
+    border-radius: 9px;
+    background: #147d64;
+    color: #ffffff;
+    font-weight: 800;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.ae-missing-case {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #fde8e4;
+    color: #a3352a;
+    font-size: 10px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+/* PSUR adverse reaction tabulation */
+.psur-tabulation {
+    padding: 16px 20px 20px;
+}
+
+.psur-tabulation-note {
+    margin: 0 0 12px;
+    color: #5c6b66;
+    font-size: 13px;
+}
+
+.psur-tabulation-warning {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    background: #fff1d6;
+    color: #8a5a10;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.psur-tabulation-wrap {
+    overflow-x: auto;
+}
+
+.psur-tabulation-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+.psur-tabulation-table th,
+.psur-tabulation-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #e3ece7;
+    text-align: right;
+}
+
+.psur-tabulation-table th[scope="row"],
+.psur-tabulation-table thead th:first-child {
+    text-align: left;
+}
+
+.psur-tabulation-table thead th {
+    color: #526a5f;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    background: #f4f9f6;
+}
+
+.psur-tabulation-table .soc-row th,
+.psur-tabulation-table .soc-row td {
+    background: #f4f9f6;
+    color: #18342f;
+    font-weight: 800;
+}
+
+.psur-tabulation-table .pt-cell {
+    padding-left: 24px;
+    font-weight: 500;
+}
+
+.psur-tabulation-table tfoot th,
+.psur-tabulation-table tfoot td {
+    border-top: 2px solid #cfe1d6;
+    font-weight: 800;
+}
+
+/* Change history (complaints, PSURs) */
+.record-history {
+    margin-top: 18px;
+}
+
+.history-entry {
+    padding: 10px 0;
+    border-top: 1px solid #eef3f0;
+    font-size: 12px;
+}
+
+.history-entry:first-child {
+    border-top: 0;
+}
+
+.history-entry strong {
+    display: block;
+    color: #18342f;
+    font-size: 13px;
+}
+
+.history-entry p {
+    margin: 3px 0;
+    color: #3f544d;
+    overflow-wrap: anywhere;
+}
+
+.history-entry span,
+.history-empty {
+    color: #71817c;
+    font-size: 11px;
+}
+
+.closure-rule {
+    margin: 6px 0 0;
+    color: #71817c;
+    font-size: 11px;
+}
+
+/* PSUR approval and locking */
+.psur-locked-notice {
+    margin: 0 0 18px;
+    padding: 14px 18px;
+    border: 1px solid #cfe1d6;
+    border-radius: 14px;
+    background: #f4f9f6;
+    color: #18342f;
+    font-size: 13px;
+}
+
+.psur-locked-notice strong {
+    color: #0d6652;
+}
+
+.approval-rule {
+    margin: 0 0 14px;
+    color: #71817c;
+    font-size: 12px;
+}
+
+.history-list {
+    padding: 4px 18px 14px;
+}

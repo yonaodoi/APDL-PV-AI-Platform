@@ -1,11 +1,29 @@
 
+from datetime import datetime, timezone
+
 import flask
 
-from flask import Blueprint, abort, flash, redirect, render_template, session, url_for
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    session,
+    url_for,
+)
 
 from app.db import query_all, query_one, transaction
 from app.psur.forms import PsurReportForm, PsurReviewForm
+from app.audit import write_audit_log
 from app.security import login_required
+from app.services.psur_rules import (
+    approval_updates,
+    can_approve,
+    is_locked,
+    validate_status_change,
+)
 
 
 bp = Blueprint("psur", __name__, url_prefix="/psur")
@@ -200,6 +218,8 @@ def create_psur():
     form = PsurReportForm()
 
     if form.validate_on_submit():
+        # Approval is recorded through the review workflow, not typed in.
+        form.approved_by.data = ""
         if not reporting_dates_are_valid(form):
             return render_template("psur/create_psur.html", form=form)
 
@@ -262,6 +282,19 @@ def create_psur():
                 """,
                 psur_form_values(form) + (session["user_id"],),
             )
+            cursor.execute(
+                "SELECT psur_id FROM pv.psur_reports WHERE report_number = %s",
+                (form.report_number.data.strip(),),
+            )
+            new_psur_id = cursor.fetchone()["psur_id"]
+
+        write_audit_log(
+            "psur",
+            new_psur_id,
+            "PSUR record created",
+            session["user_id"],
+            f"PSUR {form.report_number.data.strip()} was created.",
+        )
 
         flash("PSUR record saved successfully.", "success")
         return redirect(url_for("psur.psur_list"))
@@ -284,9 +317,19 @@ def edit_psur(psur_id):
     if not report:
         abort(404)
 
+    if is_locked(report):
+        flash(
+            "This PSUR is finalised and locked. A QPPV must reopen it before "
+            "it can be edited.",
+            "error",
+        )
+        return redirect(url_for("psur.psur_detail", psur_id=psur_id))
+
     form = PsurReportForm()
 
     if form.validate_on_submit():
+        # Approval is recorded through the review workflow, not typed in.
+        form.approved_by.data = report["approved_by"] or ""
         if not reporting_dates_are_valid(form):
             return render_template(
                 "psur/create_psur.html",
@@ -354,6 +397,14 @@ def edit_psur(psur_id):
                 psur_form_values(form) + (psur_id,),
             )
 
+        write_audit_log(
+            "psur",
+            psur_id,
+            "PSUR record edited",
+            session["user_id"],
+            "PSUR details were edited.",
+        )
+
         flash("PSUR record updated successfully.", "success")
         return redirect(url_for("psur.psur_detail", psur_id=psur_id))
 
@@ -374,9 +425,13 @@ def psur_detail(psur_id):
         """
         SELECT
             p.*,
-            u.full_name AS created_by_name
+            u.full_name AS created_by_name,
+            approver.full_name AS approved_by_user_name,
+            finaliser.full_name AS finalised_by_user_name
         FROM pv.psur_reports p
         LEFT JOIN pv.users u ON u.user_id = p.created_by
+        LEFT JOIN pv.users approver ON approver.user_id = p.approved_by_user_id
+        LEFT JOIN pv.users finaliser ON finaliser.user_id = p.finalised_by_user_id
         WHERE p.psur_id = %s
         """,
         (psur_id,),
@@ -391,10 +446,41 @@ def psur_detail(psur_id):
     review_form.approved_by.data = report["approved_by"]
     review_form.report_notes.data = report["report_notes"]
 
+    from app.services.psur_tabulations import build_report_tabulation
+
+    try:
+        tabulation = build_report_tabulation(report)
+    except Exception:
+        current_app.logger.exception(
+            "Could not build PSUR tabulation for %s", report["report_number"]
+        )
+        tabulation = None
+
+    history = query_all(
+        """
+        SELECT
+            audit_log.action,
+            audit_log.details,
+            audit_log.occurred_at,
+            users.full_name
+        FROM pv.audit_log AS audit_log
+        LEFT JOIN pv.users AS users
+            ON users.user_id = audit_log.actor_user_id
+        WHERE audit_log.record_type = 'psur'
+          AND audit_log.record_id = %s
+        ORDER BY audit_log.occurred_at DESC
+        """,
+        (psur_id,),
+    )
+
     return render_template(
         "psur/psur_detail.html",
         report=report,
         review_form=review_form,
+        tabulation=tabulation,
+        history=history,
+        locked=is_locked(report),
+        can_approve=can_approve(session.get("role")),
     )
 
 
@@ -402,11 +488,7 @@ def psur_detail(psur_id):
 @login_required
 def review_psur(psur_id):
     report = query_one(
-        """
-        SELECT psur_id
-        FROM pv.psur_reports
-        WHERE psur_id = %s
-        """,
+        "SELECT * FROM pv.psur_reports WHERE psur_id = %s",
         (psur_id,),
     )
 
@@ -418,6 +500,81 @@ def review_psur(psur_id):
     if not form.validate_on_submit():
         flash("Please correct the PSUR update form.", "error")
         return redirect(url_for("psur.psur_detail", psur_id=psur_id))
+
+    new_status = form.status.data
+    has_uncoded = False
+    if new_status == "Finalised":
+        from app.services.psur_tabulations import build_report_tabulation
+
+        try:
+            has_uncoded = build_report_tabulation(report)["has_uncoded"]
+        except Exception:
+            current_app.logger.exception(
+                "Could not check PSUR tabulation coding for %s",
+                report["report_number"],
+            )
+
+    errors = validate_status_change(
+        report, new_status, session.get("role"), has_uncoded
+    )
+    if errors:
+        for error in errors:
+            flash(error, "error")
+        return redirect(url_for("psur.psur_detail", psur_id=psur_id))
+
+    updates = approval_updates(
+        report, new_status, session["user_id"], datetime.now(timezone.utc)
+    )
+    if updates["clear_approved_by"]:
+        approved_by = None
+    elif updates["approved_by_user_id"] == session["user_id"] and (
+        report.get("status") not in ("Approved", "Finalised")
+        or not report.get("approved_at")
+    ):
+        approved_by = session.get("full_name")
+    else:
+        approved_by = report.get("approved_by")
+
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.psur_reports
+            SET
+                status = %s,
+                prepared_by = %s,
+                approved_by = %s,
+                approved_by_user_id = %s,
+                approved_at = %s,
+                finalised_by_user_id = %s,
+                finalised_at = %s,
+                report_notes = %s,
+                updated_at = NOW()
+            WHERE psur_id = %s
+            """,
+            (
+                new_status,
+                form.prepared_by.data.strip() or None,
+                approved_by,
+                updates["approved_by_user_id"],
+                updates["approved_at"],
+                updates["finalised_by_user_id"],
+                updates["finalised_at"],
+                form.report_notes.data.strip() or None,
+                psur_id,
+            ),
+        )
+
+    details = f"Status: {report.get('status')} → {new_status}."
+    if (form.prepared_by.data.strip() or None) != report.get("prepared_by"):
+        details += f" Prepared by set to {form.prepared_by.data.strip() or 'blank'}."
+    if (form.report_notes.data.strip() or None) != report.get("report_notes"):
+        details += " Preparation notes edited."
+    if approved_by != report.get("approved_by"):
+        details += f" Approved by: {approved_by or 'cleared'}."
+    write_audit_log("psur", psur_id, "PSUR status updated", session["user_id"], details)
+
+    flash("PSUR update saved successfully.", "success")
+    return redirect(url_for("psur.psur_detail", psur_id=psur_id))
 
     with transaction() as cursor:
         cursor.execute(

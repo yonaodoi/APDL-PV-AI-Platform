@@ -218,12 +218,22 @@
         <p>{{ report.product_name }} · Period ending {{ report.reporting_period_end.strftime("%d %B %Y") }}</p>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
+    {% if not locked %}
     <a href="{{ url_for('psur.edit_psur', psur_id=report.psur_id) }}" style="padding:8px 11px; border:1px solid #dcd3e4; border-radius:8px; background:white; color:#6242d7; font-size:12px; font-weight:bold; text-decoration:none;">Edit PSUR record</a>
+    {% endif %}
     <a href="{{ url_for('psur_builder.psur_builder_home', psur_id=report.psur_id) }}" style="padding:8px 11px; border:1px solid #dcd3e4; border-radius:8px; background:#5f3ed4; color:white; font-size:12px; font-weight:bold; text-decoration:none;">Open PSUR Builder</a>
     <a href="{{ url_for('psur_reports.preview_psur_report', psur_id=report.psur_id) }}" style="padding:8px 11px; border-radius:8px; background:#5f3ed4; color:white; font-size:12px; font-weight:bold; text-decoration:none;">Preview PSUR</a>
     <span class="status-pill">{{ report.status }}</span>
 </div>
 </section>
+
+{% if locked %}
+    <section class="psur-locked-notice" role="status">
+        <strong>Finalised and locked.</strong>
+        This PSUR can no longer be edited{% if report.finalised_at %}; it was finalised on {{ report.finalised_at.strftime("%d %b %Y, %H:%M") }}{% if report.finalised_by_user_name %} by {{ report.finalised_by_user_name }}{% endif %}{% endif %}.
+        {% if can_approve %}To make changes, set the status back to Under review.{% else %}Only a QPPV or Deputy QPPV can reopen it.{% endif %}
+    </section>
+{% endif %}
 
 <div class="detail-layout">
     <div>
@@ -262,7 +272,15 @@
                 </div>
                 <div class="detail-item">
                     <span>APPROVED BY</span>
-                    <strong>{{ report.approved_by or "Not assigned" }}</strong>
+                    <strong>
+                        {% if report.approved_at %}
+                            {{ report.approved_by_user_name or report.approved_by }} · {{ report.approved_at.strftime("%d %b %Y, %H:%M") }}
+                        {% elif report.approved_by %}
+                            {{ report.approved_by }} (not recorded through approval)
+                        {% else %}
+                            Not approved
+                        {% endif %}
+                    </strong>
                 </div>
                 <div class="detail-item">
                     <span>RECORDED BY</span>
@@ -286,6 +304,73 @@
                 {{ report.report_notes or "No preparation notes have been recorded." }}
             </div>
         </section>
+
+        <section class="detail-card" id="adr-tabulation">
+            <div class="detail-card-heading">
+                <span>4</span>
+                <h3>Adverse reaction summary tabulation (section 7.3)</h3>
+            </div>
+
+            <div class="psur-tabulation">
+                {% if tabulation is none %}
+                    <p class="psur-tabulation-note">The tabulation could not be built. Check that the event term coding migration has been applied.</p>
+                {% elif not tabulation.groups %}
+                    <p class="psur-tabulation-note">No adverse reactions are recorded for {{ report.product_name }} up to {{ report.reporting_period_end.strftime("%d %b %Y") }}.</p>
+                {% else %}
+                    <p class="psur-tabulation-note">
+                        Interval {{ report.reporting_period_start.strftime("%d %b %Y") }} to {{ report.reporting_period_end.strftime("%d %b %Y") }}:
+                        {{ tabulation.case_totals.interval_cases }} case(s).
+                        Cumulative {% if tabulation.cumulative_from %}from {{ tabulation.cumulative_from.strftime("%d %b %Y") }}{% else %}since the first recorded case{% endif %}:
+                        {{ tabulation.case_totals.cumulative_cases }} case(s). Counts are cases per preferred term. This table is inserted into section 7.3 of the Word report.
+                    </p>
+                    {% if tabulation.has_uncoded %}
+                        <p class="psur-tabulation-warning">Some reported terms are not coded yet. Code them on the safety case pages before finalising this report.</p>
+                    {% endif %}
+                    <div class="psur-tabulation-wrap" role="region" aria-label="Adverse reaction summary tabulation" tabindex="0">
+                    <table class="psur-tabulation-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">System organ class / preferred term</th>
+                                <th scope="col">Interval serious</th>
+                                <th scope="col">Interval non-serious</th>
+                                <th scope="col">Cumulative serious</th>
+                                <th scope="col">Cumulative non-serious</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for group in tabulation.groups %}
+                                <tr class="soc-row">
+                                    <th scope="row">{{ group.system_organ_class }}</th>
+                                    <td>{{ group.totals.interval_serious }}</td>
+                                    <td>{{ group.totals.interval_non_serious }}</td>
+                                    <td>{{ group.totals.cumulative_serious }}</td>
+                                    <td>{{ group.totals.cumulative_non_serious }}</td>
+                                </tr>
+                                {% for term in group.terms %}
+                                    <tr>
+                                        <th scope="row" class="pt-cell">{{ term.preferred_term }}</th>
+                                        <td>{{ term.interval_serious }}</td>
+                                        <td>{{ term.interval_non_serious }}</td>
+                                        <td>{{ term.cumulative_serious }}</td>
+                                        <td>{{ term.cumulative_non_serious }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th scope="row">Total</th>
+                                <td>{{ tabulation.totals.interval_serious }}</td>
+                                <td>{{ tabulation.totals.interval_non_serious }}</td>
+                                <td>{{ tabulation.totals.cumulative_serious }}</td>
+                                <td>{{ tabulation.totals.cumulative_non_serious }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    </div>
+                {% endif %}
+            </div>
+        </section>
     </div>
 
     <aside>
@@ -305,10 +390,13 @@
                     {{ review_form.prepared_by(class_="input") }}
                 </div>
 
-                <div class="field">
-                    <label>{{ review_form.approved_by.label.text }}</label>
-                    {{ review_form.approved_by(class_="input") }}
-                </div>
+                <p class="approval-rule">
+                    {% if can_approve %}
+                        Approving or finalising records your name and the time. Finalising locks the report.
+                    {% else %}
+                        Only a QPPV or Deputy QPPV can set the status to Approved or Finalised.
+                    {% endif %}
+                </p>
 
                 <div class="field">
                     <label>{{ review_form.report_notes.label.text }}</label>
@@ -317,6 +405,21 @@
 
                 {{ review_form.submit(class_="save-button") }}
             </form>
+        </section>
+
+        <section class="review-card record-history">
+            <div class="review-heading">Change history</div>
+            <div class="history-list">
+                {% for entry in history %}
+                    <div class="history-entry">
+                        <strong>{{ entry.action }}</strong>
+                        {% if entry.details %}<p>{{ entry.details }}</p>{% endif %}
+                        <span>{{ entry.occurred_at.strftime("%d %b %Y, %H:%M") }}{% if entry.full_name %} · {{ entry.full_name }}{% endif %}</span>
+                    </div>
+                {% else %}
+                    <p class="history-empty">No changes have been recorded since change history was introduced.</p>
+                {% endfor %}
+            </div>
         </section>
 
         <div class="record-card">

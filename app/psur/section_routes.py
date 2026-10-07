@@ -1,5 +1,6 @@
 from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
 
+from app.services.psur_rules import is_locked
 from app.db import query_all, query_one, transaction
 from app.psur.forms import PsurSectionForm
 from app.psur.section_definitions import PSUR_SECTION_TITLES
@@ -8,11 +9,31 @@ from app.services.psur_evidence import build_psur_evidence_sections
 
 bp = Blueprint("psur_sections", __name__, url_prefix="/psur")
 
+
+def locked_psur_redirect(psur_id):
+    """Redirect with a message if the PSUR is finalised; otherwise None."""
+    report = query_one(
+        "SELECT status FROM pv.psur_reports WHERE psur_id = %s",
+        (psur_id,),
+    )
+    if report and is_locked(report):
+        flash(
+            "This PSUR is finalised and locked. A QPPV must reopen it before "
+            "its content can be changed.",
+            "error",
+        )
+        return redirect(url_for("psur.psur_detail", psur_id=psur_id))
+    return None
+
 SECTION_TITLES = PSUR_SECTION_TITLES
 
 @bp.post("/<int:psur_id>/build-evidence")
 @login_required
 def build_psur_evidence(psur_id):
+    locked = locked_psur_redirect(psur_id)
+    if locked:
+        return locked
+
     report = query_one(
         """
         SELECT *
@@ -71,6 +92,11 @@ def build_psur_evidence(psur_id):
 @bp.route("/<int:psur_id>/sections", methods=["GET", "POST"])
 @login_required
 def manage_psur_sections(psur_id):
+    if request.method == "POST":
+        locked = locked_psur_redirect(psur_id)
+        if locked:
+            return locked
+
     report = query_one(
         """
         SELECT psur_id, report_number, product_name

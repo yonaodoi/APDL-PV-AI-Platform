@@ -395,6 +395,15 @@ def case_detail(case_id):
         audit_log=audit_log,
         reporting_clock=evaluate_reporting_clock(case),
         linked_signals=linked_signals,
+        source_complaints=query_all(
+            """
+            SELECT complaint_id, complaint_number, date_received
+            FROM pv.product_complaints
+            WHERE linked_case_id = %s
+            ORDER BY date_received
+            """,
+            (case_id,),
+        ),
         event_terms=get_case_event_terms(case_id),
         dictionary_terms=get_active_terms(),
     )
@@ -553,6 +562,20 @@ def create_case():
     form = SafetyCaseForm()
     _set_country_choices(form)
 
+    source_complaint = _load_source_complaint(
+        request.values.get("from_complaint")
+        or request.values.get("from_complaint_id")
+    )
+    if request.method == "GET" and source_complaint:
+        _prefill_case_from_complaint(form, source_complaint)
+
+    def render_case_form():
+        return render_template(
+            "cases/create_case.html",
+            form=form,
+            source_complaint=source_complaint,
+        )
+
     if form.validate_on_submit():
         existing_case = query_one(
             """
@@ -567,7 +590,7 @@ def create_case():
             form.icsr_case_id.errors.append(
                 "This ICSR Case ID already exists."
             )
-            return render_template("cases/create_case.html", form=form)
+            return render_case_form()
         with transaction() as cursor:
             cursor.execute(
                 "SELECT nextval('pv.safety_cases_case_id_seq') AS case_id"
@@ -719,9 +742,36 @@ def create_case():
                 (
                     case_id,
                     "Case created",
-                    f"Safety case {case_number} was created.",
+                    f"Safety case {case_number} was created."
+                    + (
+                        " Created from product complaint "
+                        f"{source_complaint['complaint_number']}."
+                        if source_complaint
+                        else ""
+                    ),
                     session["user_id"],
                 ),
+            )
+
+            if source_complaint:
+                cursor.execute(
+                    """
+                    UPDATE pv.product_complaints
+                    SET linked_case_id = %s,
+                        updated_at = NOW()
+                    WHERE complaint_id = %s
+                      AND linked_case_id IS NULL
+                    """,
+                    (case_id, source_complaint["complaint_id"]),
+                )
+
+        if source_complaint:
+            write_audit_log(
+                "complaint",
+                source_complaint["complaint_id"],
+                "Safety case created",
+                session["user_id"],
+                f"Safety case {case_number} was created from this complaint.",
             )
 
         detected_signals, screening_failed = screen_case_for_signals(
@@ -774,7 +824,48 @@ def create_case():
             return redirect(url_for("cases.case_detail", case_id=case_id))
         return redirect(url_for("core.dashboard"))
 
-    return render_template("cases/create_case.html", form=form)
+    return render_case_form()
+
+
+def _load_source_complaint(value):
+    """The adverse-event complaint a new case is being created from."""
+    try:
+        complaint_id = int(value)
+    except (TypeError, ValueError):
+        return None
+    return query_one(
+        """
+        SELECT *
+        FROM pv.product_complaints
+        WHERE complaint_id = %s
+          AND linked_case_id IS NULL
+        """,
+        (complaint_id,),
+    )
+
+
+def _prefill_case_from_complaint(form, complaint):
+    contact = (complaint.get("reporter_contact") or "").strip()
+    form.received_date.data = complaint["date_received"]
+    if complaint.get("country_id"):
+        form.country_id.data = complaint["country_id"]
+    form.source.data = "Other"
+    form.report_type.data = "Initial"
+    form.reporter_name.data = complaint.get("reporter_name")
+    if "@" in contact:
+        form.reporter_email.data = contact
+    elif contact:
+        form.reporter_phone.data = contact
+    form.product_name.data = complaint["product_name"]
+    form.batch_number.data = complaint.get("batch_number")
+    form.expiry_date.data = complaint.get("expiry_date")
+    form.event_description.data = complaint["complaint_description"]
+    form.case_narrative.data = (
+        f"Reported to APDL as product complaint "
+        f"{complaint['complaint_number']} on "
+        f"{complaint['date_received']:%d %b %Y}. Complaint description: "
+        f"{complaint['complaint_description']}"
+    )
 
 def populate_case_form(form, case, product):
     form.icsr_case_id.data = case["case_number"]

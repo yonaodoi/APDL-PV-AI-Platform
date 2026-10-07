@@ -315,6 +315,28 @@
         </div>
     </header>
 
+    {% if complaint.complaint_category == adverse_event_category %}
+        {% if complaint.linked_case_id %}
+            <section class="ae-complaint-banner ae-linked" role="status">
+                <div>
+                    <strong>Adverse event processed as a safety case</strong>
+                    <p>This complaint is linked to safety case
+                        <a href="{{ url_for('cases.case_detail', case_id=complaint.linked_case_id) }}">{{ complaint.linked_case_number }}</a>.
+                    </p>
+                </div>
+            </section>
+        {% else %}
+            <section class="ae-complaint-banner" role="alert">
+                <div>
+                    <strong>This complaint reports an adverse event. A safety case is required.</strong>
+                    <p>The regulatory reporting clock started when the complaint was received on
+                        {{ complaint.date_received.strftime("%d %b %Y") }}. Create the case now so it is assessed and reported on time.</p>
+                </div>
+                <a class="ae-create-case" href="{{ url_for('cases.create_case', from_complaint=complaint.complaint_id) }}">Create safety case</a>
+            </section>
+        {% endif %}
+    {% endif %}
+
     <div class="detail-layout">
         <main>
             <section class="detail-card">
@@ -446,6 +468,7 @@
                     <div class="field">
                         <label>{{ review_form.closure_date.label.text }}</label>
                         {{ review_form.closure_date() }}
+                        <p class="closure-rule">Required to mark the investigation complete, with an investigation summary{% if complaint.severity == "Serious" %} and a corrective action / CAPA entry{% endif %}.</p>
                     </div>
 
                     {{ review_form.submit(class_="save-button") }}
@@ -465,6 +488,21 @@
                         <strong>{{ complaint.severity }}</strong>
                         <span>Complaint severity</span>
                     </div>
+                </div>
+            </section>
+
+            <section class="status-card record-history">
+                <h2 class="status-heading">Change history</h2>
+                <div class="status-content">
+                    {% for entry in history %}
+                        <div class="history-entry">
+                            <strong>{{ entry.action }}</strong>
+                            {% if entry.details %}<p>{{ entry.details }}</p>{% endif %}
+                            <span>{{ entry.occurred_at.strftime("%d %b %Y, %H:%M") }}{% if entry.full_name %} · {{ entry.full_name }}{% endif %}</span>
+                        </div>
+                    {% else %}
+                        <p class="history-empty">No changes have been recorded since change history was introduced.</p>
+                    {% endfor %}
                 </div>
             </section>
         </aside>

@@ -301,7 +301,16 @@ def build_psur_evidence_sections(report):
         "APDL PV platform at the time this report was prepared."
     )
 
+    from app.services.psur_tabulations import (
+        build_report_tabulation,
+        tabulation_summary,
+    )
+
+    tabulation_text = tabulation_summary(report, build_report_tabulation(report))
+
     return {
+        "summary_tabulations": tabulation_text,
+        "post_marketing_tabulations": tabulation_text,
         "executive_summary": executive_summary,
         "introduction": (
             f"This Periodic Benefit-Risk Evaluation Report presented "

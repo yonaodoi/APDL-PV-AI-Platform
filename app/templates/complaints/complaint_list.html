@@ -385,7 +385,12 @@
                         <td class="product-name">{{ complaint.product_name }}</td>
                         <td>{{ complaint.batch_number or "Not recorded" }}</td>
                         <td>{{ complaint.country_name or "Not recorded" }}</td>
-                        <td>{{ complaint.complaint_category }}</td>
+                        <td>
+                            {{ complaint.complaint_category }}
+                            {% if complaint.complaint_category == "Adverse event" and not complaint.linked_case_id %}
+                                <span class="ae-missing-case" title="Adverse event complaint without a safety case">No safety case</span>
+                            {% endif %}
+                        </td>
                         <td><span class="status-pill">{{ complaint.status }}</span></td>
                         <td>{{ complaint.date_received.strftime("%d %b %Y") }}</td>
                         <td>

@@ -17,6 +17,11 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 from app.complaints.forms import ComplaintReviewForm, ProductComplaintForm
+from app.audit import write_audit_log
+from app.services.complaint_rules import (
+    describe_complaint_changes,
+    validate_complaint_update,
+)
 from app.db import query_all, query_one, transaction
 from app.security import login_required
 from app.services.product_complaint_reporting_docx import (
@@ -30,6 +35,8 @@ from app.services.complaint_document_extraction import (
 )
 
 bp = Blueprint("complaints", __name__, url_prefix="/complaints")
+
+ADVERSE_EVENT_CATEGORY = "Adverse event"
 
 
 def _set_complaint_country_choices(form):
@@ -165,6 +172,7 @@ def complaint_list():
             product_complaints.complaint_category,
             product_complaints.severity,
             product_complaints.status,
+            product_complaints.linked_case_id,
             countries.country_name
         FROM pv.product_complaints AS product_complaints
         LEFT JOIN pv.countries AS countries
@@ -268,6 +276,7 @@ def create_complaint():
                     %s, %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s
                 )
+                RETURNING complaint_id
                 """,
                 (
                     form.complaint_number.data.strip(),
@@ -285,8 +294,27 @@ def create_complaint():
                     session["user_id"],
                 ),
             )
+            complaint_id = cursor.fetchone()["complaint_id"]
+
+        write_audit_log(
+            "complaint",
+            complaint_id,
+            "Complaint created",
+            session["user_id"],
+            f"Complaint {form.complaint_number.data.strip()} was created "
+            f"({form.complaint_category.data}, {form.severity.data}).",
+        )
 
         flash("Product quality complaint saved successfully.", "success")
+        if form.complaint_category.data == ADVERSE_EVENT_CATEGORY:
+            flash(
+                "This complaint reports an adverse event. Create a safety "
+                "case from it so it is assessed and reported on time.",
+                "warning",
+            )
+            return redirect(
+                url_for("complaints.complaint_detail", complaint_id=complaint_id)
+            )
         return redirect(url_for("complaints.complaint_list"))
 
     return render_template(
@@ -371,15 +399,21 @@ def extract_complaint_from_document():
 @bp.get("/<int:complaint_id>")
 @login_required
 def complaint_detail(complaint_id):
+    return _render_complaint_detail(complaint_id)
+
+
+def _render_complaint_detail(complaint_id, review_form=None):
     complaint = query_one(
         """
         SELECT
             pc.*,
             c.country_name,
-            u.full_name AS created_by_name
+            u.full_name AS created_by_name,
+            sc.case_number AS linked_case_number
         FROM pv.product_complaints pc
         LEFT JOIN pv.countries c ON c.country_id = pc.country_id
         LEFT JOIN pv.users u ON u.user_id = pc.created_by
+        LEFT JOIN pv.safety_cases sc ON sc.case_id = pc.linked_case_id
         WHERE pc.complaint_id = %s
         """,
         (complaint_id,),
@@ -388,16 +422,36 @@ def complaint_detail(complaint_id):
     if not complaint:
         abort(404)
 
-    review_form = ComplaintReviewForm()
-    review_form.status.data = complaint["status"]
-    review_form.investigation_summary.data = complaint["investigation_summary"]
-    review_form.corrective_action.data = complaint["corrective_action"]
-    review_form.closure_date.data = complaint["closure_date"]
+    if review_form is None:
+        review_form = ComplaintReviewForm()
+        review_form.status.data = complaint["status"]
+        review_form.investigation_summary.data = complaint["investigation_summary"]
+        review_form.corrective_action.data = complaint["corrective_action"]
+        review_form.closure_date.data = complaint["closure_date"]
+
+    history = query_all(
+        """
+        SELECT
+            audit_log.action,
+            audit_log.details,
+            audit_log.occurred_at,
+            users.full_name
+        FROM pv.audit_log AS audit_log
+        LEFT JOIN pv.users AS users
+            ON users.user_id = audit_log.actor_user_id
+        WHERE audit_log.record_type = 'complaint'
+          AND audit_log.record_id = %s
+        ORDER BY audit_log.occurred_at DESC
+        """,
+        (complaint_id,),
+    )
 
     return render_template(
         "complaints/complaint_detail.html",
         complaint=complaint,
         review_form=review_form,
+        adverse_event_category=ADVERSE_EVENT_CATEGORY,
+        history=history,
     )
 
 
@@ -406,7 +460,14 @@ def complaint_detail(complaint_id):
 def review_complaint(complaint_id):
     complaint = query_one(
         """
-        SELECT complaint_id
+        SELECT
+            complaint_id,
+            date_received,
+            severity,
+            status,
+            investigation_summary,
+            corrective_action,
+            closure_date
         FROM pv.product_complaints
         WHERE complaint_id = %s
         """,
@@ -423,6 +484,25 @@ def review_complaint(complaint_id):
         return redirect(
             url_for("complaints.complaint_detail", complaint_id=complaint_id)
         )
+
+    errors = validate_complaint_update(
+        complaint,
+        form.status.data,
+        form.investigation_summary.data,
+        form.corrective_action.data,
+        form.closure_date.data,
+    )
+    if errors:
+        for error in errors:
+            flash(error, "error")
+        return _render_complaint_detail(complaint_id, review_form=form), 400
+
+    after = {
+        "status": form.status.data,
+        "investigation_summary": form.investigation_summary.data,
+        "corrective_action": form.corrective_action.data,
+        "closure_date": form.closure_date.data,
+    }
 
     with transaction() as cursor:
         cursor.execute(
@@ -444,6 +524,14 @@ def review_complaint(complaint_id):
                 complaint_id,
             ),
         )
+
+    write_audit_log(
+        "complaint",
+        complaint_id,
+        "Investigation updated",
+        session["user_id"],
+        describe_complaint_changes(complaint, after),
+    )
 
     flash("Complaint investigation update saved.", "success")
     return redirect(
@@ -500,6 +588,7 @@ def _get_filtered_complaints():
             product_complaints.complaint_category,
             product_complaints.severity,
             product_complaints.status,
+            product_complaints.linked_case_id,
             countries.country_name
         FROM pv.product_complaints AS product_complaints
         LEFT JOIN pv.countries AS countries

@@ -46,9 +46,21 @@
     </section>
 {% endif %}
 
+{% if source_complaint %}
+    <section class="extraction-notice" role="status">
+        <strong>Creating a safety case from product complaint {{ source_complaint.complaint_number }}</strong>
+        <p>
+            Details have been copied from the complaint. The received date is the date the complaint was received ({{ source_complaint.date_received.strftime("%d %b %Y") }}), which is Day 0 for regulatory reporting. Complete the patient details, assign the ICSR case ID, and assess seriousness before saving.
+        </p>
+    </section>
+{% endif %}
+
 <div class="layout">
     <form id="safety-case-form" method="post" {% if not editing %}data-guided-voice="true"{% endif %}>
         {{ form.hidden_tag() }}
+        {% if source_complaint %}
+            <input type="hidden" name="from_complaint_id" value="{{ source_complaint.complaint_id }}">
+        {% endif %}
 
         <section class="section" id="report-details">
             <div class="section-title">

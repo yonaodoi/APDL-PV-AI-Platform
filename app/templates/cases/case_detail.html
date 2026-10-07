@@ -341,6 +341,20 @@
     </section>
 {% endif %}
 
+{% if source_complaints %}
+    <section class="ae-complaint-banner ae-linked" role="status">
+        <div>
+            <strong>Created from a product complaint</strong>
+            <p>
+                {% for complaint in source_complaints %}
+                    <a href="{{ url_for('complaints.complaint_detail', complaint_id=complaint.complaint_id) }}">{{ complaint.complaint_number }}</a>
+                    (received {{ complaint.date_received.strftime("%d %b %Y") }}){% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </p>
+        </div>
+    </section>
+{% endif %}
+
 {% if linked_signals %}
     <section class="detail-section linked-signals">
         <div class="section-title">
