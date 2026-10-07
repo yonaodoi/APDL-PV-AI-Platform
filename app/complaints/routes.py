@@ -18,6 +18,12 @@ from flask import (
 from werkzeug.utils import secure_filename
 from app.complaints.forms import ComplaintReviewForm, ProductComplaintForm
 from app.audit import write_audit_log
+from app.services.complaint_checks import (
+    batch_key,
+    batch_trends,
+    complaint_date_problems,
+    normalise_batch,
+)
 from app.services.complaint_rules import (
     describe_complaint_changes,
     validate_complaint_update,
@@ -213,6 +219,17 @@ def complaint_list():
         {"severity": "Serious"},
     ]
 
+    trend_counts = _batch_trend_counts()
+    complaints = [
+        {
+            **complaint,
+            "batch_trend_count": trend_counts.get(
+                batch_key(complaint.get("product_name"), complaint.get("batch_number"))
+            ),
+        }
+        for complaint in complaints
+    ]
+
     return render_template(
         "complaints/complaint_list.html",
         complaints=complaints,
@@ -228,12 +245,41 @@ def complaint_list():
         end_date=end_date,
     )
 
+def _batch_trend_counts():
+    """(product, batch) -> number of complaints, for trending batches."""
+    rows = query_all(
+        """
+        SELECT complaint_id, product_name, batch_number
+        FROM pv.product_complaints
+        WHERE batch_number IS NOT NULL
+          AND TRIM(batch_number) <> ''
+        """
+    )
+    return {key: len(items) for key, items in batch_trends(rows).items()}
+
+
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
 def create_complaint():
     form = ProductComplaintForm()
 
     _set_complaint_country_choices(form)
+
+    date_errors, date_warnings = complaint_date_problems(
+        {
+            "date_received": form.date_received.data,
+            "manufacturing_date": form.manufacturing_date.data,
+            "expiry_date": form.expiry_date.data,
+        }
+    ) if request.method == "POST" else ([], [])
+
+    if form.validate_on_submit() and date_errors:
+        for error in date_errors:
+            flash(error, "error")
+        return render_template(
+            "complaints/create_complaint.html",
+            form=form,
+        )
 
     if form.validate_on_submit():
         existing_complaint = query_one(
@@ -306,6 +352,17 @@ def create_complaint():
         )
 
         flash("Product quality complaint saved successfully.", "success")
+        for warning in date_warnings:
+            flash(warning, "warning")
+        same_batch = _batch_trend_counts().get(
+            batch_key(form.product_name.data, form.batch_number.data)
+        )
+        if same_batch:
+            flash(
+                f"Batch {form.batch_number.data.strip()} now has {same_batch} "
+                "complaints. Review the batch for a quality trend.",
+                "warning",
+            )
         if form.complaint_category.data == ADVERSE_EVENT_CATEGORY:
             flash(
                 "This complaint reports an adverse event. Create a safety "
@@ -446,12 +503,38 @@ def _render_complaint_detail(complaint_id, review_form=None):
         (complaint_id,),
     )
 
+    same_batch = []
+    if normalise_batch(complaint.get("batch_number")):
+        same_batch = query_all(
+            """
+            SELECT
+                complaint_id,
+                complaint_number,
+                date_received,
+                status,
+                severity
+            FROM pv.product_complaints
+            WHERE complaint_id <> %s
+              AND LOWER(TRIM(product_name)) = LOWER(TRIM(%s))
+              AND UPPER(REGEXP_REPLACE(batch_number, '\\s', '', 'g')) = %s
+            ORDER BY date_received DESC
+            """,
+            (
+                complaint_id,
+                complaint["product_name"],
+                normalise_batch(complaint["batch_number"]),
+            ),
+        )
+    _, date_warnings = complaint_date_problems(complaint)
+
     return render_template(
         "complaints/complaint_detail.html",
         complaint=complaint,
         review_form=review_form,
         adverse_event_category=ADVERSE_EVENT_CATEGORY,
         history=history,
+        same_batch=same_batch,
+        date_warnings=date_warnings,
     )
 
 

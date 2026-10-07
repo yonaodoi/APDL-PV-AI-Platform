@@ -10,6 +10,7 @@ from flask import (
     flash,
     redirect,
     render_template,
+    request,
     session,
     url_for,
 )
@@ -22,7 +23,9 @@ from app.services.psur_rules import (
     approval_updates,
     can_approve,
     is_locked,
+    submission_status,
     validate_status_change,
+    validate_submission_date,
 )
 
 
@@ -481,7 +484,58 @@ def psur_detail(psur_id):
         history=history,
         locked=is_locked(report),
         can_approve=can_approve(session.get("role")),
+        submission=submission_status(report),
     )
+
+
+@bp.post("/<int:psur_id>/submission")
+@login_required
+def record_psur_submission(psur_id):
+    report = query_one(
+        "SELECT * FROM pv.psur_reports WHERE psur_id = %s",
+        (psur_id,),
+    )
+    if not report:
+        abort(404)
+
+    submitted_text = request.form.get("submitted_date", "").strip()
+    try:
+        submitted = (
+            datetime.strptime(submitted_text, "%Y-%m-%d").date()
+            if submitted_text
+            else None
+        )
+    except ValueError:
+        submitted = None
+
+    errors = validate_submission_date(report, submitted)
+    if errors:
+        for error in errors:
+            flash(error, "error")
+        return redirect(url_for("psur.psur_detail", psur_id=psur_id))
+
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.psur_reports
+            SET submitted_date = %s,
+                updated_at = NOW()
+            WHERE psur_id = %s
+            """,
+            (submitted, psur_id),
+        )
+
+    previous = report.get("submitted_date")
+    write_audit_log(
+        "psur",
+        psur_id,
+        "Submission recorded",
+        session["user_id"],
+        f"Submission date set to {submitted:%d %b %Y}"
+        + (f" (previously {previous:%d %b %Y})." if previous else "."),
+    )
+    flash("PSUR submission date recorded.", "success")
+    return redirect(url_for("psur.psur_detail", psur_id=psur_id))
 
 
 @bp.post("/<int:psur_id>/review")

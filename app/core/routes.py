@@ -38,11 +38,13 @@ def dashboard():
                 "success",
             )
         return redirect(url_for("case_review.follow_up_tasks"))
+    from app.services.psur_rules import get_psur_alerts
     from app.services.reporting_clock import get_reporting_alerts
 
     return flask.render_template(
         "dashboard.html",
         reporting_alerts=get_reporting_alerts(),
+        psur_alerts=get_psur_alerts(),
     )
 
 @bp.get("/health")

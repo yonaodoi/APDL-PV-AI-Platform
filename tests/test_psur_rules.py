@@ -70,3 +70,70 @@ def test_reopening_clears_approval():
     assert updates["approved_at"] is None
     assert updates["finalised_at"] is None
     assert updates["clear_approved_by"] is True
+
+
+def test_submission_due_70_days_after_dlp_for_short_interval():
+    from datetime import date
+
+    from app.services.psur_rules import submission_status
+
+    report = {
+        "reporting_period_start": date(2026, 1, 1),
+        "reporting_period_end": date(2026, 6, 30),
+        "data_lock_point": date(2026, 6, 30),
+    }
+
+    status = submission_status(report, today=date(2026, 8, 20))
+
+    assert status["due_date"] == date(2026, 9, 8)
+    assert status["state"] == "due_soon"
+    assert status["label"] == "Submission due in 19 days"
+
+
+def test_submission_due_90_days_for_long_interval_and_overdue():
+    from datetime import date
+
+    from app.services.psur_rules import submission_status
+
+    report = {
+        "reporting_period_start": date(2023, 1, 1),
+        "reporting_period_end": date(2025, 12, 31),
+        "data_lock_point": date(2025, 12, 31),
+    }
+
+    status = submission_status(report, today=date(2026, 4, 5))
+
+    assert status["due_date"] == date(2026, 3, 31)
+    assert status["label"] == "Submission overdue by 5 days"
+
+
+def test_recorded_submission_on_time_or_late():
+    from datetime import date
+
+    from app.services.psur_rules import submission_status
+
+    report = {
+        "reporting_period_start": date(2026, 1, 1),
+        "reporting_period_end": date(2026, 6, 30),
+        "data_lock_point": date(2026, 6, 30),
+        "submitted_date": date(2026, 9, 10),
+    }
+
+    assert submission_status(report)["label"] == "Submitted 2 days late"
+
+
+def test_submission_date_validation():
+    from datetime import date
+
+    from app.services.psur_rules import validate_submission_date
+
+    draft = {"status": "Draft", "data_lock_point": date(2026, 6, 30)}
+    final = {"status": "Finalised", "data_lock_point": date(2026, 6, 30)}
+    today = date(2026, 10, 7)
+
+    assert "Finalise the PSUR before recording its submission." in (
+        validate_submission_date(draft, date(2026, 9, 1), today)
+    )
+    assert validate_submission_date(final, date(2026, 9, 1), today) == []
+    assert validate_submission_date(final, date(2026, 6, 1), today)
+    assert validate_submission_date(final, date(2026, 10, 8), today)

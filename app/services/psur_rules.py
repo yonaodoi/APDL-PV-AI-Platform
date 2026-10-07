@@ -78,3 +78,119 @@ def approval_updates(report, new_status, user_id, now):
         updates["finalised_by_user_id"] = None
         updates["finalised_at"] = None
     return updates
+
+
+# ICH E2C(R2) / GVP Module VII: submit within 70 calendar days of the data
+# lock point for intervals up to 12 months, and within 90 days for longer
+# intervals. Confirm each market's national requirement.
+SHORT_INTERVAL_DAYS = 70
+LONG_INTERVAL_DAYS = 90
+DUE_SOON_DAYS = 30
+
+
+def submission_due_date(report):
+    from datetime import timedelta
+
+    dlp = report.get("data_lock_point")
+    start = report.get("reporting_period_start")
+    end = report.get("reporting_period_end")
+    if not dlp:
+        return None
+    long_interval = bool(start and end and (end - start).days > 366)
+    return dlp + timedelta(
+        days=LONG_INTERVAL_DAYS if long_interval else SHORT_INTERVAL_DAYS
+    )
+
+
+def submission_status(report, today=None):
+    """Deadline state for a PSUR: overdue, due_soon, on_track,
+    submitted_on_time or submitted_late."""
+    from datetime import date
+
+    today = today or date.today()
+    due = submission_due_date(report)
+    if due is None:
+        return None
+    submitted = report.get("submitted_date")
+    if submitted:
+        late = (submitted - due).days
+        return {
+            "due_date": due,
+            "state": "submitted_late" if late > 0 else "submitted_on_time",
+            "label": (
+                f"Submitted {late} day{'s' if late != 1 else ''} late"
+                if late > 0
+                else "Submitted on time"
+            ),
+        }
+    remaining = (due - today).days
+    if remaining < 0:
+        state = "overdue"
+        label = f"Submission overdue by {-remaining} day{'s' if remaining != -1 else ''}"
+    elif remaining <= DUE_SOON_DAYS:
+        state = "due_soon"
+        label = (
+            "Submission due today"
+            if remaining == 0
+            else f"Submission due in {remaining} day{'s' if remaining != 1 else ''}"
+        )
+    else:
+        state = "on_track"
+        label = f"Submission due in {remaining} days"
+    return {"due_date": due, "state": state, "label": label}
+
+
+def validate_submission_date(report, submitted, today=None):
+    from datetime import date
+
+    today = today or date.today()
+    errors = []
+    if report.get("status") != LOCKED_STATUS:
+        errors.append("Finalise the PSUR before recording its submission.")
+    if submitted is None:
+        errors.append("Enter the submission date.")
+        return errors
+    if submitted > today:
+        errors.append("The submission date cannot be in the future.")
+    dlp = report.get("data_lock_point")
+    if dlp and submitted < dlp:
+        errors.append("The submission date cannot be before the data lock point.")
+    return errors
+
+
+def get_psur_alerts(today=None):
+    """PSURs due within DUE_SOON_DAYS or overdue, for the dashboard."""
+    from flask import current_app
+
+    from app.db import get_db, query_all
+
+    try:
+        reports = query_all(
+            """
+            SELECT
+                psur_id,
+                report_number,
+                product_name,
+                status,
+                reporting_period_start,
+                reporting_period_end,
+                data_lock_point,
+                submitted_date
+            FROM pv.psur_reports
+            WHERE submitted_date IS NULL
+            """
+        )
+    except Exception:
+        current_app.logger.exception("Could not load PSUR alerts")
+        try:
+            get_db().rollback()
+        except Exception:
+            pass
+        return []
+    alerts = []
+    for report in reports:
+        status = submission_status(report, today)
+        if status and status["state"] in ("overdue", "due_soon"):
+            alerts.append({**report, "submission": status})
+    alerts.sort(key=lambda r: r["submission"]["due_date"])
+    return alerts

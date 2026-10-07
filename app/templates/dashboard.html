@@ -64,6 +64,27 @@
         </section>
     {% endif %}
 
+    {% if psur_alerts %}
+        <section class="reporting-alert{% if psur_alerts|selectattr('submission.state', 'equalto', 'overdue')|list %} reporting-alert-overdue{% endif %}" role="alert" aria-label="PSUR submission deadlines">
+            <div class="reporting-alert-header">
+                <span class="dashboard-reminder-icon" aria-hidden="true">!</span>
+                <div>
+                    <h3>{{ psur_alerts|length }} PSUR{% if psur_alerts|length != 1 %}s{% endif %} due for submission within 30 days or overdue</h3>
+                    <p>Finalise each PSUR and record its submission date.</p>
+                </div>
+            </div>
+            <ul class="reporting-alert-list">
+                {% for psur in psur_alerts %}
+                    <li>
+                        <a href="{{ url_for('psur.psur_detail', psur_id=psur.psur_id) }}">{{ psur.report_number }}</a>
+                        <span>{{ psur.product_name }} · {{ psur.status }} · due {{ psur.submission.due_date.strftime("%d %b %Y") }}</span>
+                        <span class="clock-badge clock-{{ psur.submission.state }}">{{ psur.submission.label }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
+
     {% if open_follow_up_reminder_count %}
         <a
             class="dashboard-reminder"

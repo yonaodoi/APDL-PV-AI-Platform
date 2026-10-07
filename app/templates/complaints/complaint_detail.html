@@ -337,6 +337,25 @@
         {% endif %}
     {% endif %}
 
+    {% for warning in date_warnings %}
+        <section class="complaint-check-banner" role="status">
+            <strong>Date check</strong>
+            <p>{{ warning }}</p>
+        </section>
+    {% endfor %}
+
+    {% if same_batch %}
+        <section class="complaint-check-banner batch-trend-banner" role="status">
+            <strong>Batch trend: {{ same_batch|length + 1 }} complaints for {{ complaint.product_name }} batch {{ complaint.batch_number }}</strong>
+            <p>Review these together for a common quality defect:
+                {% for other in same_batch %}
+                    <a href="{{ url_for('complaints.complaint_detail', complaint_id=other.complaint_id) }}">{{ other.complaint_number }}</a>
+                    ({{ other.date_received.strftime("%d %b %Y") }}, {{ other.status }}){% if not loop.last %}; {% endif %}
+                {% endfor %}
+            </p>
+        </section>
+    {% endif %}
+
     <div class="detail-layout">
         <main>
             <section class="detail-card">

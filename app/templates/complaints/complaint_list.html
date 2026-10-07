@@ -383,7 +383,12 @@
                             </a>
                         </td>
                         <td class="product-name">{{ complaint.product_name }}</td>
-                        <td>{{ complaint.batch_number or "Not recorded" }}</td>
+                        <td>
+                            {{ complaint.batch_number or "Not recorded" }}
+                            {% if complaint.batch_trend_count %}
+                                <span class="batch-trend-tag" title="{{ complaint.batch_trend_count }} complaints for this product and batch">Batch trend · {{ complaint.batch_trend_count }}</span>
+                            {% endif %}
+                        </td>
                         <td>{{ complaint.country_name or "Not recorded" }}</td>
                         <td>
                             {{ complaint.complaint_category }}

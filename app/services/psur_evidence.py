@@ -65,6 +65,32 @@ def _signal_lines(signals):
         for signal in signals
     )
 
+def safety_action_lines(signals, product_name, period):
+    """Section 4: actions taken for safety reasons, from signal decisions."""
+    decided = [
+        signal
+        for signal in signals
+        if (signal.get("decision_summary") or "").strip()
+    ]
+    if not decided:
+        return (
+            f"No actions taken for safety reasons for {product_name} were "
+            f"recorded in the APDL PV platform during {period}. No signal "
+            "evaluation in the interval recorded a decision or action."
+        )
+    lines = [
+        f"The following actions for safety reasons were recorded for "
+        f"{product_name} during {period}, based on signal evaluations:"
+    ]
+    for signal in decided:
+        lines.append(
+            f"Signal {signal['signal_number']} ({signal['event_term']}, "
+            f"status {signal['status']}): "
+            f"{signal['decision_summary'].strip()}"
+        )
+    return "\n\n".join(lines)
+
+
 def _rsi_lines(rsi_documents):
     if not rsi_documents:
         return (
@@ -140,6 +166,7 @@ def build_psur_evidence_sections(report):
             safety_signals.priority,
             safety_signals.status,
             safety_signals.auto_detected,
+            safety_signals.decision_summary,
             COUNT(safety_signal_cases.case_id)
                 AS supporting_case_count
         FROM pv.safety_signals AS safety_signals
@@ -153,7 +180,8 @@ def build_psur_evidence_sections(report):
             safety_signals.event_term,
             safety_signals.priority,
             safety_signals.status,
-            safety_signals.auto_detected
+            safety_signals.auto_detected,
+            safety_signals.decision_summary
         ORDER BY
             safety_signals.date_detected,
             safety_signals.signal_number
@@ -248,10 +276,11 @@ def build_psur_evidence_sections(report):
         "had been identified through ADR screening."
     )
 
-    safety_actions = (
-        f"Market-complaint information for {product_name} during "
-        f"{period} was reviewed as part of the periodic safety "
-        "evaluation.\n\n"
+    safety_actions = safety_action_lines(signals, product_name, period)
+
+    product_quality = (
+        f"Product quality complaints for {product_name} received during "
+        f"{period} were reviewed for safety relevance.\n\n"
         f"{_complaint_lines(complaints)}"
     )
 
@@ -330,6 +359,7 @@ def build_psur_evidence_sections(report):
             f"The PSUR covered the following market(s): {markets}."
         ),
         "safety_actions": safety_actions,
+        "other_events": product_quality,
         "reference_safety_information": (
             reference_safety_information
         ),

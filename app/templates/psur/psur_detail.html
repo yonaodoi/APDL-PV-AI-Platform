@@ -224,6 +224,9 @@
     <a href="{{ url_for('psur_builder.psur_builder_home', psur_id=report.psur_id) }}" style="padding:8px 11px; border:1px solid #dcd3e4; border-radius:8px; background:#5f3ed4; color:white; font-size:12px; font-weight:bold; text-decoration:none;">Open PSUR Builder</a>
     <a href="{{ url_for('psur_reports.preview_psur_report', psur_id=report.psur_id) }}" style="padding:8px 11px; border-radius:8px; background:#5f3ed4; color:white; font-size:12px; font-weight:bold; text-decoration:none;">Preview PSUR</a>
     <span class="status-pill">{{ report.status }}</span>
+    {% if submission %}
+        <span class="clock-badge clock-{{ submission.state }}" title="Due {{ submission.due_date.strftime('%d %b %Y') }}">{{ submission.label }}</span>
+    {% endif %}
 </div>
 </section>
 
@@ -405,6 +408,29 @@
 
                 {{ review_form.submit(class_="save-button") }}
             </form>
+        </section>
+
+        <section class="review-card">
+            <div class="review-heading">Regulatory submission</div>
+            <div class="history-list">
+                {% if submission %}
+                    <p class="submission-facts">
+                        Data lock point {{ report.data_lock_point.strftime("%d %b %Y") }}. Due {{ submission.due_date.strftime("%d %b %Y") }}
+                        ({{ "90" if (report.reporting_period_end - report.reporting_period_start).days > 366 else "70" }} days after the data lock point).
+                        {% if report.submitted_date %}Submitted {{ report.submitted_date.strftime("%d %b %Y") }}.{% endif %}
+                    </p>
+                {% endif %}
+                {% if report.status == "Finalised" %}
+                    <form method="post" action="{{ url_for('psur.record_psur_submission', psur_id=report.psur_id) }}" class="submission-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <label for="submitted_date">Submission date</label>
+                        <input type="date" id="submitted_date" name="submitted_date" class="input" value="{{ report.submitted_date.strftime('%Y-%m-%d') if report.submitted_date else '' }}" required>
+                        <button type="submit" class="save-button">Record submission</button>
+                    </form>
+                {% else %}
+                    <p class="history-empty">The submission date can be recorded once the PSUR is finalised.</p>
+                {% endif %}
+            </div>
         </section>
 
         <section class="review-card record-history">
