@@ -1,17 +1,14 @@
 import json
-import os
 import re
 
-import requests
-
+from app.services.llm import (
+    PURPOSE_EXTRACTION,
+    AIUnavailableError,
+    generate_text,
+)
 from app.services.rsi_extraction import extract_reference_document_text
 
 
-OLLAMA_URL = os.environ.get(
-    "OLLAMA_URL",
-    "http://127.0.0.1:11434/api/generate",
-)
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:1b")
 MAX_DOCUMENT_BYTES = 20 * 1024 * 1024
 MAX_SOURCE_TEXT_LENGTH = 60000
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
@@ -146,28 +143,16 @@ Document text:
 """.strip()
 
     try:
-        response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "format": "json",
-                "options": {"temperature": 0.1, "num_predict": 1800},
-            },
+        response_text = generate_text(
+            prompt,
+            max_tokens=3000,
+            temperature=0.1,
+            json_output=True,
             timeout=180,
+            purpose=PURPOSE_EXTRACTION,
         )
-        response.raise_for_status()
-    except requests.RequestException as exc:
-        raise RuntimeError(
-            "Local AI extraction is unavailable. Ensure Ollama is running "
-            f"with model {OLLAMA_MODEL}."
-        ) from exc
-
-    response_data = response.json()
-    response_text = response_data.get("response", "")
-    if not response_text.strip():
-        raise RuntimeError("The local AI model returned no extracted data.")
+    except AIUnavailableError as exc:
+        raise RuntimeError(f"AI extraction is unavailable. {exc}") from exc
 
     extracted = _parse_json_response(response_text)
     fields = {

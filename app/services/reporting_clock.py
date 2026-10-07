@@ -102,3 +102,63 @@ def evaluate_reporting_clock(case, today=None):
         clock["label"] = f"Due in {remaining} days"
 
     return clock
+
+
+def summarise_reporting_alerts(cases, today=None, limit=5):
+    """Group cases with a running clock into overdue and due-soon lists."""
+    overdue, due_soon = [], []
+    for case in cases:
+        clock = evaluate_reporting_clock(case, today=today)
+        if clock is None:
+            continue
+        entry = {**case, "reporting_clock": clock}
+        if clock["state"] == "overdue":
+            overdue.append(entry)
+        elif clock["state"] == "due_soon":
+            due_soon.append(entry)
+
+    overdue.sort(key=lambda c: -c["reporting_clock"]["days_late"])
+    due_soon.sort(key=lambda c: c["reporting_clock"]["days_remaining"])
+    return {
+        "overdue_count": len(overdue),
+        "due_soon_count": len(due_soon),
+        "overdue": overdue[:limit],
+        "due_soon": due_soon[:limit],
+    }
+
+
+def get_reporting_alerts(today=None):
+    """Dashboard alert data, or None if it cannot be loaded."""
+    from flask import current_app
+
+    from app.db import query_all
+
+    try:
+        cases = query_all(
+            """
+            SELECT
+                safety_cases.case_id,
+                safety_cases.case_number,
+                safety_cases.received_date,
+                safety_cases.seriousness,
+                safety_cases.workflow_status,
+                safety_cases.regulatory_submitted_date,
+                countries.country_name
+            FROM pv.safety_cases AS safety_cases
+            LEFT JOIN pv.countries AS countries
+                ON countries.country_id = safety_cases.country_id
+            WHERE safety_cases.regulatory_submitted_date IS NULL
+              AND safety_cases.workflow_status NOT IN %s
+            """,
+            (tuple(CLOCK_STOPPED_STATUSES),),
+        )
+    except Exception:
+        current_app.logger.exception("Could not load reporting alerts")
+        try:
+            from app.db import get_db
+
+            get_db().rollback()
+        except Exception:
+            pass
+        return None
+    return summarise_reporting_alerts(cases, today=today)

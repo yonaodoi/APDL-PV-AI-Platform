@@ -38,9 +38,10 @@ files may be lost when the service restarts.
   data. Real operational use requires an approved hosting arrangement, durable
   storage and backups, access/security controls, and review of applicable data
   residency and compliance requirements.
-- AI assistance currently expects Ollama at `127.0.0.1:11434`. That address
-  refers to the Render service itself, where Ollama is not installed, so those
-  features are unavailable in this deployment.
+- AI assistance uses the Claude API when `ANTHROPIC_API_KEY` is set in the
+  Render environment (the Blueprint asks for it; leave it blank to disable AI).
+  Without a key the app falls back to Ollama at `127.0.0.1:11434`, which is not
+  installed on Render, so AI features are then unavailable.
 - The speech transcription model may download and initialize on its first use;
   performance and memory use depend on the free service limits.
 - Free Render services may sleep when idle, and free database availability,

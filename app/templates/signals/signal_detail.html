@@ -317,7 +317,7 @@
             <form method="post" action="{{ url_for('signals.draft_signal_assessment', signal_id=signal.signal_id) }}" class="evaluation-form ai-draft-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <p class="ai-draft-guidance">
-                    Generate a local AI draft from the signal record and linked cases. It will not be saved or decide signal validity, priority, causality, or action.
+                    Generate an AI draft from the signal record and linked cases. It will not be saved or decide signal validity, priority, causality, or action.
                 </p>
                 <button type="submit" class="save-button ai-draft-button">Generate AI review draft</button>
             </form>

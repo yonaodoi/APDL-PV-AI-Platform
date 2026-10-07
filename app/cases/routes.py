@@ -29,6 +29,11 @@ from app.services.case_completeness import (
     refresh_case_completeness,
 )
 from app.services.reporting_clock import evaluate_reporting_clock
+from app.services.event_coding import (
+    get_active_terms,
+    get_case_event_terms,
+    set_manual_coding,
+)
 from app.services.case_document_extraction import (
     MAX_DOCUMENT_BYTES,
     SUPPORTED_EXTENSIONS,
@@ -390,7 +395,52 @@ def case_detail(case_id):
         audit_log=audit_log,
         reporting_clock=evaluate_reporting_clock(case),
         linked_signals=linked_signals,
+        event_terms=get_case_event_terms(case_id),
+        dictionary_terms=get_active_terms(),
     )
+
+
+@bp.post("/<int:case_id>/event-terms/<int:case_event_term_id>")
+@login_required
+def code_event_term(case_id, case_event_term_id):
+    try:
+        term_id = int(request.form.get("term_id", ""))
+    except ValueError:
+        flash("Select a preferred term.", "error")
+        return redirect(url_for("cases.case_detail", case_id=case_id) + "#event-coding")
+
+    row, synonym_saved = set_manual_coding(
+        case_id,
+        case_event_term_id,
+        term_id,
+        actor_user_id=session["user_id"],
+        save_synonym=request.form.get("save_synonym") == "on",
+    )
+    if row is None:
+        abort(404)
+
+    details = (
+        f'Reported term "{row["verbatim_term"]}" coded to '
+        f'{row["preferred_term"]}.'
+        + (" Wording saved as a synonym." if synonym_saved else "")
+    )
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO pv.case_audit_log (case_id, action, details, performed_by)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (case_id, "Event term coded", details, session["user_id"]),
+        )
+
+    detected_signals, _ = screen_case_for_signals(
+        case_id, actor_user_id=session["user_id"]
+    )
+    flash(details, "success")
+    screening_message = summarise_screening(detected_signals)
+    if screening_message:
+        flash(screening_message, "warning")
+    return redirect(url_for("cases.case_detail", case_id=case_id) + "#event-coding")
 
 
 @bp.get("/review-queue")
@@ -476,7 +526,7 @@ def extract_case_from_document():
         current_app.logger.exception("Unexpected case document extraction error")
         flash(
             "Case information could not be extracted. Check that the "
-            "document is readable and the local AI service is available.",
+            "document is readable and the AI service is available.",
             "error",
         )
         return render_template("cases/extract_case_document.html"), 503

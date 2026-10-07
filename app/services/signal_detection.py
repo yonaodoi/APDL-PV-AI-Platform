@@ -22,6 +22,13 @@ from datetime import timedelta
 from flask import current_app
 
 from app.db import query_all, query_one, transaction
+from app.services.event_coding import (
+    ensure_cases_coded,
+    load_dictionary,
+    normalise_term,
+    preferred_terms_by_case,
+    split_verbatim_terms,
+)
 
 
 WINDOW_DAYS = 90
@@ -31,43 +38,7 @@ OPEN_SIGNAL_STATUSES = ("New", "Under evaluation", "Validated")
 PRIORITY_RANK = {"Low": 0, "Medium": 1, "High": 2, "Critical": 3}
 NOTIFIED_ROLES = ("QPPV", "Deputy QPPV")
 
-# Placeholder text that is not an event.
-IGNORED_TERMS = {
-    "n a", "na", "nil", "none", "unknown", "not applicable",
-    "not known", "not stated", "not recorded", "no", "other",
-}
-
-# Common misspellings and variants mapped to one term. Extend as needed;
-# full MedDRA coding would replace this list.
-EVENT_SYNONYMS = {
-    "uticaria": "urticaria",
-    "urticarial": "urticaria",
-    "urticaria rash": "urticaria",
-    "hives": "urticaria",
-    "hypersensitivity reaction": "hypersensitivity",
-    "allergic reaction": "hypersensitivity",
-    "allergy": "hypersensitivity",
-    "skin rash": "rash",
-    "rashes": "rash",
-    "itching": "pruritus",
-    "itchiness": "pruritus",
-    "chill": "chills",
-    "rigors": "chills",
-    "pyrexia": "fever",
-    "high temperature": "fever",
-    "vomitting": "vomiting",
-    "head ache": "headache",
-    "anaphylactic reaction": "anaphylaxis",
-    "anaphylactic shock": "anaphylaxis",
-    "difficulty in breathing": "dyspnoea",
-    "difficulty breathing": "dyspnoea",
-    "shortness of breath": "dyspnoea",
-    "dyspnea": "dyspnoea",
-    "diarrhoea": "diarrhea",
-}
-
 DEATH_PATTERN = re.compile(r"\b(death|died|dead|fatal|deceased)\b", re.I)
-TERM_SPLIT_PATTERN = re.compile(r"[,;/\n+]|\band\b|\bwith\b", re.I)
 
 
 def _normalise(value):
@@ -75,20 +46,26 @@ def _normalise(value):
 
 
 def extract_event_terms(event_description):
-    """Split a free-text event description into normalised event terms."""
-    terms = []
-    for part in TERM_SPLIT_PATTERN.split(event_description or ""):
-        term = " ".join(re.findall(r"[a-z0-9]+", part.lower()))
-        term = EVENT_SYNONYMS.get(term, term)
-        if len(term) < 3 or term in IGNORED_TERMS:
-            continue
-        if term not in terms:
-            terms.append(term)
-    return terms
+    """Fallback for uncoded cases: the reporter's own terms, normalised."""
+    return [
+        normalise_term(verbatim)
+        for verbatim in split_verbatim_terms(event_description)
+    ]
 
 
 def display_term(term):
     return term[:1].upper() + term[1:]
+
+
+def _case_terms(case, terms_by_case):
+    """Return [(key, display)] for a case, preferring coded terms."""
+    coded = (terms_by_case or {}).get(case["case_id"])
+    if coded:
+        return [(normalise_term(term), term) for term in coded]
+    return [
+        (term, display_term(term))
+        for term in extract_event_terms(case.get("event_description"))
+    ]
 
 
 def is_fatal_case(case):
@@ -105,14 +82,17 @@ def _higher_priority(first, second):
     return first if PRIORITY_RANK[first] >= PRIORITY_RANK[second] else second
 
 
-def build_signal_candidates(case, products, related_cases, listedness=None):
+def build_signal_candidates(
+    case, products, related_cases, listedness=None, terms_by_case=None
+):
     """Return the potential signals raised by ``case``.
 
     ``related_cases`` holds cases (including ``case`` itself) that share a
-    product with it, each with ``product_name`` set. Pure function: no
-    database access.
+    product with it, each with ``product_name`` set. ``terms_by_case`` maps
+    case_id to coded preferred terms; uncoded cases fall back to their own
+    wording. Pure function: no database access.
     """
-    terms = extract_event_terms(case.get("event_description"))
+    terms = _case_terms(case, terms_by_case)
     if not terms:
         return []
 
@@ -124,7 +104,7 @@ def build_signal_candidates(case, products, related_cases, listedness=None):
     candidates = []
     for product_name in products:
         product_key = _normalise(product_name)
-        for term in terms:
+        for term, term_display in terms:
             supporting = {}
             for other in related_cases:
                 if _normalise(other.get("product_name")) != product_key:
@@ -133,7 +113,8 @@ def build_signal_candidates(case, products, related_cases, listedness=None):
                     abs(other["received_date"] - received) > window
                 ):
                     continue
-                if term in extract_event_terms(other.get("event_description")):
+                other_terms = {key for key, _ in _case_terms(other, terms_by_case)}
+                if term in other_terms:
                     supporting[other["case_id"]] = other
             supporting[case["case_id"]] = case
 
@@ -168,7 +149,7 @@ def build_signal_candidates(case, products, related_cases, listedness=None):
             candidates.append(
                 {
                     "product_name": product_name,
-                    "event_term": display_term(term),
+                    "event_term": term_display,
                     "term": term,
                     "key": detection_key(product_name, term),
                     "priority": priority,
@@ -211,7 +192,7 @@ def _load_case_context(case_id):
         (case_id,),
     )
     if case is None:
-        return None, [], [], None
+        return None, [], [], None, {}
 
     products = [
         row["product_name"]
@@ -227,7 +208,7 @@ def _load_case_context(case_id):
         )
     ]
     if not products:
-        return case, [], [], None
+        return case, [], [], None, {}
 
     related_cases = query_all(
         """
@@ -264,7 +245,20 @@ def _load_case_context(case_id):
         (case_id,),
     )
     listedness = assessment["listedness_status"] if assessment else None
-    return case, products, related_cases, listedness
+
+    dictionary = load_dictionary()
+    code_case_events_for_screening(case, dictionary)
+    ensure_cases_coded(related_cases, dictionary)
+    terms_by_case = preferred_terms_by_case(
+        {case["case_id"]} | {other["case_id"] for other in related_cases}
+    )
+    return case, products, related_cases, listedness, terms_by_case
+
+
+def code_case_events_for_screening(case, dictionary):
+    from app.services.event_coding import code_case_events
+
+    code_case_events(case["case_id"], case.get("event_description"), dictionary)
 
 
 def _save_candidate(cursor, case, candidate, actor_user_id):
@@ -277,7 +271,18 @@ def _save_candidate(cursor, case, candidate, actor_user_id):
               auto_detection_key = %s
               OR (
                   LOWER(TRIM(product_name)) = %s
-                  AND LOWER(REGEXP_REPLACE(TRIM(event_term), '\\s+', ' ', 'g')) = %s
+                  AND (
+                      LOWER(REGEXP_REPLACE(TRIM(event_term), '\\s+', ' ', 'g'))
+                          = ANY(%s)
+                      OR LOWER(REGEXP_REPLACE(TRIM(event_term), '\\s+', ' ', 'g'))
+                          IN (
+                              SELECT synonyms.synonym
+                              FROM pv.event_term_synonyms AS synonyms
+                              JOIN pv.event_terms AS terms
+                                  ON terms.term_id = synonyms.term_id
+                              WHERE LOWER(terms.preferred_term) = %s
+                          )
+                  )
               )
           )
         ORDER BY auto_detected, date_detected, signal_id
@@ -288,7 +293,8 @@ def _save_candidate(cursor, case, candidate, actor_user_id):
             OPEN_SIGNAL_STATUSES,
             candidate["key"],
             _normalise(candidate["product_name"]),
-            candidate["term"],
+            [candidate["term"], candidate["event_term"].lower()],
+            candidate["event_term"].lower(),
         ),
     )
     signal = cursor.fetchone()
@@ -419,12 +425,18 @@ def _save_candidate(cursor, case, candidate, actor_user_id):
 
 
 def detect_potential_signals_for_case(case_id, actor_user_id=None):
-    case, products, related_cases, listedness = _load_case_context(case_id)
+    (
+        case,
+        products,
+        related_cases,
+        listedness,
+        terms_by_case,
+    ) = _load_case_context(case_id)
     if case is None or not products:
         return []
 
     candidates = build_signal_candidates(
-        case, products, related_cases, listedness
+        case, products, related_cases, listedness, terms_by_case
     )
     results = []
     for candidate in candidates:

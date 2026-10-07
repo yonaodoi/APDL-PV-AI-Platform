@@ -1,17 +1,14 @@
 import json
-import os
 import re
 
-import requests
-
+from app.services.llm import (
+    PURPOSE_EXTRACTION,
+    AIUnavailableError,
+    generate_text,
+)
 from app.services.rsi_extraction import extract_reference_document_text
 
 
-OLLAMA_URL = os.environ.get(
-    "OLLAMA_URL",
-    "http://127.0.0.1:11434/api/generate",
-)
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:1b")
 MAX_DOCUMENT_BYTES = 20 * 1024 * 1024
 MAX_SOURCE_TEXT_LENGTH = 60000
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
@@ -49,11 +46,11 @@ def _parse_model_response(response_text):
         result = json.loads(cleaned)
     except json.JSONDecodeError as exc:
         raise ValueError(
-            "The local AI model returned invalid complaint extraction data."
+            "The AI model returned invalid complaint extraction data."
         ) from exc
     if not isinstance(result, dict):
         raise ValueError(
-            "The local AI model returned an invalid complaint extraction."
+            "The AI model returned an invalid complaint extraction."
         )
     return result
 
@@ -90,27 +87,16 @@ Document text:
 """.strip()
 
     try:
-        response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "format": "json",
-                "options": {"temperature": 0.1, "num_predict": 900},
-            },
+        response_text = generate_text(
+            prompt,
+            max_tokens=1500,
+            temperature=0.1,
+            json_output=True,
             timeout=180,
+            purpose=PURPOSE_EXTRACTION,
         )
-        response.raise_for_status()
-    except requests.RequestException as exc:
-        raise RuntimeError(
-            "Local AI extraction is unavailable. Ensure Ollama is running "
-            f"with model {OLLAMA_MODEL}."
-        ) from exc
-
-    response_text = response.json().get("response", "")
-    if not response_text.strip():
-        raise RuntimeError("The local AI model returned no complaint data.")
+    except AIUnavailableError as exc:
+        raise RuntimeError(f"AI extraction is unavailable. {exc}") from exc
     extracted = _parse_model_response(response_text)
     fields = {
         key: value

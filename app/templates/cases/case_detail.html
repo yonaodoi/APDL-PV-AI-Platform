@@ -358,6 +358,73 @@
     </section>
 {% endif %}
 
+{% if event_terms %}
+    <section class="detail-section event-coding" id="event-coding">
+        <div class="section-title">
+            Event term coding
+        </div>
+        <div class="detail-content">
+            <div class="event-coding-table-wrap" role="region" aria-label="Coded event terms" tabindex="0">
+            <table class="event-coding-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Reported term</th>
+                        <th scope="col">Preferred term</th>
+                        <th scope="col">Coding</th>
+                        <th scope="col">Change coding</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for term in event_terms %}
+                        <tr>
+                            <td class="event-verbatim">{{ term.verbatim_term }}</td>
+                            <td>
+                                {% if term.preferred_term %}
+                                    <strong>{{ term.preferred_term }}</strong>
+                                    <div class="event-soc">{{ term.system_organ_class }}</div>
+                                {% else %}
+                                    <span class="event-uncoded">Not coded</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="coding-pill coding-{{ term.coding_method|lower }}">
+                                    {% if term.coding_method == "Suggested" %}Suggested — confirm{% else %}{{ term.coding_method }}{% endif %}
+                                </span>
+                                {% if term.coding_method == "Manual" and term.coded_by_name %}
+                                    <div class="event-soc">by {{ term.coded_by_name }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="post" action="{{ url_for('cases.code_event_term', case_id=case.case_id, case_event_term_id=term.case_event_term_id) }}" class="event-coding-form">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <label class="visually-hidden" for="term-{{ term.case_event_term_id }}">Preferred term for {{ term.verbatim_term }}</label>
+                                    <select id="term-{{ term.case_event_term_id }}" name="term_id" required>
+                                        <option value="">Select preferred term</option>
+                                        {% for soc, soc_terms in dictionary_terms|groupby("system_organ_class") %}
+                                            <optgroup label="{{ soc }}">
+                                                {% for option in soc_terms %}
+                                                    <option value="{{ option.term_id }}" {% if option.term_id == term.term_id %}selected{% endif %}>{{ option.preferred_term }}</option>
+                                                {% endfor %}
+                                            </optgroup>
+                                        {% endfor %}
+                                    </select>
+                                    <label class="event-synonym-option">
+                                        <input type="checkbox" name="save_synonym" {% if term.coding_method in ("Uncoded", "Suggested") %}checked{% endif %}>
+                                        Remember this wording
+                                    </label>
+                                    <button type="submit">{% if term.coding_method == "Suggested" %}Confirm{% else %}Save{% endif %}</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            <p class="event-coding-note">Coded with the APDL event term dictionary. Signal detection groups cases by preferred term.</p>
+        </div>
+    </section>
+{% endif %}
+
 <div class="detail-grid">
     <div>
         <section class="detail-section">

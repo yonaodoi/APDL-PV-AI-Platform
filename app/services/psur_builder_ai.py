@@ -1,18 +1,12 @@
 import json
-import os
 
-import requests
+from app.services.llm import generate_text
 
 from app.services.psur_evidence import (
     build_psur_evidence_sections,
 )
 
 
-OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
-OLLAMA_MODEL = os.environ.get(
-    "OLLAMA_MODEL",
-    "qwen2.5:7b",
-)
 
 
 def _section_evidence(report, section_key):
@@ -50,29 +44,12 @@ def _product_context(report):
 
 
 def _generate(prompt):
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "keep_alive": "10m",
-            "options": {
-                "temperature": 0.15,
-                "num_predict": 350,
-            },
-        },
+    content = generate_text(
+        prompt,
+        max_tokens=2500,
+        temperature=0.15,
         timeout=180,
     )
-    response.raise_for_status()
-
-    content = response.json().get("response", "").strip()
-
-    if not content:
-        raise RuntimeError(
-            "The local AI model returned no proposed content."
-        )
-
     return content.replace("*", "")
 
 

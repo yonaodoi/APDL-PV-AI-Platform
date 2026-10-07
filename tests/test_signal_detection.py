@@ -26,15 +26,10 @@ def by_term(candidates):
     return {candidate["term"]: candidate for candidate in candidates}
 
 
-def test_event_text_is_split_into_normalised_terms():
+def test_uncoded_event_text_falls_back_to_reported_wording():
     assert extract_event_terms("UTICARIA, HYPERSENSITIVITY") == [
-        "urticaria",
+        "uticaria",
         "hypersensitivity",
-    ]
-    assert extract_event_terms("Skin rash and itching; Pyrexia") == [
-        "rash",
-        "pruritus",
-        "fever",
     ]
 
 
@@ -44,16 +39,19 @@ def test_placeholder_events_are_ignored():
     assert extract_event_terms("") == []
 
 
-def test_two_cases_with_same_term_form_a_cluster():
+def test_cases_with_same_coded_term_form_a_cluster():
     index = make_case(2, event_description="Urticaria, hypersensitivity")
     other = make_case(
         1,
         received_date=date(2026, 8, 1),
-        event_description="uticaria",
+        event_description="hives",
     )
+    coded = {2: ["Urticaria", "Hypersensitivity"], 1: ["Urticaria"]}
 
     candidates = by_term(
-        build_signal_candidates(index, ["ABPARA"], [index, other])
+        build_signal_candidates(
+            index, ["ABPARA"], [index, other], terms_by_case=coded
+        )
     )
 
     assert set(candidates) == {"urticaria"}
@@ -62,6 +60,13 @@ def test_two_cases_with_same_term_form_a_cluster():
     assert urticaria["supporting_case_ids"] == [1, 2]
     assert urticaria["key"] == "abpara::urticaria"
     assert urticaria["event_term"] == "Urticaria"
+
+
+def test_uncoded_cases_only_cluster_on_identical_wording():
+    index = make_case(2, event_description="Urticaria")
+    other = make_case(1, event_description="hives")
+
+    assert build_signal_candidates(index, ["ABPARA"], [index, other]) == []
 
 
 def test_cluster_with_a_serious_case_is_high_priority():
@@ -93,9 +98,15 @@ def test_single_fatal_case_raises_critical_signal():
         event_description="Anaphylactic shock",
     )
 
-    candidate = build_signal_candidates(index, ["ABPARA"], [index])[0]
+    candidate = build_signal_candidates(
+        index,
+        ["ABPARA"],
+        [index],
+        terms_by_case={2: ["Anaphylactic reaction"]},
+    )[0]
 
-    assert candidate["term"] == "anaphylaxis"
+    assert candidate["term"] == "anaphylactic reaction"
+    assert candidate["event_term"] == "Anaphylactic reaction"
     assert candidate["priority"] == "Critical"
     assert candidate["supporting_case_ids"] == [2]
     assert "fatal case" in candidate["triggers"][0]

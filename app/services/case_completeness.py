@@ -1,8 +1,37 @@
 from app.db import transaction
 from app.services.case_consistency import evaluate_case_consistency
+from app.services.event_coding import (
+    REVIEW_METHODS,
+    code_case_events,
+    get_case_event_terms,
+)
 
 
-def evaluate_case_completeness(case, products):
+def evaluate_case_coding(event_terms):
+    pending = [
+        term for term in event_terms if term["coding_method"] in REVIEW_METHODS
+    ]
+    if not event_terms:
+        return None
+    if pending:
+        names = ", ".join(f'"{term["verbatim_term"]}"' for term in pending)
+        return {
+            "code": "event_coding",
+            "label": "Event term coding",
+            "status": "Review",
+            "message": (
+                f"Confirm or code {len(pending)} reported term(s): {names}."
+            ),
+        }
+    return {
+        "code": "event_coding",
+        "label": "Event term coding",
+        "status": "Pass",
+        "message": "All reported event terms are coded.",
+    }
+
+
+def evaluate_case_completeness(case, products, event_terms=None):
     checks = []
 
     checks.append(
@@ -161,6 +190,11 @@ def evaluate_case_completeness(case, products):
         }
     )
 
+    if event_terms is not None:
+        coding_check = evaluate_case_coding(event_terms)
+        if coding_check:
+            checks.append(coding_check)
+
     checks.extend(evaluate_case_consistency(case, products))
 
     return checks
@@ -198,7 +232,9 @@ def save_case_completeness(case_id, checks):
 
 
 def refresh_case_completeness(case, products):
-    checks = evaluate_case_completeness(case, products)
+    code_case_events(case["case_id"], case.get("event_description"))
+    event_terms = get_case_event_terms(case["case_id"])
+    checks = evaluate_case_completeness(case, products, event_terms)
     save_case_completeness(case["case_id"], checks)
     from app.services.case_follow_up import sync_case_follow_up_tasks
 

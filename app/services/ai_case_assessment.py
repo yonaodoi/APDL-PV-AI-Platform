@@ -1,14 +1,217 @@
 import json
-import os
+import re
 
-import requests
+from app.services.llm import deidentify, describe_model, generate_text
+from app.services.reporting_clock import evaluate_reporting_clock
 
 
-OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
-OLLAMA_MODEL = os.environ.get(
-    "OLLAMA_MODEL",
-    "llama3.2:1b",
+SYSTEM_PROMPT = (
+    "You are an experienced pharmacovigilance physician supporting a "
+    "qualified person for pharmacovigilance (QPPV). You write precise, "
+    "evidence-based draft assessments, never invent facts, and clearly "
+    "separate reported facts from your assessment."
 )
+
+
+ASSESSMENT_SECTIONS = (
+    "Case identification and validity",
+    "Reported clinical event and chronology",
+    "Suspected product and relevant medical context",
+    "Comparison with APDL Product Information",
+    "Comparison with innovator Reference Safety Information",
+    "Reference safety assessment: listedness, expectedness and frequency",
+    "Seriousness assessment",
+    "Causality assessment",
+    "Data limitations and follow-up required",
+    "Regulatory reporting consideration",
+    "Overall conclusion",
+)
+
+_HEADING_PATTERN = re.compile(r"^\s*(\d{1,2})\.\s+\S", re.M)
+
+
+# Database bookkeeping fields that add noise to an assessment.
+INTERNAL_FIELDS = {
+    "case_id",
+    "case_product_id",
+    "country_id",
+    "created_by",
+    "created_at",
+    "updated_at",
+    "assessment_id",
+    "rsi_id",
+    "assessed_by",
+    "assessed_at",
+}
+
+
+def _clinical(record):
+    return {
+        key: value
+        for key, value in deidentify(record).items()
+        if key not in INTERNAL_FIELDS and value not in (None, "")
+    }
+
+
+def timing_facts(case, product):
+    """Plain-language facts about the time relationship, computed exactly."""
+    case = case or {}
+    product = product or {}
+    onset = case.get("event_onset_date")
+    start = product.get("therapy_start_date")
+    end = product.get("therapy_end_date")
+    facts = []
+    if onset and start:
+        gap = (onset - start).days
+        if gap < 0:
+            facts.append(
+                f"The event began {-gap} day(s) before the suspected product "
+                f"was started (onset {onset}, therapy start {start})."
+            )
+        else:
+            facts.append(
+                f"The event began {gap} day(s) after the suspected product "
+                f"was started (therapy start {start}, onset {onset})."
+            )
+    elif onset:
+        facts.append(
+            "The therapy start date is not recorded, so the time to onset "
+            "cannot be determined."
+        )
+    if onset and end and end < onset:
+        facts.append(
+            f"Therapy stopped on {end}, before the event began on {onset}."
+        )
+    if case.get("patient_pregnancy_status") == "Yes":
+        facts.append("The patient is recorded as pregnant.")
+    return facts
+
+
+DEATH_WORDS = ("death", "died", "dead", "fatal", "deceased")
+
+
+def required_queries(case, product):
+    """Follow-up queries the report must always contain, worded exactly."""
+    case = case or {}
+    product = product or {}
+    name = product.get("product_name") or "the suspected product"
+    onset = case.get("event_onset_date")
+    start = product.get("therapy_start_date")
+    queries = []
+
+    if onset and start and onset < start:
+        queries.append(
+            f"Confirm the event onset date and the date {name} was first "
+            f"given; the recorded onset ({onset:%d %b %Y}) is before the "
+            f"recorded start of therapy ({start:%d %b %Y})."
+        )
+    elif onset and not start:
+        queries.append(f"Provide the date {name} was first given.")
+
+    criteria = (case.get("seriousness_criteria") or "").lower()
+    outcome = case.get("event_outcome") or ""
+    if any(word in criteria for word in DEATH_WORDS) and outcome != "Fatal":
+        queries.append(
+            "Confirm whether the patient died. If not, provide the correct "
+            f"seriousness criterion; the recorded outcome is {outcome or 'not stated'}."
+        )
+
+    birth = case.get("patient_date_of_birth")
+    age = case.get("patient_age_years")
+    reference = onset or case.get("received_date")
+    if birth and age is not None and reference:
+        derived = reference.year - birth.year - (
+            (reference.month, reference.day) < (birth.month, birth.day)
+        )
+        if abs(derived - age) > 1:
+            queries.append(
+                "Provide the patient's correct date of birth; the recorded "
+                f"date ({birth:%d %b %Y}) does not match the recorded age "
+                f"of {age} years."
+            )
+
+    if case.get("patient_pregnancy_status") == "Yes":
+        queries.append(
+            "Provide pregnancy details: gestational age at exposure, "
+            "expected delivery date, and the pregnancy outcome when known."
+        )
+    return queries
+
+
+def _bullets(items, empty_text):
+    items = [item for item in (items or []) if item]
+    if not items:
+        return f"- {empty_text}"
+    return "\n".join(f"- {item}" for item in items)
+
+
+def regulatory_facts(case, safety_assessment, today=None):
+    """Expedited-reporting position and reporting clock, as recorded."""
+    case = case or {}
+    serious = bool(case.get("seriousness"))
+    listedness = (safety_assessment or {}).get("listedness_status")
+    facts = [
+        f"Seriousness as recorded: {'serious' if serious else 'non-serious'}. "
+        f"Listedness: {listedness or 'not yet assessed'}."
+    ]
+    if serious and listedness == "Not listed":
+        facts.append(
+            "As recorded, the case is serious and the event is not listed, so "
+            "it meets the criteria for expedited (15-day) reporting to the "
+            "regulator. This stands unless follow-up shows the case is not "
+            "serious."
+        )
+    elif serious:
+        facts.append(
+            "As recorded, the case is serious. Whether expedited reporting is "
+            "required depends on listedness and the national requirement."
+        )
+    else:
+        facts.append(
+            "As recorded, the case is non-serious and is normally reported "
+            "in periodic reports rather than expedited."
+        )
+
+    clock = evaluate_reporting_clock(case, today=today)
+    if clock:
+        received = case["received_date"]
+        submitted = clock["submitted_date"]
+        facts.append(
+            f"Reporting clock: Day 0 {received:%d %b %Y}; "
+            f"{clock['timeline_days']}-day timeline; due "
+            f"{clock['due_date']:%d %b %Y}; status: {clock['label']}"
+            + (f" (submitted {submitted:%d %b %Y})." if submitted else ".")
+        )
+    return facts
+
+
+def assessment_model_name():
+    return describe_model()
+
+
+def describe_assessment_progress(text_so_far):
+    """Return (section_number, section_title, word_count) for partial text.
+
+    section_number is 0 before the first heading has been written.
+    """
+    numbers = [
+        int(match.group(1))
+        for match in _HEADING_PATTERN.finditer(text_so_far or "")
+        if 1 <= int(match.group(1)) <= len(ASSESSMENT_SECTIONS)
+    ]
+    section = max(numbers) if numbers else 0
+    title = ASSESSMENT_SECTIONS[section - 1] if section else ""
+    return section, title, len((text_so_far or "").split())
+
+
+def progress_message(text_so_far):
+    section, title, words = describe_assessment_progress(text_so_far)
+    if not section:
+        return f"AI model is starting the assessment ({words} words so far)."
+    return (
+        f"Writing section {section} of {len(ASSESSMENT_SECTIONS)}: "
+        f"{title} ({words} words so far)."
+    )
 
 
 def generate_case_assessment(
@@ -17,14 +220,17 @@ def generate_case_assessment(
     apdl_product_information,
     innovator_rsi,
     safety_assessment,
+    on_progress=None,
+    data_quality_findings=None,
 ):
     """
-    Generate an AI draft case-assessment narrative locally through Ollama.
+    Generate an AI draft case-assessment narrative.
     The returned text must be reviewed and approved by an authorised PV user.
+    ``on_progress(text_so_far)`` receives partial text while it is written.
     """
     case_data = {
-        "case": dict(case or {}),
-        "suspected_product": dict(product or {}),
+        "case": _clinical(case),
+        "suspected_product": _clinical(product),
         "apdl_product_information": dict(
             apdl_product_information or {}
         ),
@@ -100,31 +306,59 @@ Rules:
   "AI-generated draft — QPPV/medical reviewer approval required."
 
 
+Pre-computed facts (calculated by the platform; treat as correct):
+{_bullets(timing_facts(case, product), "No timing facts could be calculated.")}
+
+Required follow-up queries (section 9 must start with these, numbered in
+this order, with the wording unchanged; add further specific queries after
+them only if needed):
+{_bullets(required_queries(case, product), "No required queries.")}
+
+Regulatory facts (calculated by the platform; use them in section 10):
+{_bullets(regulatory_facts(case, safety_assessment), "No regulatory facts available.")}
+
+Data quality findings (from the platform's consistency checks). Address
+every finding explicitly: describe it in section 1 or 2, explain how it
+affects seriousness or causality, and list the follow-up query needed in
+section 9. Do not resolve a contradiction by choosing one value yourself.
+{_bullets(data_quality_findings, "No data quality findings were raised.")}
+
+Additional writing rules:
+- Interpret the data; do not restate every field. Mention a field only when
+  it matters to the assessment.
+- Never expand, translate or guess the meaning of abbreviations, codes or
+  placeholder text (for example a profession recorded as "SC"). Quote them
+  exactly as recorded and, if they matter, add a follow-up query.
+- If a timing fact shows the event began before the suspected product was
+  started, say in sections 2 and 8 that this does not support a causal
+  relationship unless the dates are wrong.
+- If the patient is recorded as pregnant, state this in section 3 and in the
+  overall conclusion as an exposure during pregnancy.
+- Base the causality section on chronology, dechallenge/rechallenge,
+  alternative causes and the findings above. If the event preceded
+  exposure, causality cannot be supported as recorded.
+- Section 7: state the seriousness as recorded. If it conflicts with the
+  outcome or other data, say it cannot be confirmed until clarified. Do not
+  guess whether the event was serious.
+- Section 9: write each follow-up question to the reporter on its own line
+  as "Query 1:", "Query 2:" and so on. Include one query for every data
+  quality finding and for any missing date needed to assess causality.
+- Section 10: state whether expedited reporting is required using the
+  regulatory facts, and state the reporting clock status and due date.
+- Never repeat a sentence. Each sentence must appear only once in the report.
+
 Supplied case and reference data:
 {json.dumps(case_data, default=str, indent=2)}
 """.strip()
 
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.2,
-                "num_predict": 650,
-            },
-        },
-        timeout=180,
+    report = generate_text(
+        prompt,
+        system=SYSTEM_PROMPT,
+        max_tokens=4000,
+        temperature=0.2,
+        timeout=240,
+        on_progress=on_progress,
     )
-    response.raise_for_status()
-
-    report = response.json().get("response", "").strip()
-    if not report:
-        raise RuntimeError(
-            "The local AI model returned an empty assessment report."
-        )
-
     return report.replace("*", "")
 
 def generate_rsi_assessment_explanation(
@@ -158,23 +392,11 @@ State clearly when the evidence is insufficient. End with:
 "Automated draft assessment — QPPV/medical reviewer confirmation required."
 """.strip()
 
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.1,
-                "num_predict": 700,
-            },
-        },
+    explanation = generate_text(
+        prompt,
+        system=SYSTEM_PROMPT,
+        max_tokens=1500,
+        temperature=0.1,
         timeout=120,
     )
-    response.raise_for_status()
-
-    explanation = response.json().get("response", "").strip()
-    if not explanation:
-        raise RuntimeError("The local AI model returned no RSI explanation.")
-
     return explanation.replace("*", "")

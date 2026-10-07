@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from threading import Thread
 from flask import (
     Blueprint,
@@ -17,9 +18,12 @@ from app.audit import write_audit_log
 from app.db import query_all, query_one, transaction
 from app.security import login_required, roles_required
 from app.services.ai_case_assessment import (
-    OLLAMA_MODEL,
+    ASSESSMENT_SECTIONS,
+    assessment_model_name,
     generate_case_assessment,
+    progress_message,
 )
+from app.services.case_consistency import evaluate_case_consistency
 from app.services.rsi_lookup import automatic_dailymed_assessment
 from app.services.ai_case_assessment_docx import (
     build_ai_case_assessment_docx,
@@ -27,6 +31,28 @@ from app.services.ai_case_assessment_docx import (
 
 
 bp = Blueprint("case_ai_reports", __name__)
+
+# Generation runs in a background thread of this server process, so any job
+# still marked in progress from before this process started was interrupted.
+PROCESS_STARTED_AT = datetime.now(timezone.utc)
+
+
+def fail_interrupted_jobs(case_id):
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.case_ai_assessment_generation_jobs
+            SET status = 'Failed',
+                current_stage = 'Assessment generation was interrupted.',
+                error_message = 'The server restarted while the assessment '
+                    || 'was being generated. Start a new assessment.',
+                completed_at = CURRENT_TIMESTAMP
+            WHERE case_id = %s
+              AND status IN ('Queued', 'Processing')
+              AND created_at < %s
+            """,
+            (case_id, PROCESS_STARTED_AT),
+        )
 
 
 def get_case_context(case_id):
@@ -237,8 +263,20 @@ def run_ai_case_assessment_generation(
             update_ai_assessment_generation_job(
                 job_id,
                 "Processing",
-                "AI assessment narrative is being generated.",
+                f"Sending the case to the AI model ({assessment_model_name()}).",
             )
+
+            def report_progress(text_so_far):
+                try:
+                    update_ai_assessment_generation_job(
+                        job_id,
+                        "Processing",
+                        progress_message(text_so_far),
+                    )
+                except Exception:
+                    current_app.logger.exception(
+                        "Could not record AI assessment progress"
+                    )
 
             report_text = generate_case_assessment(
                 case=dict(case),
@@ -246,6 +284,14 @@ def run_ai_case_assessment_generation(
                 apdl_product_information={},
                 innovator_rsi={},
                 safety_assessment=dict(safety_assessment or {}),
+                on_progress=report_progress,
+                data_quality_findings=[
+                    check["message"]
+                    for check in evaluate_case_consistency(
+                        dict(case), [dict(product)] if product else []
+                    )
+                    if check["status"] == "Review"
+                ],
             )
 
             update_ai_assessment_generation_job(
@@ -269,7 +315,7 @@ def run_ai_case_assessment_generation(
                     (
                         case_id,
                         report_text,
-                        OLLAMA_MODEL,
+                        assessment_model_name(),
                         user_id,
                     ),
                 )
@@ -280,7 +326,7 @@ def run_ai_case_assessment_generation(
                 "AI case assessment report generated",
                 user_id,
                 (
-                    f"Local model: {OLLAMA_MODEL}; "
+                    f"Model: {assessment_model_name()}; "
                     "APDL PI and innovator RSI comparison requested."
                 ),
             )
@@ -312,6 +358,7 @@ def run_ai_case_assessment_generation(
 @login_required
 def generate_ai_case_assessment(case_id):
     get_case_context(case_id)
+    fail_interrupted_jobs(case_id)
 
     existing_job = query_one(
         """
@@ -383,6 +430,7 @@ def generate_ai_case_assessment(case_id):
 @login_required
 def generating_ai_case_assessment(case_id, job_id):
     case, _, _ = get_case_context(case_id)
+    fail_interrupted_jobs(case_id)
 
     job = query_one(
         """
@@ -390,7 +438,8 @@ def generating_ai_case_assessment(case_id, job_id):
             job_id,
             status,
             current_stage,
-            error_message
+            error_message,
+            created_at
         FROM pv.case_ai_assessment_generation_jobs
         WHERE job_id = %s
           AND case_id = %s
@@ -410,6 +459,16 @@ def generating_ai_case_assessment(case_id, job_id):
         "cases/ai_case_assessment_generating.html",
         case=case,
         job=job,
+        model_name=assessment_model_name(),
+        section_count=len(ASSESSMENT_SECTIONS),
+        elapsed_seconds=max(
+            0,
+            int(
+                (
+                    datetime.now(timezone.utc) - job["created_at"]
+                ).total_seconds()
+            ),
+        ),
     )
 
 
@@ -418,6 +477,7 @@ def generating_ai_case_assessment(case_id, job_id):
 )
 @login_required
 def ai_case_assessment_generation_status(case_id, job_id):
+    fail_interrupted_jobs(case_id)
     job = query_one(
         """
         SELECT

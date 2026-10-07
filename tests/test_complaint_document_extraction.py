@@ -26,20 +26,16 @@ def flask_app():
 
 
 def test_extract_complaint_fields_filters_unknown_keys(monkeypatch):
-    response = Mock()
-    response.raise_for_status.return_value = None
-    response.json.return_value = {
-        "response": (
-            '{"product_name":"Medicine X","severity":"Serious",'
-            '"root_cause":"Manufacturing failure",'
-            '"uncertain_fields":["severity","root_cause"],'
-            '"complaint_number":"invented-id"}'
-        )
-    }
+    model_reply = (
+        '{"product_name":"Medicine X","severity":"Serious",'
+        '"root_cause":"Manufacturing failure",'
+        '"uncertain_fields":["severity","root_cause"],'
+        '"complaint_number":"invented-id"}'
+    )
     monkeypatch.setattr(
-        complaint_document_extraction.requests,
-        "post",
-        lambda *args, **kwargs: response,
+        complaint_document_extraction,
+        "generate_text",
+        lambda *args, **kwargs: model_reply,
     )
 
     extracted = complaint_document_extraction.extract_complaint_fields(
@@ -54,13 +50,11 @@ def test_extract_complaint_fields_filters_unknown_keys(monkeypatch):
 
 
 def test_extract_complaint_fields_rejects_invalid_response(monkeypatch):
-    response = Mock()
-    response.raise_for_status.return_value = None
-    response.json.return_value = {"response": "not JSON"}
+    model_reply = "not JSON"
     monkeypatch.setattr(
-        complaint_document_extraction.requests,
-        "post",
-        lambda *args, **kwargs: response,
+        complaint_document_extraction,
+        "generate_text",
+        lambda *args, **kwargs: model_reply,
     )
 
     with pytest.raises(ValueError, match="invalid complaint extraction data"):

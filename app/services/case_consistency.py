@@ -104,8 +104,9 @@ def _patient_problems(case, today):
         )
         if abs(derived - age) > 1:
             problems.append(
-                f"Recorded age ({age} years) does not match the date of "
-                f"birth (about {derived} years at the event)."
+                f"Recorded age ({age} years) does not match the recorded "
+                f"date of birth ({_fmt(birth)}), which gives an age of "
+                f"about {derived} years at the event."
             )
 
     if (

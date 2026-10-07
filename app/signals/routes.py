@@ -389,7 +389,7 @@ def draft_signal_assessment(signal_id):
             signal_id,
         )
         flash(
-            "The AI draft could not be generated. Check that the local AI "
+            "The AI draft could not be generated. Check that the AI "
             "service is available and try again.",
             "error",
         )

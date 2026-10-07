@@ -116,6 +116,36 @@
         text-decoration: none;
     }
 
+    .generation-card [hidden] {
+        display: none !important;
+    }
+
+    .progress-track.determinate span {
+        width: 0;
+        animation: none;
+        transition: width 600ms ease;
+    }
+
+    .progress-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin: -6px 0 14px;
+        color: #71817c;
+        font-size: 12px;
+    }
+
+    .progress-meta strong {
+        color: #18342f;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .model-note {
+        margin: 14px 0 0;
+        color: #71817c;
+        font-size: 12px;
+    }
+
     @keyframes pulse {
         50% { transform: scale(1.10); }
     }
@@ -139,12 +169,21 @@
             </p>
         </div>
 
-        <div class="progress-track" id="progress-track">
-            <span></span>
+        <div class="progress-track" id="progress-track" role="progressbar" aria-label="Assessment progress" aria-valuemin="0" aria-valuemax="{{ section_count }}">
+            <span id="progress-bar"></span>
+        </div>
+
+        <div class="progress-meta">
+            <span id="section-progress">Preparing</span>
+            <span>Elapsed <strong id="elapsed-time">0:00</strong></span>
         </div>
 
         <p class="generation-note" id="generation-note">
-            The page updates only when the assessment process reaches the next stage.
+            This page updates automatically as each section is written.
+        </p>
+        <p class="model-note">
+            Model: {{ model_name }}.
+            {% if model_name.startswith("Local") %}Local models can take several minutes; you can leave this page open.{% endif %}
         </p>
 
         <div class="failure-box" id="failure-box" hidden></div>
@@ -177,6 +216,38 @@
     const failureBox = document.getElementById("failure-box");
     const progressTrack = document.getElementById("progress-track");
     const backLink = document.getElementById("back-link");
+    const progressBar = document.getElementById("progress-bar");
+    const sectionProgress = document.getElementById("section-progress");
+    const elapsedTime = document.getElementById("elapsed-time");
+    const sectionCount = {{ section_count }};
+    const startedAt = Date.now() - {{ elapsed_seconds }} * 1000;
+    let finished = false;
+
+    function showElapsed() {
+        const seconds = Math.floor((Date.now() - startedAt) / 1000);
+        const minutes = Math.floor(seconds / 60);
+        elapsedTime.textContent =
+            minutes + ":" + String(seconds % 60).padStart(2, "0");
+        if (!finished) {
+            window.setTimeout(showElapsed, 1000);
+        }
+    }
+
+    function showSection(stage) {
+        const match = /section (\d+) of (\d+)/i.exec(stage || "");
+        if (!match) {
+            return;
+        }
+        const section = Number(match[1]);
+        progressTrack.classList.add("determinate");
+        progressTrack.setAttribute("aria-valuenow", section);
+        progressBar.style.width =
+            Math.round((section / sectionCount) * 100) + "%";
+        sectionProgress.textContent =
+            "Section " + section + " of " + sectionCount;
+    }
+
+    showElapsed();
 
     async function checkAssessmentStatus() {
         try {
@@ -191,8 +262,11 @@
             const result = await response.json();
 
             stageMessage.textContent = result.current_stage;
+            showSection(result.current_stage);
 
             if (result.status === "Completed") {
+                finished = true;
+                progressBar.style.width = "100%";
                 generationNote.textContent =
                     "Opening the completed assessment.";
                 window.location.assign(completedUrl);
@@ -200,6 +274,7 @@
             }
 
             if (result.status === "Failed") {
+                finished = true;
                 progressTrack.hidden = true;
                 failureBox.hidden = false;
                 backLink.hidden = false;

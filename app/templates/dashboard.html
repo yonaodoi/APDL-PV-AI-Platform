@@ -23,6 +23,47 @@
         </a>
     </section>
 
+    {% if reporting_alerts and (reporting_alerts.overdue_count or reporting_alerts.due_soon_count) %}
+        <section class="reporting-alert{% if reporting_alerts.overdue_count %} reporting-alert-overdue{% endif %}" role="alert" aria-label="Regulatory reporting deadlines">
+            <div class="reporting-alert-header">
+                <span class="dashboard-reminder-icon" aria-hidden="true">!</span>
+                <div>
+                    <h3>
+                        {% if reporting_alerts.overdue_count %}
+                            {{ reporting_alerts.overdue_count }} case{% if reporting_alerts.overdue_count != 1 %}s{% endif %} overdue for regulatory reporting
+                        {% else %}
+                            {{ reporting_alerts.due_soon_count }} case{% if reporting_alerts.due_soon_count != 1 %}s{% endif %} due for reporting within 3 days
+                        {% endif %}
+                    </h3>
+                    {% if reporting_alerts.overdue_count and reporting_alerts.due_soon_count %}
+                        <p>A further {{ reporting_alerts.due_soon_count }} case{% if reporting_alerts.due_soon_count != 1 %}s are{% else %} is{% endif %} due within 3 days.</p>
+                    {% else %}
+                        <p>Submit to the regulator or record the submission date on each case.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <ul class="reporting-alert-list">
+                {% for case in reporting_alerts.overdue + reporting_alerts.due_soon %}
+                    <li>
+                        <a href="{{ url_for('cases.case_detail', case_id=case.case_id) }}">{{ case.case_number }}</a>
+                        <span>{{ case.country_name or "Country not recorded" }} · {{ "Serious" if case.seriousness else "Non-serious" }} · due {{ case.reporting_clock.due_date.strftime("%d %b %Y") }}</span>
+                        <span class="clock-badge clock-{{ case.reporting_clock.state }}">{{ case.reporting_clock.label }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <div class="reporting-alert-actions">
+                {% if reporting_alerts.overdue_count %}
+                    <a href="{{ url_for('cases.case_list', deadline='overdue') }}">View all overdue cases →</a>
+                {% endif %}
+                {% if reporting_alerts.due_soon_count %}
+                    <a href="{{ url_for('cases.case_list', deadline='due_soon') }}">View cases due soon →</a>
+                {% endif %}
+            </div>
+        </section>
+    {% endif %}
+
     {% if open_follow_up_reminder_count %}
         <a
             class="dashboard-reminder"

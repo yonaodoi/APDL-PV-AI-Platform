@@ -7,18 +7,15 @@ from app.services import safety_signal_assistance
 
 
 def test_draft_uses_limited_signal_context_and_filters_response(monkeypatch):
-    response = Mock()
-    response.raise_for_status.return_value = None
-    response.json.return_value = {
-        "response": (
+    request = Mock(
+        return_value=(
             '{"draft_assessment":"Two linked reports record the event.",'
             '"evidence_gaps":["Confirm the source data."],'
             '"decision":"Validate the signal",'
             '"priority":"Critical"}'
         )
-    }
-    request = Mock(return_value=response)
-    monkeypatch.setattr(safety_signal_assistance.requests, "post", request)
+    )
+    monkeypatch.setattr(safety_signal_assistance, "generate_text", request)
 
     result = safety_signal_assistance.draft_safety_signal_assessment(
         {
@@ -41,7 +38,7 @@ def test_draft_uses_limited_signal_context_and_filters_response(monkeypatch):
         ],
     )
 
-    prompt = request.call_args.kwargs["json"]["prompt"]
+    prompt = request.call_args.args[0]
     assert "Must not be sent" not in prompt
     assert "Do not assess causality" in prompt
     assert result == {
@@ -67,13 +64,10 @@ def test_assistance_parser_rejects_invalid_output(response_text, message):
 
 
 def test_assistance_limits_number_and_length_of_supporting_cases(monkeypatch):
-    response = Mock()
-    response.raise_for_status.return_value = None
-    response.json.return_value = {
-        "response": '{"draft_assessment":"Summary","evidence_gaps":[]}'
-    }
-    request = Mock(return_value=response)
-    monkeypatch.setattr(safety_signal_assistance.requests, "post", request)
+    request = Mock(
+        return_value='{"draft_assessment":"Summary","evidence_gaps":[]}'
+    )
+    monkeypatch.setattr(safety_signal_assistance, "generate_text", request)
     cases = [
         {
             "case_number": f"CASE-{index}",
@@ -84,7 +78,7 @@ def test_assistance_limits_number_and_length_of_supporting_cases(monkeypatch):
 
     safety_signal_assistance.draft_safety_signal_assessment({}, cases)
 
-    prompt = request.call_args.kwargs["json"]["prompt"]
+    prompt = request.call_args.args[0]
     assert '"supporting_case_count": 51' in prompt
     assert '"included_case_count": 50' in prompt
     assert prompt.count('"case_number":') == 50

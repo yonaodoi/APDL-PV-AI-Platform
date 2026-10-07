@@ -1,14 +1,7 @@
 import json
-import os
 
-import requests
+from app.services.llm import AIUnavailableError, generate_text
 
-
-OLLAMA_URL = os.environ.get(
-    "OLLAMA_URL",
-    "http://127.0.0.1:11434/api/generate",
-)
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:1b")
 MAX_SUPPORTING_CASES = 50
 
 
@@ -21,26 +14,26 @@ def _parse_assistance_response(response_text):
         result = json.loads(response_text.strip())
     except json.JSONDecodeError as exc:
         raise ValueError(
-            "The local AI model returned invalid safety signal draft data."
+            "The AI model returned invalid safety signal draft data."
         ) from exc
 
     if not isinstance(result, dict):
         raise ValueError(
-            "The local AI model returned an invalid safety signal draft."
+            "The AI model returned an invalid safety signal draft."
         )
 
     draft_assessment = result.get("draft_assessment")
     evidence_gaps = result.get("evidence_gaps")
     if not isinstance(draft_assessment, str) or not draft_assessment.strip():
         raise ValueError(
-            "The local AI model did not return a draft assessment."
+            "The AI model did not return a draft assessment."
         )
     if (
         not isinstance(evidence_gaps, list)
         or any(not isinstance(item, str) for item in evidence_gaps)
     ):
         raise ValueError(
-            "The local AI model returned invalid evidence-gap suggestions."
+            "The AI model returned invalid evidence-gap suggestions."
         )
 
     return {
@@ -104,27 +97,13 @@ Record:
 """.strip()
 
     try:
-        response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "format": "json",
-                "options": {"temperature": 0.1, "num_predict": 900},
-            },
+        response_text = generate_text(
+            prompt,
+            max_tokens=2000,
+            temperature=0.1,
+            json_output=True,
             timeout=180,
         )
-        response.raise_for_status()
-    except requests.RequestException as exc:
-        raise RuntimeError(
-            "Local AI assistance is unavailable. Ensure Ollama is running "
-            f"with model {OLLAMA_MODEL}."
-        ) from exc
-
-    response_text = response.json().get("response", "")
-    if not isinstance(response_text, str) or not response_text.strip():
-        raise RuntimeError(
-            "The local AI model returned no safety signal draft."
-        )
+    except AIUnavailableError as exc:
+        raise RuntimeError(f"AI assistance is unavailable. {exc}") from exc
     return _parse_assistance_response(response_text)

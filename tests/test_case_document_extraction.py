@@ -1,5 +1,4 @@
 from datetime import date
-from unittest.mock import Mock
 
 import pytest
 from flask import Flask
@@ -18,19 +17,15 @@ def flask_app():
 
 
 def test_extract_case_fields_discards_unrecognized_model_keys(monkeypatch):
-    response = Mock()
-    response.raise_for_status.return_value = None
-    response.json.return_value = {
-        "response": (
-            '{"product_name":"Medicine X","event_description":"Rash",'
-            '"seriousness":true,"causality_assessment":"Certain",'
-            '"uncertain_fields":["product_name"],"made_up":"value"}'
-        )
-    }
+    model_reply = (
+        '{"product_name":"Medicine X","event_description":"Rash",'
+        '"seriousness":true,"causality_assessment":"Certain",'
+        '"uncertain_fields":["product_name"],"made_up":"value"}'
+    )
     monkeypatch.setattr(
-        case_document_extraction.requests,
-        "post",
-        lambda *args, **kwargs: response,
+        case_document_extraction,
+        "generate_text",
+        lambda *args, **kwargs: model_reply,
     )
 
     result = case_document_extraction.extract_case_fields(
@@ -45,13 +40,11 @@ def test_extract_case_fields_discards_unrecognized_model_keys(monkeypatch):
 
 
 def test_extract_case_fields_rejects_invalid_json(monkeypatch):
-    response = Mock()
-    response.raise_for_status.return_value = None
-    response.json.return_value = {"response": "No structured content"}
+    model_reply = "No structured content"
     monkeypatch.setattr(
-        case_document_extraction.requests,
-        "post",
-        lambda *args, **kwargs: response,
+        case_document_extraction,
+        "generate_text",
+        lambda *args, **kwargs: model_reply,
     )
 
     with pytest.raises(ValueError, match="valid structured"):

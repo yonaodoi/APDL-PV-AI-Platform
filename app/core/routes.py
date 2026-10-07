@@ -38,7 +38,12 @@ def dashboard():
                 "success",
             )
         return redirect(url_for("case_review.follow_up_tasks"))
-    return flask.render_template("dashboard.html")
+    from app.services.reporting_clock import get_reporting_alerts
+
+    return flask.render_template(
+        "dashboard.html",
+        reporting_alerts=get_reporting_alerts(),
+    )
 
 @bp.get("/health")
 def health():
