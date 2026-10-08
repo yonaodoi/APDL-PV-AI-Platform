@@ -94,6 +94,22 @@ REVIEWED_BY = ("YONA ODOI", "Q.P.P.V.")
 AUTHORISED_BY = ("KEITH ARUHO", "GROUP HEAD, RA & QUALITY")
 
 
+DEFAULT_PV_PHONE = "+256786557530"
+
+
+def format_sent(value):
+    """'08 Oct 2026 at 22:51 (UTC+03:00)' in this computer's time zone."""
+    if not value:
+        return ""
+    if getattr(value, "tzinfo", None) is None:
+        value = value.astimezone()
+    else:
+        value = value.astimezone()
+    offset = value.strftime("%z")
+    offset = f"UTC{offset[:3]}:{offset[3:]}" if offset else ""
+    return value.strftime("%d %b %Y at %H:%M") + (f" ({offset})" if offset else "")
+
+
 def _fmt(value):
     return value.strftime("%d %b %Y") if value else ""
 
@@ -199,15 +215,16 @@ def email_subject(case):
     return f"Follow-up request for adverse reaction report {case['case_number']}"
 
 
-def email_body(case, product, items, due_date, reminder_of=None):
+def email_body(case, product, items, due_date, reminder_of=None, sent_at=None, phone=None):
     product_name = (product or {}).get("product_name") or "a medicine"
     received = _fmt(case.get("received_date"))
+    phone = phone or DEFAULT_PV_PHONE
     greeting = f"Dear {case['reporter_name']}," if case.get("reporter_name") else "Dear reporter,"
     if reminder_of:
         opening = [
             greeting,
             "",
-            f"We wrote to you on {_fmt(reminder_of)} about your report of a "
+            f"We wrote to you on {format_sent(reminder_of)} about your report of a "
             f"suspected adverse reaction to {product_name} (our reference "
             f"{case['case_number']}). We have not yet received the information "
             "below and would be grateful for your help:",
@@ -231,10 +248,15 @@ def email_body(case, product, items, due_date, reminder_of=None):
         + (f" by {_fmt(due_date)}" if due_date else "")
         + ". If some information is not available, please say so.",
         "",
+        f"If it is easier, you can call us on {phone}.",
+        "",
         "Kind regards,",
         "Pharmacovigilance team",
         "Abacus Parenteral Drugs Ltd",
+        f"Tel: {phone}",
     ]
+    if sent_at:
+        lines += ["", f"Sent on {format_sent(sent_at)}."]
     return "\n".join(lines)
 
 
@@ -289,9 +311,11 @@ def _answer_area(document, item):
         set_cell_text(table.cell(0, 0), "\n\n\n", size=10)
 
 
-def build_follow_up_request_docx(case, product, items, due_date, prepared_by=None, today=None):
+def build_follow_up_request_docx(case, product, items, due_date, prepared_by=None,
+                                today=None, sent_at=None, phone=None):
     """The consolidated follow-up form for one case, as a Word file."""
     today = today or date.today()
+    phone = phone or DEFAULT_PV_PHONE
     product = product or {}
     document = Document()
     section = document.sections[0]
@@ -323,7 +347,7 @@ def build_follow_up_request_docx(case, product, items, due_date, prepared_by=Non
         document,
         FORM_CONTROL
         + (
-            ("DATE OF REQUEST", _fmt(today)),
+            ("SENT ON", format_sent(sent_at)) if sent_at else ("DATE OF REQUEST", _fmt(today)),
             ("PLEASE REPLY BY", _fmt(due_date)),
         ),
     )
@@ -381,8 +405,8 @@ def build_follow_up_request_docx(case, product, items, due_date, prepared_by=Non
     back.paragraph_format.space_before = Pt(8)
     back.add_run(
         "Please return this form by replying to the email it came with, or to "
-        "the APDL Pharmacovigilance team. Information you provide is used only "
-        "for medicine safety monitoring."
+        f"the APDL Pharmacovigilance team (telephone {phone}). Information you "
+        "provide is used only for medicine safety monitoring."
     ).font.size = Pt(8)
 
     document.add_page_break()

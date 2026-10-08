@@ -153,14 +153,19 @@ def send_case_request(case_id, actor_user_id, *, automatic=False, kind="Request"
         )
         reminder_of = (first or {}).get("sent_at")
 
-    document = build_follow_up_request_docx(case, product, items, due, prepared_by=prepared_by)
+    sent_at = datetime.now(timezone.utc)
+    phone = app.config.get("PV_CONTACT_PHONE")
+    document = build_follow_up_request_docx(
+        case, product, items, due, prepared_by=prepared_by, sent_at=sent_at, phone=phone,
+    )
     subject = email_subject(case)
     if kind == "Reminder":
         subject = "Reminder: " + subject
     try:
         send_follow_up_email(
             app, recipient, subject,
-            email_body(case, product, items, due, reminder_of=reminder_of),
+            email_body(case, product, items, due, reminder_of=reminder_of,
+                       sent_at=sent_at, phone=phone),
             document, request_filename(case),
         )
     except FollowUpEmailError as exc:

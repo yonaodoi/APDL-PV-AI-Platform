@@ -115,6 +115,9 @@ class Config:
     SMTP_USE_SSL = os.environ.get("SMTP_USE_SSL", "true").lower() == "true"
     SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "false").lower() == "true"
 
+    # Pharmacovigilance telephone number printed on follow-up emails and forms.
+    PV_CONTACT_PHONE = os.environ.get("PV_CONTACT_PHONE", "+256786557530")
+
     # Automatic follow-up. Requests and reminders are emailed without a click
     # once email sending is set up (Gmail connection or SMTP_PASSWORD).
     # Set FOLLOW_UP_AUTO_SEND=false in .env to switch it off.

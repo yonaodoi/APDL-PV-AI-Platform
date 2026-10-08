@@ -666,7 +666,8 @@ def download_follow_up_request(case_id):
     due = reply_due(tasks, case, days=current_app.config.get("FOLLOW_UP_REMINDER_DAYS", 7))
     return send_file(
         build_follow_up_request_docx(
-            case, product, items, due, prepared_by=session.get("full_name")
+            case, product, items, due, prepared_by=session.get("full_name"),
+            phone=current_app.config.get("PV_CONTACT_PHONE"),
         ),
         as_attachment=True,
         download_name=request_filename(case),

@@ -220,3 +220,32 @@ def test_email_again_is_sent_as_a_reminder(monkeypatch):
     client.post("/cases/9/follow-up-request/send")
 
     assert kinds == ["Reminder"]
+
+
+def test_email_shows_sent_time_and_pv_phone():
+    from datetime import datetime, timezone
+
+    items = build_request_items(CASE, PRODUCT, CHECKS)
+    sent = datetime(2026, 10, 8, 19, 51, tzinfo=timezone.utc)
+    body = email_body(CASE, PRODUCT, items, date(2026, 10, 15), sent_at=sent, phone="+256786557530")
+
+    assert "call us on +256786557530" in body
+    assert "Tel: +256786557530" in body
+    assert "Sent on 08 Oct 2026 at " in body
+    assert "(UTC" in body
+
+
+def test_form_shows_sent_time_and_phone():
+    from datetime import datetime, timezone
+
+    items = build_request_items(CASE, PRODUCT, CHECKS)
+    output = build_follow_up_request_docx(
+        CASE, PRODUCT, items, date(2026, 10, 15),
+        sent_at=datetime(2026, 10, 8, 19, 51, tzinfo=timezone.utc), phone="+256786557530",
+    )
+    document = Document(output)
+    text = "\n".join(p.text for p in document.paragraphs)
+    cells = "\n".join(c.text for t in document.tables for r in t.rows for c in r.cells)
+
+    assert "SENT ON" in cells and "08 Oct 2026 at " in cells
+    assert "telephone +256786557530" in text
