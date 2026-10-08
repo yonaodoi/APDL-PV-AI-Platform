@@ -24,6 +24,10 @@ def test_follow_up_task_register_preserves_actions_and_due_state(monkeypatch):
         "app.services.case_follow_up_reminders.get_open_reminder_count",
         lambda: 0,
     )
+    monkeypatch.setattr(
+        "app.services.case_follow_up_reminders.ensure_overdue_reminders",
+        lambda: 0,
+    )
 
     client = app.test_client()
     with client.session_transaction() as user_session:
@@ -42,3 +46,46 @@ def test_follow_up_task_register_preserves_actions_and_due_state(monkeypatch):
     assert "Mark completed" in page
     assert 'name="csrf_token"' in page
     assert 'class="task-status overdue"' in page
+
+
+def test_overdue_reminders_page_creates_todays_reminders(monkeypatch):
+    app = create_app(TestingConfig)
+    calls = []
+    monkeypatch.setattr(
+        "app.services.case_follow_up_reminders.ensure_overdue_reminders",
+        lambda: calls.append("created") or 1,
+    )
+    monkeypatch.setattr(
+        "app.services.case_follow_up_reminders.get_open_reminders",
+        lambda: [],
+    )
+    monkeypatch.setattr(
+        "app.services.case_follow_up_reminders.get_open_reminder_count",
+        lambda: 0,
+    )
+
+    client = app.test_client()
+    with client.session_transaction() as user_session:
+        user_session["user_id"] = 1
+        user_session["full_name"] = "Test User"
+        user_session["role"] = "System Administrator"
+
+    response = client.get("/cases/follow-up-reminders")
+
+    assert response.status_code == 200
+    assert calls == ["created"]
+
+
+def test_ensure_overdue_reminders_never_breaks_the_page(monkeypatch):
+    import app.services.case_follow_up_reminders as reminders
+
+    app = create_app(TestingConfig)
+
+    def fail():
+        raise RuntimeError("database unavailable")
+
+    monkeypatch.setattr(reminders, "create_overdue_reminders", fail)
+    monkeypatch.setattr("app.db.get_db", lambda: type("C", (), {"rollback": lambda self: None})())
+
+    with app.app_context():
+        assert reminders.ensure_overdue_reminders() == 0

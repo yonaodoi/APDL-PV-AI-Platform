@@ -38,8 +38,11 @@ def dashboard():
                 "success",
             )
         return redirect(url_for("case_review.follow_up_tasks"))
+    from app.services.case_follow_up_reminders import ensure_overdue_reminders
     from app.services.psur_rules import get_psur_alerts
     from app.services.reporting_clock import get_reporting_alerts
+
+    ensure_overdue_reminders()
 
     return flask.render_template(
         "dashboard.html",

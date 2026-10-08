@@ -203,39 +203,117 @@ def toggle_designated_qppv(user_id):
     return redirect(url_for("administration.user_list"))
 
 
+AUDIT_RECORD_LABELS = {
+    "case": "Safety case",
+    "safety_case": "Safety case",
+    "case_intake": "Case intake",
+    "complaint": "Product complaint",
+    "signal": "Safety signal",
+    "psur": "PSUR",
+    "user": "User",
+    "reference_safety_information": "Reference safety information",
+}
+
+AUDIT_RECORD_ENDPOINTS = {
+    "case": ("cases.case_detail", "case_id"),
+    "safety_case": ("cases.case_detail", "case_id"),
+    "complaint": ("complaints.complaint_detail", "complaint_id"),
+    "signal": ("signals.signal_detail", "signal_id"),
+    "psur": ("psur.psur_detail", "psur_id"),
+}
+
+
+def audit_record_label(record_type):
+    return AUDIT_RECORD_LABELS.get(
+        record_type,
+        (record_type or "Record").replace("_", " ").capitalize(),
+    )
+
+
+def audit_record_url(record_type, record_id):
+    endpoint = AUDIT_RECORD_ENDPOINTS.get(record_type)
+    if not endpoint or not record_id:
+        return None
+    try:
+        return url_for(endpoint[0], **{endpoint[1]: record_id})
+    except Exception:
+        return None
+
+
 @bp.get("/audit-log")
 @roles_required("System Administrator", "Auditor")
 def audit_log():
     entries = query_all(
         """
         SELECT
-            audit_log.record_type,
-            audit_log.record_id,
-            audit_log.action,
-            audit_log.details,
-            audit_log.occurred_at,
-            users.full_name
-        FROM pv.audit_log AS audit_log
-        LEFT JOIN pv.users AS users
-            ON users.user_id = audit_log.actor_user_id
+            entries.*,
+            CASE
+                WHEN entries.record_type IN ('case', 'safety_case') THEN (
+                    SELECT case_number FROM pv.safety_cases
+                    WHERE case_id = entries.record_id
+                )
+                WHEN entries.record_type = 'complaint' THEN (
+                    SELECT complaint_number FROM pv.product_complaints
+                    WHERE complaint_id = entries.record_id
+                )
+                WHEN entries.record_type = 'signal' THEN (
+                    SELECT signal_number FROM pv.safety_signals
+                    WHERE signal_id = entries.record_id
+                )
+                WHEN entries.record_type = 'psur' THEN (
+                    SELECT report_number FROM pv.psur_reports
+                    WHERE psur_id = entries.record_id
+                )
+                WHEN entries.record_type = 'user' THEN (
+                    SELECT full_name FROM pv.users
+                    WHERE user_id = entries.record_id
+                )
+                WHEN entries.record_type = 'reference_safety_information' THEN (
+                    SELECT product_name || ' ' || document_type
+                    FROM pv.reference_safety_information
+                    WHERE rsi_id = entries.record_id
+                )
+            END AS record_reference
+        FROM (
+            SELECT
+                audit_log.record_type,
+                audit_log.record_id,
+                audit_log.action,
+                audit_log.details,
+                audit_log.occurred_at,
+                users.full_name
+            FROM pv.audit_log AS audit_log
+            LEFT JOIN pv.users AS users
+                ON users.user_id = audit_log.actor_user_id
 
-        UNION ALL
+            UNION ALL
 
-        SELECT
-            'case' AS record_type,
-            case_audit_log.case_id AS record_id,
-            case_audit_log.action,
-            case_audit_log.details,
-            case_audit_log.performed_at AS occurred_at,
-            users.full_name
-        FROM pv.case_audit_log AS case_audit_log
-        LEFT JOIN pv.users AS users
-            ON users.user_id = case_audit_log.performed_by
-
-        ORDER BY occurred_at DESC
+            SELECT
+                'case' AS record_type,
+                case_audit_log.case_id AS record_id,
+                case_audit_log.action,
+                case_audit_log.details,
+                case_audit_log.performed_at AS occurred_at,
+                users.full_name
+            FROM pv.case_audit_log AS case_audit_log
+            LEFT JOIN pv.users AS users
+                ON users.user_id = case_audit_log.performed_by
+        ) AS entries
+        ORDER BY entries.occurred_at DESC
         LIMIT 250
         """
     )
+
+    entries = [
+        {
+            **entry,
+            "record_label": audit_record_label(entry["record_type"]),
+            "record_url": audit_record_url(
+                entry["record_type"], entry["record_id"]
+            ),
+        }
+        for entry in entries
+    ]
 
     return render_template(
         "administration/audit_log.html",

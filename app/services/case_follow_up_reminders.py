@@ -36,12 +36,40 @@ def get_open_reminders():
     )
 
 
+def ensure_overdue_reminders():
+    """Create today's overdue reminders without ever breaking a page.
+
+    Reminders used to be created only by the manual
+    ``flask generate-follow-up-reminders`` command, so they never appeared.
+    This runs when the dashboard or follow-up pages open. The unique
+    (task_id, reminder_date) key means at most one reminder per task per day.
+    """
+    from flask import current_app
+
+    from app.db import get_db
+
+    try:
+        return create_overdue_reminders()
+    except Exception:
+        current_app.logger.exception("Could not create overdue reminders")
+        try:
+            get_db().rollback()
+        except Exception:
+            pass
+        return 0
+
+
 def get_open_reminder_count():
+    # Count only reminders whose task is still open, matching the
+    # Overdue Reminders page.
     reminder = query_one(
         """
         SELECT COUNT(*) AS count
-        FROM pv.case_follow_up_reminders
-        WHERE acknowledged_at IS NULL
+        FROM pv.case_follow_up_reminders AS reminders
+        JOIN pv.case_follow_up_tasks AS tasks
+            ON tasks.task_id = reminders.task_id
+        WHERE reminders.acknowledged_at IS NULL
+          AND tasks.status IN ('Open', 'In progress')
         """
     )
     return reminder["count"] if reminder else 0

@@ -219,7 +219,9 @@ def review_case(case_id):
 @login_required
 def follow_up_tasks():
     from app.services.case_follow_up import get_open_follow_up_tasks
+    from app.services.case_follow_up_reminders import ensure_overdue_reminders
 
+    ensure_overdue_reminders()
     return render_template(
         "cases/follow_up_tasks.html",
         tasks=get_open_follow_up_tasks(),
@@ -230,8 +232,12 @@ def follow_up_tasks():
 @bp.get("/follow-up-reminders")
 @login_required
 def follow_up_reminders():
-    from app.services.case_follow_up_reminders import get_open_reminders
+    from app.services.case_follow_up_reminders import (
+        ensure_overdue_reminders,
+        get_open_reminders,
+    )
 
+    ensure_overdue_reminders()
     return render_template(
         "cases/follow_up_reminders.html",
         reminders=get_open_reminders(),

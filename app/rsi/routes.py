@@ -193,6 +193,10 @@ def create_rsi():
                     )
 
             except Exception:
+                current_app.logger.exception(
+                    "Reference document text extraction failed for RSI %s",
+                    rsi_id,
+                )
                 with transaction() as cursor:
                     cursor.execute(
                         """
@@ -276,6 +280,10 @@ def extract_rsi_text(rsi_id):
         )
 
     except Exception:
+        current_app.logger.exception(
+            "Reference document text extraction failed for RSI %s",
+            rsi_id,
+        )
         with transaction() as cursor:
             cursor.execute(
                 """

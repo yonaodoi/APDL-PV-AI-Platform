@@ -175,13 +175,47 @@
         text-align: center;
     }
 
-    @media (max-width: 850px) {
-        .rsi-table th:nth-child(3),
-        .rsi-table td:nth-child(3),
-        .rsi-table th:nth-child(5),
-        .rsi-table td:nth-child(5) {
-            display: none;
-        }
+    .rsi-table-scroll {
+        overflow-x: auto;
+    }
+
+    .rsi-table {
+        min-width: 860px;
+    }
+
+    .rsi-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .rsi-action-button {
+        padding: 7px 10px;
+        border: 1px solid #dcd1ee;
+        border-radius: 8px;
+        background: #faf8ff;
+        color: #6242d7;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .extraction-status,
+    .extraction-failed {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        line-height: 1.4;
+    }
+
+    .extraction-status {
+        color: #817787;
+    }
+
+    .extraction-failed {
+        max-width: 220px;
+        color: #a33a3a;
     }
 
     @media (max-width: 600px) {
@@ -226,6 +260,7 @@
         </div>
 
         {% if documents %}
+            <div class="rsi-table-scroll">
             <table class="rsi-table">
                 <thead>
                     <tr>
@@ -269,39 +304,40 @@
 
                             <td>
                                 {% if document.stored_filename %}
-                                    <form method="post" action="{{ url_for('rsi.extract_reactions', rsi_id=document.rsi_id) }}" style="display:inline;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" style="padding:7px 10px; border:1px solid #dcd1ee; border-radius:8px; background:#faf8ff; color:#6242d7; font-size:12px; font-weight:bold; cursor:pointer;">Extract terms</button>
-                                    </form>
+                                    <a class="source-link" href="{{ url_for('rsi.download_rsi', rsi_id=document.rsi_id) }}">Download file</a>
+                                    <span class="reference-name">{{ document.original_filename }}</span>
                                 {% endif %}
-
-                                <a class="source-link" style="display:block; margin-top:8px;" href="{{ url_for('rsi.review_reactions', rsi_id=document.rsi_id) }}">Verify terms</a>
+                                {% if document.source_url %}
+                                    <a class="source-link" style="display:block; margin-top:6px;" href="{{ document.source_url }}" target="_blank" rel="noopener">Open source link</a>
+                                {% endif %}
+                                {% if not document.stored_filename and not document.source_url %}
+                                    Not recorded
+                                {% endif %}
                             </td>
 
                             <td>
                                 {% if document.stored_filename %}
-                                    <form method="post" action="{{ url_for('rsi.extract_reactions', rsi_id=document.rsi_id) }}" style="display:inline;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" style="padding:7px 10px; border:1px solid #dcd1ee; border-radius:8px; background:#faf8ff; color:#6242d7; font-size:12px; font-weight:bold; cursor:pointer;">
-                                            Extract terms
-                                        </button>
-                                    </form>
-
-                                    <form method="post" action="{{ url_for('rsi.extract_rsi_text', rsi_id=document.rsi_id) }}" style="display:inline;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" style="margin-top:8px; padding:7px 10px; border:1px solid #dcd1ee; border-radius:8px; background:#faf8ff; color:#6242d7; font-size:12px; font-weight:bold; cursor:pointer;">
-                                            Extract SmPC text
-                                        </button>
-                                    </form>
-
-                                    <span style="display:block; margin-top:8px; color:#817787; font-size:11px;">
-                                        {{ document.extraction_status }}
-                                    </span>
+                                    <div class="rsi-actions">
+                                        <form method="post" action="{{ url_for('rsi.extract_rsi_text', rsi_id=document.rsi_id) }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="rsi-action-button">Extract SmPC text</button>
+                                        </form>
+                                        <form method="post" action="{{ url_for('rsi.extract_reactions', rsi_id=document.rsi_id) }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="rsi-action-button">Extract terms</button>
+                                        </form>
+                                    </div>
+                                    {% if document.extraction_status == "Extraction failed" %}
+                                        <span class="extraction-failed">
+                                            Text could not be read from this file. It may be a scanned
+                                            or image-only PDF, or password protected. Upload a text-based
+                                            PDF or a Word (.docx) copy.
+                                        </span>
+                                    {% elif document.extraction_status %}
+                                        <span class="extraction-status">{{ document.extraction_status }}</span>
+                                    {% endif %}
                                 {% endif %}
-
-                                <a class="source-link" style="display:block; margin-top:8px;" href="{{ url_for('rsi.review_reactions', rsi_id=document.rsi_id) }}">
-                                    Verify terms
-                                </a>
+                                <a class="source-link" style="display:block; margin-top:8px;" href="{{ url_for('rsi.review_reactions', rsi_id=document.rsi_id) }}">Verify terms</a>
                             </td>
                         </tr>
 
@@ -309,6 +345,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
         {% else %}
             <div class="empty-state">
                 No reference safety information has been added. Add an approved document before performing listedness review.

@@ -93,6 +93,31 @@
         vertical-align: top;
     }
 
+    .audit-table-scroll {
+        overflow-x: auto;
+    }
+
+    .audit-table {
+        min-width: 820px;
+    }
+
+    .record-link,
+    .record-ref {
+        display: block;
+        margin-top: 5px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .record-link {
+        color: #6242d7;
+        text-decoration: none;
+    }
+
+    .record-ref {
+        color: #5d5365;
+    }
+
     .audit-action {
         color: #43364f;
         font-weight: bold;
@@ -132,13 +157,6 @@
             display: inline-block;
             margin-top: 15px;
         }
-
-        .audit-table th:nth-child(3),
-        .audit-table td:nth-child(3),
-        .audit-table th:nth-child(5),
-        .audit-table td:nth-child(5) {
-            display: none;
-        }
     }
 </style>
 
@@ -161,6 +179,7 @@
         </div>
 
         {% if entries %}
+            <div class="audit-table-scroll">
             <table class="audit-table">
                 <thead>
                     <tr>
@@ -176,10 +195,12 @@
                         <tr>
                             <td>{{ entry.occurred_at.strftime("%d %b %Y, %H:%M") }}</td>
                             <td>
-                                <span class="record-tag">
-                                    {{ entry.record_type }}
-                                    {% if entry.record_id %} #{{ entry.record_id }}{% endif %}
-                                </span>
+                                <span class="record-tag">{{ entry.record_label }}</span>
+                                {% if entry.record_url %}
+                                    <a class="record-link" href="{{ entry.record_url }}">{{ entry.record_reference or ("#" ~ entry.record_id) }}</a>
+                                {% elif entry.record_reference or entry.record_id %}
+                                    <span class="record-ref">{{ entry.record_reference or ("#" ~ entry.record_id) }}</span>
+                                {% endif %}
                             </td>
                             <td class="audit-action">{{ entry.action }}</td>
                             <td>{{ entry.full_name or "System user" }}</td>
@@ -194,6 +215,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
         {% else %}
             <div class="empty-state">No audit entries have been recorded yet.</div>
         {% endif %}
