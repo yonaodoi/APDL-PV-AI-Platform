@@ -88,6 +88,53 @@ def suggest_status(case, checks, assessment, open_task_count, follow_up_sent):
     return {"status": status, "reasons": reasons, "same": status == current}
 
 
+def draft_review_note(case, checks, assessment, open_tasks, earliest_due, follow_up_sent, suggestion, today=None):
+    """A plain-language review note drafted from the case's current state."""
+    from datetime import date
+
+    today = today or date.today()
+    parts = [f"Review on {today:%d %b %Y}."]
+
+    to_review = [c for c in checks or [] if c.get("status") != "Pass"]
+    if to_review:
+        parts.append(
+            f"{len(to_review)} checklist item(s) need review: "
+            + "; ".join(c.get("label", "item") for c in to_review)
+            + "."
+        )
+    else:
+        parts.append("Completeness checklist passed.")
+
+    if assessment:
+        source = (
+            "automatic, awaiting reviewer confirmation"
+            if assessment.get("assessment_source") == "automatic"
+            else "confirmed by reviewer"
+        )
+        parts.append(
+            f"Listedness: {assessment.get('listedness_status')} / "
+            f"{assessment.get('expectedness_status')} ({source})."
+        )
+    else:
+        parts.append("Listedness: not yet assessed.")
+
+    causality = (case.get("causality_assessment") or "").strip()
+    parts.append(f"Causality: {causality}." if causality else "Causality: not yet assessed.")
+
+    if open_tasks:
+        due = f", earliest due {earliest_due:%d %b %Y}" if earliest_due else ""
+        sent = "request sent" if follow_up_sent else "no request sent yet"
+        parts.append(f"Follow-up: {open_tasks} open task(s){due}; {sent}.")
+    else:
+        parts.append("Follow-up: none outstanding.")
+
+    if suggestion and not suggestion.get("same"):
+        parts.append(f"Next step: {suggestion['status']}.")
+    elif suggestion:
+        parts.append(f"Status {suggestion['status']} is appropriate.")
+    return " ".join(parts)
+
+
 def needs_override(new_status, blockers):
     return new_status in GATED_STATUSES and bool(blockers)
 
@@ -116,26 +163,60 @@ def load_workflow_inputs(case_id):
         "SELECT * FROM pv.case_safety_assessments WHERE case_id = %s",
         (case_id,),
     )
-    follow_up = query_one(
-        """
-        SELECT
-            COUNT(*) FILTER (WHERE tasks.status IN ('Open', 'In progress')) AS open_tasks,
-            MIN(tasks.due_date) FILTER (WHERE tasks.status IN ('Open', 'In progress')) AS earliest_due,
-            EXISTS (
+    follow_up = dict(
+        query_one(
+            """
+            SELECT
+                COUNT(*) FILTER (WHERE status IN ('Open', 'In progress')) AS open_tasks,
+                MIN(due_date) FILTER (WHERE status IN ('Open', 'In progress')) AS earliest_due
+            FROM pv.case_follow_up_tasks
+            WHERE case_id = %s
+            """,
+            (case_id,),
+        )
+        or {}
+    )
+    follow_up["follow_up_sent"] = follow_up_request_sent(case_id)
+    return checks, assessment, follow_up
+
+
+def follow_up_request_sent(case_id):
+    """Whether a follow-up email was sent for an open task of this case.
+
+    Kept separate so that a database permission problem on the email log
+    only hides this one fact instead of the whole workflow panel.
+    """
+    from flask import current_app
+
+    from app.db import get_db
+
+    try:
+        row = query_one(
+            """
+            SELECT EXISTS (
                 SELECT 1
                 FROM pv.case_follow_up_email_deliveries AS deliveries
-                JOIN pv.case_follow_up_tasks AS open_tasks
-                    ON open_tasks.task_id = deliveries.task_id
+                JOIN pv.case_follow_up_tasks AS tasks
+                    ON tasks.task_id = deliveries.task_id
                 WHERE deliveries.case_id = %s
                   AND deliveries.status = 'Sent'
-                  AND open_tasks.status IN ('Open', 'In progress')
-            ) AS follow_up_sent
-        FROM pv.case_follow_up_tasks AS tasks
-        WHERE tasks.case_id = %s
-        """,
-        (case_id, case_id),
-    ) or {}
-    return checks, assessment, follow_up
+                  AND tasks.status IN ('Open', 'In progress')
+            ) AS sent
+            """,
+            (case_id,),
+        )
+    except Exception as error:
+        current_app.logger.warning(
+            "Could not read follow-up email records for case %s: %s",
+            case_id,
+            error,
+        )
+        try:
+            get_db().rollback()
+        except Exception:
+            pass
+        return False
+    return bool(row and row.get("sent"))
 
 
 def is_designated_qppv(user_id):

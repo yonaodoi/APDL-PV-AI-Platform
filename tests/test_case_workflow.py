@@ -232,3 +232,45 @@ def test_ready_case_saves_without_override(monkeypatch):
 
     assert saved
     assert audits == []
+
+
+def test_unreadable_email_log_only_hides_request_sent(monkeypatch):
+    def denied(sql, params=()):
+        raise RuntimeError("permission denied for table case_follow_up_email_deliveries")
+
+    monkeypatch.setattr(workflow, "query_one", denied)
+    monkeypatch.setattr("app.db.get_db", lambda: type("C", (), {"rollback": lambda self: None})())
+    app = create_app(TestingConfig)
+    with app.app_context():
+        assert workflow.follow_up_request_sent(9) is False
+
+
+def test_review_note_is_drafted_from_the_case():
+    note = workflow.draft_review_note(
+        _case(causality_assessment="Possible"),
+        [PASS, REVIEW],
+        CONFIRMED | {"expectedness_status": "Expected"},
+        3,
+        date(2026, 10, 15),
+        False,
+        {"status": "Triage", "same": False},
+        today=date(2026, 10, 8),
+    )
+    assert note == (
+        "Review on 08 Oct 2026. 1 checklist item(s) need review: Event onset date. "
+        "Listedness: Listed / Expected (confirmed by reviewer). Causality: Possible. "
+        "Follow-up: 3 open task(s), earliest due 15 Oct 2026; no request sent yet. "
+        "Next step: Triage."
+    )
+
+
+def test_review_note_for_a_case_with_nothing_outstanding():
+    note = workflow.draft_review_note(
+        _case(causality_assessment=""), [PASS], None, 0, None, False,
+        {"status": "New", "same": True}, today=date(2026, 10, 8),
+    )
+    assert "Completeness checklist passed." in note
+    assert "Listedness: not yet assessed." in note
+    assert "Causality: not yet assessed." in note
+    assert "Follow-up: none outstanding." in note
+    assert note.endswith("Status New is appropriate.")

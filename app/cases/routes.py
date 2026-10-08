@@ -471,6 +471,7 @@ def _workflow_panel(case, completeness_checks):
     from app.services.case_workflow import (
         STATUSES,
         can_override,
+        draft_review_note,
         is_designated_qppv,
         load_workflow_inputs,
         readiness_blockers,
@@ -486,14 +487,24 @@ def _workflow_panel(case, completeness_checks):
         _rollback_quietly()
         return None
     open_tasks = follow_up.get("open_tasks") or 0
+    suggestion = suggest_status(
+        case,
+        completeness_checks,
+        assessment,
+        open_tasks,
+        follow_up.get("follow_up_sent"),
+    )
     return {
         "statuses": STATUSES,
-        "suggestion": suggest_status(
+        "suggestion": suggestion,
+        "draft_note": draft_review_note(
             case,
             completeness_checks,
             assessment,
             open_tasks,
+            follow_up.get("earliest_due"),
             follow_up.get("follow_up_sent"),
+            suggestion,
         ),
         "blockers": readiness_blockers(
             completeness_checks, assessment, case.get("causality_assessment")
