@@ -300,11 +300,12 @@
     </form>
 </section>
 
-<section class="psur-register">
-    <div class="register-toolbar">
+{% set any_filter = selected_product or selected_status or start_date or end_date %}
+<details class="psur-register fold-card register-fold" id="all-psurs" {% if any_filter or not reports %}open{% endif %}>
+    <summary class="register-toolbar">
         <h3>All PSUR records</h3>
-        <span>{{ reports|length }} shown · latest reporting periods first</span>
-    </div>
+        <span class="register-count">{{ reports|length }} {% if any_filter %}matching{% else %}{% if reports|length == 1 %}record{% else %}records{% endif %}{% endif %} · latest reporting periods first</span>
+    </summary>
 
     {% if reports %}
         <div class="psur-table-wrap" role="region" aria-label="Periodic safety reports" tabindex="0">
@@ -354,6 +355,6 @@
             {% endif %}
         </div>
     {% endif %}
-</section>
+</details>
 </section>
 {% endblock %}

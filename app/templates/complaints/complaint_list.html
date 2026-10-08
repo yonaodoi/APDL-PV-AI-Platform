@@ -353,11 +353,12 @@
     <div class="summary-chip"><strong>{{ complaints|selectattr("severity", "equalto", "Serious")|list|length }}</strong><span>Serious complaints</span></div>
 </section>
 
-<section class="complaint-register">
-    <div class="register-toolbar">
+{% set any_filter = selected_product or selected_country or selected_status or selected_severity or start_date or end_date %}
+<details class="complaint-register fold-card register-fold" id="all-complaints" {% if any_filter or not complaints %}open{% endif %}>
+    <summary class="register-toolbar">
         <h3>All product quality complaints</h3>
-        <span>{{ complaints|length }} shown · newest first</span>
-    </div>
+        <span class="register-count">{{ complaints|length }} {% if any_filter %}matching{% else %}{% if complaints|length == 1 %}complaint{% else %}complaints{% endif %}{% endif %} · newest first</span>
+    </summary>
 
     {% if complaints %}
         <div class="complaint-table-wrap" role="region" aria-label="Product quality complaints" tabindex="0">
@@ -421,6 +422,6 @@
             {% endif %}
         </div>
     {% endif %}
-</section>
+</details>
 </div>
 {% endblock %}

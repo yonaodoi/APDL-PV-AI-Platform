@@ -372,7 +372,7 @@
 <details class="case-register fold-card register-fold" id="all-cases" {% if any_filter or not cases %}open{% endif %}>
     <summary class="register-toolbar">
         <h3>All safety cases</h3>
-        <span class="register-count">{{ cases|length }} {% if any_filter %}matching{% else %}cases{% endif %} · newest first</span>
+        <span class="register-count">{{ cases|length }} {% if any_filter %}matching{% else %}{% if cases|length == 1 %}case{% else %}cases{% endif %}{% endif %} · newest first</span>
     </summary>
 
     {% if cases %}

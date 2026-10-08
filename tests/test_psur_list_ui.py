@@ -43,6 +43,8 @@ def test_psur_list_renders_accessible_report_register(monkeypatch):
     assert "Draft reports</span>" in page
     assert 'aria-label="Periodic safety reports"' in page
     assert "PSUR-2026-003" in page
+    assert '<details class="psur-register fold-card register-fold" id="all-psurs" >' in page
+    assert "1 record · latest reporting periods first" in page
 
 
 def test_psur_list_offers_clear_filters_when_no_reports(monkeypatch):
@@ -63,4 +65,5 @@ def test_psur_list_offers_clear_filters_when_no_reports(monkeypatch):
 
     assert response.status_code == 200
     assert "No matching PSUR records" in page
+    assert 'id="all-psurs" open>' in page
     assert "Clear all filters" in page

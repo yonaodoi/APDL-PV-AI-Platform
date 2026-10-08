@@ -365,11 +365,12 @@
     </div>
 </section>
 
-<section class="signal-register">
-    <div class="register-toolbar">
+{% set any_filter = selected_product or selected_status or selected_priority or start_date or end_date %}
+<details class="signal-register fold-card register-fold" id="all-signals" {% if any_filter or not signals %}open{% endif %}>
+    <summary class="register-toolbar">
         <h3>All safety signals</h3>
-        <span>{{ signals|length }} shown · newest first</span>
-    </div>
+        <span class="register-count">{{ signals|length }} {% if any_filter %}matching{% else %}{% if signals|length == 1 %}signal{% else %}signals{% endif %}{% endif %} · newest first</span>
+    </summary>
 
     {% if signals %}
         <div class="signal-table-wrap" role="region" aria-label="Safety signals" tabindex="0">
@@ -428,6 +429,6 @@
             {% endif %}
         </div>
     {% endif %}
-</section>
+</details>
 </section>
 {% endblock %}
