@@ -203,6 +203,8 @@ def case_list():
     selected_country = request.args.get("country", "").strip()
     selected_status = request.args.get("status", "").strip()
     selected_priority = request.args.get("priority", "").strip()
+    if selected_priority == "Routine":  # older links used "Routine"
+        selected_priority = "Non-serious"
     selected_deadline = request.args.get("deadline", "").strip()
     start_date = request.args.get("start_date", "").strip()
     end_date = request.args.get("end_date", "").strip()
@@ -225,7 +227,7 @@ def case_list():
     if selected_priority == "Serious":
         filters.append("safety_cases.seriousness = TRUE")
 
-    if selected_priority == "Routine":
+    if selected_priority == "Non-serious":
         filters.append("safety_cases.seriousness = FALSE")
 
     if start_date:

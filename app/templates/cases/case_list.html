@@ -319,11 +319,11 @@
         </div>
 
         <div class="filter-field">
-            <label for="priority">Priority</label>
+            <label for="priority">Seriousness</label>
             <select class="filter-input" id="priority" name="priority">
-                <option value="">All priorities</option>
+                <option value="">Serious and non-serious</option>
                 <option value="Serious" {% if selected_priority == "Serious" %}selected{% endif %}>Serious</option>
-                <option value="Routine" {% if selected_priority == "Routine" %}selected{% endif %}>Routine</option>
+                <option value="Non-serious" {% if selected_priority == "Non-serious" %}selected{% endif %}>Non-serious</option>
             </select>
         </div>
 
@@ -385,7 +385,7 @@
                     <th scope="col">Event</th>
                     <th scope="col">Status</th>
                     <th scope="col">Received</th>
-                    <th scope="col">Priority</th>
+                    <th scope="col">Seriousness</th>
                     <th scope="col">Reporting clock</th>
                 </tr>
             </thead>
@@ -402,7 +402,7 @@
                             {% if case.seriousness %}
                                 <span class="serious-pill">Serious</span>
                             {% else %}
-                                <span class="routine-pill">Routine</span>
+                                <span class="routine-pill">Non-serious</span>
                             {% endif %}
                         </td>
                         <td>

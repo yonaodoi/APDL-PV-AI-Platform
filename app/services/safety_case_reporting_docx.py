@@ -25,7 +25,7 @@ def _filter_text(report_filters):
         ("Product", report_filters.get("product")),
         ("Country / market", report_filters.get("country")),
         ("Status", report_filters.get("status")),
-        ("Priority", report_filters.get("priority")),
+        ("Seriousness", report_filters.get("priority")),
     )
 
     selected = [
@@ -158,7 +158,7 @@ def build_safety_case_reporting_docx(
             saved_value(summary_values, 1, serious_cases),
         ),
         (
-            "ROUTINE CASES",
+            "NON-SERIOUS CASES",
             saved_value(summary_values, 2, routine_cases),
         ),
     )
@@ -207,7 +207,7 @@ def build_safety_case_reporting_docx(
         "Event",
         "Status",
         "Received",
-        "Priority",
+        "Seriousness",
     )
 
     for index, heading_text in enumerate(headings):
@@ -231,7 +231,7 @@ def build_safety_case_reporting_docx(
                 case["event_description"] or "Not recorded",
                 case["workflow_status"],
                 _display_date(case["received_date"]),
-                "Serious" if case["seriousness"] else "Routine",
+                "Serious" if case["seriousness"] else "Non-serious",
             ]
             for case in cases
         ]
