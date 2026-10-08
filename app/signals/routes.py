@@ -15,7 +15,10 @@ from flask import (
     send_file,
 )
 
+from app.audit import write_audit_log
 from app.db import query_all, query_one, transaction
+from app.services.record_changes import describe_changes
+from app.attachments.routes import list_record_attachments
 from app.security import login_required
 from app.services.safety_signal_reporting_docx import (
     build_safety_signal_reporting_docx,
@@ -300,6 +303,109 @@ def create_signal():
     return render_form()
 
 
+SIGNAL_FIELD_LABELS = {
+    "signal_number": "Signal ID",
+    "date_detected": "Date detected",
+    "product_name": "Product",
+    "event_term": "Event term",
+    "signal_source": "Source",
+    "signal_description": "Description",
+    "priority": "Priority",
+    "owner_name": "Owner",
+}
+
+
+@bp.route("/<int:signal_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_signal(signal_id):
+    signal = query_one(
+        "SELECT * FROM pv.safety_signals WHERE signal_id = %s",
+        (signal_id,),
+    )
+    if not signal:
+        abort(404)
+
+    form = SafetySignalForm()
+    detail_url = url_for("signals.signal_detail", signal_id=signal_id) + "#detail-identification"
+
+    def render_form():
+        return render_template(
+            "signals/create_signal.html",
+            form=form,
+            duplicate_signal=None,
+            editing=True,
+            signal=signal,
+            cancel_url=detail_url,
+        )
+
+    if request.method == "GET":
+        for field in (
+            "signal_number", "date_detected", "product_name", "event_term",
+            "signal_source", "signal_description", "priority", "owner_name",
+        ):
+            getattr(form, field).data = signal.get(field)
+        return render_form()
+
+    if not form.validate_on_submit():
+        return render_form()
+
+    signal_number = normalise_signal_number(form.signal_number.data)
+    clash = query_one(
+        """
+        SELECT signal_id
+        FROM pv.safety_signals
+        WHERE signal_number = %s
+          AND signal_id <> %s
+        """,
+        (signal_number, signal_id),
+    )
+    if clash:
+        form.signal_number.errors.append("This Signal ID already exists.")
+        return render_form()
+
+    updated = {
+        "signal_number": signal_number,
+        "date_detected": form.date_detected.data,
+        "product_name": form.product_name.data.strip(),
+        "event_term": form.event_term.data.strip(),
+        "signal_source": form.signal_source.data,
+        "signal_description": form.signal_description.data.strip(),
+        "priority": form.priority.data,
+        "owner_name": (form.owner_name.data or "").strip() or None,
+    }
+    changes = describe_changes(signal, updated, SIGNAL_FIELD_LABELS)
+    if not changes:
+        flash("No changes were made.", "info")
+        return redirect(detail_url)
+
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.safety_signals
+            SET signal_number = %s,
+                date_detected = %s,
+                product_name = %s,
+                event_term = %s,
+                signal_source = %s,
+                signal_description = %s,
+                priority = %s,
+                owner_name = %s
+            WHERE signal_id = %s
+            """,
+            (*updated.values(), signal_id),
+        )
+
+    write_audit_log(
+        record_type="signal",
+        record_id=signal_id,
+        action="Signal details edited",
+        details=changes,
+        actor_user_id=session["user_id"],
+    )
+    flash(f"Safety signal {signal_number} updated.", "success")
+    return redirect(detail_url)
+
+
 @bp.get("/<int:signal_id>")
 @login_required
 def signal_detail(signal_id):
@@ -363,6 +469,7 @@ def _render_signal_detail(
         evaluation_form=evaluation_form,
         supporting_cases=supporting_cases,
         ai_assistance=ai_assistance,
+        attachments=list_record_attachments("signal", signal["signal_id"]),
     )
 
 

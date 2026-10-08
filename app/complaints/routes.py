@@ -18,6 +18,8 @@ from flask import (
 from werkzeug.utils import secure_filename
 from app.complaints.forms import ComplaintReviewForm, ProductComplaintForm
 from app.audit import write_audit_log
+from app.services.record_changes import describe_changes
+from app.attachments.routes import list_record_attachments
 from app.services.complaint_checks import (
     batch_key,
     batch_trends,
@@ -535,7 +537,174 @@ def _render_complaint_detail(complaint_id, review_form=None):
         history=history,
         same_batch=same_batch,
         date_warnings=date_warnings,
+        attachments=list_record_attachments("complaint", complaint_id),
     )
+
+
+COMPLAINT_EDIT_SECTIONS = {
+    "complaint-receipt": "detail-receipt",
+    "complaint-product": "detail-product",
+}
+COMPLAINT_FIELD_LABELS = {
+    "complaint_number": "Complaint ID",
+    "date_received": "Date received",
+    "country_name": "Country",
+    "reporter_name": "Reporter",
+    "reporter_contact": "Reporter contact",
+    "product_name": "Product",
+    "batch_number": "Batch number",
+    "manufacturing_date": "Manufacturing date",
+    "expiry_date": "Expiry date",
+    "complaint_category": "Category",
+    "complaint_description": "Description",
+    "severity": "Severity",
+}
+
+
+def _complaint_page_anchor(section):
+    anchor = COMPLAINT_EDIT_SECTIONS.get(section or "")
+    return f"#{anchor}" if anchor else ""
+
+
+@bp.route("/<int:complaint_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_complaint(complaint_id):
+    complaint = query_one(
+        """
+        SELECT pc.*, c.country_name
+        FROM pv.product_complaints pc
+        LEFT JOIN pv.countries c ON c.country_id = pc.country_id
+        WHERE pc.complaint_id = %s
+        """,
+        (complaint_id,),
+    )
+    if not complaint:
+        abort(404)
+
+    form = ProductComplaintForm()
+    countries = _set_complaint_country_choices(form)
+    section = request.args.get("section") or request.form.get("return_section")
+    section = section if section in COMPLAINT_EDIT_SECTIONS else None
+    detail_url = url_for(
+        "complaints.complaint_detail", complaint_id=complaint_id
+    ) + _complaint_page_anchor(section)
+
+    def render_form():
+        return render_template(
+            "complaints/create_complaint.html",
+            form=form,
+            editing=True,
+            complaint=complaint,
+            return_section=section,
+            cancel_url=detail_url,
+        )
+
+    if request.method == "GET":
+        for field in (
+            "complaint_number", "date_received", "country_id", "reporter_name",
+            "reporter_contact", "product_name", "batch_number",
+            "manufacturing_date", "expiry_date", "complaint_category",
+            "complaint_description", "severity",
+        ):
+            getattr(form, field).data = complaint.get(field)
+        return render_form()
+
+    if not form.validate_on_submit():
+        return render_form()
+
+    date_errors, date_warnings = complaint_date_problems(
+        {
+            "date_received": form.date_received.data,
+            "manufacturing_date": form.manufacturing_date.data,
+            "expiry_date": form.expiry_date.data,
+        }
+    )
+    if date_errors:
+        for error in date_errors:
+            flash(error, "error")
+        return render_form()
+
+    complaint_number = form.complaint_number.data.strip()
+    clash = query_one(
+        """
+        SELECT complaint_id
+        FROM pv.product_complaints
+        WHERE complaint_number = %s
+          AND complaint_id <> %s
+        """,
+        (complaint_number, complaint_id),
+    )
+    if clash:
+        form.complaint_number.errors.append("This Complaint ID already exists.")
+        return render_form()
+
+    updated = {
+        "complaint_number": complaint_number,
+        "date_received": form.date_received.data,
+        "country_id": form.country_id.data,
+        "reporter_name": (form.reporter_name.data or "").strip() or None,
+        "reporter_contact": (form.reporter_contact.data or "").strip() or None,
+        "product_name": form.product_name.data.strip(),
+        "batch_number": (form.batch_number.data or "").strip() or None,
+        "manufacturing_date": form.manufacturing_date.data,
+        "expiry_date": form.expiry_date.data,
+        "complaint_category": form.complaint_category.data,
+        "complaint_description": form.complaint_description.data.strip(),
+        "severity": form.severity.data,
+    }
+    country_names = {c["country_id"]: c["country_name"] for c in countries}
+    changes = describe_changes(
+        complaint,
+        {**updated, "country_name": country_names.get(updated["country_id"])},
+        COMPLAINT_FIELD_LABELS,
+    )
+    if not changes:
+        flash("No changes were made.", "info")
+        return redirect(detail_url)
+
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.product_complaints
+            SET complaint_number = %s,
+                date_received = %s,
+                country_id = %s,
+                reporter_name = %s,
+                reporter_contact = %s,
+                product_name = %s,
+                batch_number = %s,
+                manufacturing_date = %s,
+                expiry_date = %s,
+                complaint_category = %s,
+                complaint_description = %s,
+                severity = %s,
+                updated_at = NOW()
+            WHERE complaint_id = %s
+            """,
+            (*updated.values(), complaint_id),
+        )
+
+    write_audit_log(
+        "complaint",
+        complaint_id,
+        "Complaint details edited",
+        session["user_id"],
+        changes,
+    )
+    flash("Complaint details updated.", "success")
+    for warning in date_warnings:
+        flash(warning, "warning")
+    if (
+        updated["complaint_category"] == ADVERSE_EVENT_CATEGORY
+        and complaint.get("complaint_category") != ADVERSE_EVENT_CATEGORY
+        and not complaint.get("linked_case_id")
+    ):
+        flash(
+            "This complaint now reports an adverse event. Create a safety "
+            "case from it so it is assessed and reported on time.",
+            "warning",
+        )
+    return redirect(detail_url)
 
 
 @bp.post("/<int:complaint_id>/review")

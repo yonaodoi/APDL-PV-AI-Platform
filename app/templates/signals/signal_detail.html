@@ -3,6 +3,7 @@
 {% block title %}{{ signal.signal_number }} | APDL PV{% endblock %}
 {% block page_title %}Safety Signal{% endblock %}
 
+{% from "attachments/_section.html" import attachments_section %}
 {% block content %}
 <section class="signal-detail-page">
 <style>
@@ -248,11 +249,12 @@
 
 <div class="signal-layout">
     <div>
-        <section class="signal-card">
-            <div class="card-heading">
+        <details class="signal-card fold-card" id="detail-identification">
+            <summary class="card-heading">
                 <span>1</span>
                 <h3>Signal identification</h3>
-            </div>
+                <a class="fold-edit-link" href="{{ url_for('signals.edit_signal', signal_id=signal.signal_id) }}" aria-label="Edit signal identification">Edit</a>
+            </summary>
 
             <div class="detail-grid">
                 <div class="detail-item">
@@ -290,13 +292,14 @@
                 <span class="note-label">SIGNAL DESCRIPTION</span>
                 {{ signal.signal_description }}
             </div>
-        </section>
+        </details>
 
-        <section class="signal-card">
-            <div class="card-heading">
+        <details class="signal-card fold-card" id="detail-assessment">
+            <summary class="card-heading">
                 <span>2</span>
                 <h3>Signal assessment and decision</h3>
-            </div>
+                <span class="fold-spacer"></span>
+            </summary>
 
             <div class="note-box">
                 <span class="note-label">ASSESSMENT SUMMARY</span>
@@ -307,7 +310,9 @@
                 <span class="note-label">DECISION AND ACTION</span>
                 {{ signal.decision_summary or "No decision or action has been recorded." }}
             </div>
-        </section>
+        </details>
+
+        {{ attachments_section('signal', signal.signal_id, attachments, url_for('signals.signal_detail', signal_id=signal.signal_id)) }}
     </div>
 
     <aside>

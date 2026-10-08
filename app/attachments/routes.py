@@ -122,6 +122,18 @@ def manage_attachments(record_type, record_id):
             record_type=record_type,
             record_id=record_id,
         )
+        if record_type == "psur":
+            psur = query_one(
+                "SELECT status FROM pv.psur_reports WHERE psur_id = %s",
+                (record_id,),
+            )
+            if psur and psur.get("status") == "Finalised":
+                flash(
+                    "This PSUR is finalised and locked. Reopen it before "
+                    "adding attachments.",
+                    "error",
+                )
+                return redirect(back_url)
         uploaded_file = request.files.get("attachment")
 
         if not uploaded_file or not uploaded_file.filename:
@@ -278,3 +290,33 @@ def download_attachment(attachment_id):
         as_attachment=True,
         download_name=attachment["original_filename"],
     )
+
+def list_record_attachments(record_type, record_id):
+    """Files attached to a record, newest first, for the record's page."""
+    try:
+        return query_all(
+            """
+            SELECT attachments.attachment_id,
+                   attachments.original_filename,
+                   attachments.file_size_bytes,
+                   attachments.uploaded_at,
+                   users.full_name AS uploaded_by_name
+            FROM pv.record_attachments AS attachments
+            LEFT JOIN pv.users AS users ON users.user_id = attachments.uploaded_by
+            WHERE attachments.record_type = %s
+              AND attachments.record_id = %s
+            ORDER BY attachments.uploaded_at DESC
+            """,
+            (record_type, record_id),
+        )
+    except Exception:
+        current_app.logger.exception(
+            "Could not load attachments for %s %s", record_type, record_id
+        )
+        from app.db import get_db
+
+        try:
+            get_db().rollback()
+        except Exception:
+            pass
+        return []

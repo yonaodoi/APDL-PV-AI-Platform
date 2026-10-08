@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}New Safety Signal | APDL PV{% endblock %}
+{% block title %}{% if editing %}Edit Safety Signal{% else %}New Safety Signal{% endif %} | APDL PV{% endblock %}
 
-{% block page_title %}New Safety Signal{% endblock %}
+{% block page_title %}{% if editing %}Edit Safety Signal{% else %}New Safety Signal{% endif %}{% endblock %}
 
 {% block content %}
 <style>
@@ -292,16 +292,25 @@
     <header class="signal-header">
         <div>
             <p class="signal-kicker">SAFETY MANAGEMENT</p>
-            <h1>Capture safety signal</h1>
-            <p>Document an emerging or potential medicine-safety concern for evaluation.</p>
+            {% if editing %}
+                <h1>Edit signal {{ signal.signal_number }}</h1>
+                <p>Correct the signal details. Every change is recorded in the audit trail.</p>
+            {% else %}
+                <h1>Capture safety signal</h1>
+                <p>Document an emerging or potential medicine-safety concern for evaluation.</p>
+            {% endif %}
         </div>
 
-        <a class="back-link" href="{{ url_for('signals.signal_list') }}">
-            ← Back to safety signals
-        </a>
+        {% if editing %}
+            <a class="back-link" href="{{ cancel_url }}">← Back to signal</a>
+        {% else %}
+            <a class="back-link" href="{{ url_for('signals.signal_list') }}">
+                ← Back to safety signals
+            </a>
+        {% endif %}
     </header>
 
-    <form method="post" class="signal-form" data-guided-voice="true">
+    <form method="post" class="signal-form" {% if not editing %}data-guided-voice="true"{% endif %}>
         {{ form.hidden_tag() }}
 
         <section class="signal-card">
@@ -395,8 +404,12 @@
             {% endif %}
 
             <div class="form-actions">
-                <a class="cancel-link" href="{{ url_for('signals.signal_list') }}">Cancel</a>
-                {{ form.submit(class_="save-button") }}
+                <a class="cancel-link" href="{{ cancel_url if editing else url_for('signals.signal_list') }}">Cancel</a>
+                {% if editing %}
+                    {{ form.submit(class_="save-button", value="Save changes") }}
+                {% else %}
+                    {{ form.submit(class_="save-button") }}
+                {% endif %}
             </div>
         </section>
 

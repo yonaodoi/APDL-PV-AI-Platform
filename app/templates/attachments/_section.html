@@ -1,0 +1,34 @@
+{# Attachments section for a record page.
+   Usage: {% from "attachments/_section.html" import attachments_section %}
+          {{ attachments_section(record_type, record_id, attachments, return_to) }} #}
+{% macro attachments_section(record_type, record_id, attachments, return_to, heading_class="", locked=False) %}
+<section class="record-attachments" id="attachments">
+    <div class="record-attachments-title">Attachments</div>
+    <div class="record-attachments-body">
+        {% if attachments %}
+            <ul class="record-attachment-list">
+                {% for attachment in attachments %}
+                    <li>
+                        <a href="{{ url_for('attachments.download_attachment', attachment_id=attachment.attachment_id) }}">{{ attachment.original_filename }}</a>
+                        <span class="record-attachment-meta">
+                            {% if attachment.file_size_bytes is not none %}{% if attachment.file_size_bytes < 1024 %}under 1 KB{% elif attachment.file_size_bytes < 1048576 %}{{ (attachment.file_size_bytes / 1024)|round(0)|int }} KB{% else %}{{ (attachment.file_size_bytes / 1048576)|round(1) }} MB{% endif %} · {% endif %}{{ attachment.uploaded_at.strftime("%d %b %Y") }}{% if attachment.uploaded_by_name %} · {{ attachment.uploaded_by_name }}{% endif %}
+                        </span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="record-attachment-empty">No files attached yet.</p>
+        {% endif %}
+        {% if not locked %}
+            <form method="post" enctype="multipart/form-data" class="record-attachment-upload" action="{{ url_for('attachments.manage_attachments', record_type=record_type, record_id=record_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="return_to" value="{{ return_to }}#attachments">
+                <label class="visually-hidden" for="record-attachment-file">File to attach</label>
+                <input id="record-attachment-file" type="file" name="attachment" required>
+                <button type="submit">Upload</button>
+            </form>
+            <p class="record-attachment-empty">PDF, Word, Excel, CSV, text or image files.</p>
+        {% endif %}
+    </div>
+</section>
+{% endmacro %}

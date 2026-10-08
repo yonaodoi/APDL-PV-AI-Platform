@@ -15,6 +15,7 @@ from flask import (
     url_for,
 )
 
+from app.attachments.routes import list_record_attachments
 from app.db import query_all, query_one, transaction
 from app.psur.forms import PsurReportForm, PsurReviewForm
 from app.audit import write_audit_log
@@ -491,6 +492,7 @@ def psur_detail(psur_id):
         tabulation=tabulation,
         history=history,
         locked=is_locked(report),
+        attachments=list_record_attachments("psur", psur_id),
         can_approve=can_approve(
             session.get("role"), _current_user_is_designated_qppv()
         ),

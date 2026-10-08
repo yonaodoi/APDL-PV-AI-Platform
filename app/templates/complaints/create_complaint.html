@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}New Product Quality Complaint | APDL PV{% endblock %}
+{% block title %}{% if editing %}Edit Product Quality Complaint{% else %}New Product Quality Complaint{% endif %} | APDL PV{% endblock %}
 
-{% block page_title %}New Product Quality Complaint{% endblock %}
+{% block page_title %}{% if editing %}Edit Product Quality Complaint{% else %}New Product Quality Complaint{% endif %}{% endblock %}
 
 {% block content %}
 <style>
@@ -276,17 +276,26 @@
     <header class="complaint-header">
         <div>
             <p class="complaint-kicker">PRODUCT QUALITY MANAGEMENT</p>
-            <h1>Capture product quality complaint</h1>
-            <p>Record the information exactly as received. The Complaint ID is entered manually.</p>
+            {% if editing %}
+                <h1>Edit complaint {{ complaint.complaint_number }}</h1>
+                <p>Correct the details below. Every change is recorded in the complaint's history.</p>
+            {% else %}
+                <h1>Capture product quality complaint</h1>
+                <p>Record the information exactly as received. The Complaint ID is entered manually.</p>
+            {% endif %}
         </div>
 
         <div class="complaint-header-actions">
-            <a class="back-link" href="{{ url_for('complaints.extract_complaint_from_document') }}">
-                Create product quality complaint from document
-            </a>
-            <a class="back-link" href="{{ url_for('complaints.complaint_list') }}">
-                ← Back to product quality complaints
-            </a>
+            {% if editing %}
+                <a class="back-link" href="{{ cancel_url }}">← Back to complaint</a>
+            {% else %}
+                <a class="back-link" href="{{ url_for('complaints.extract_complaint_from_document') }}">
+                    Create product quality complaint from document
+                </a>
+                <a class="back-link" href="{{ url_for('complaints.complaint_list') }}">
+                    ← Back to product quality complaints
+                </a>
+            {% endif %}
         </div>
     </header>
 
@@ -302,12 +311,15 @@
         </section>
     {% endif %}
 
-    <form method="post" data-guided-voice="true">
+    <form method="post" {% if not editing %}data-guided-voice="true"{% endif %}>
         {{ form.hidden_tag() }}
+        {% if editing and return_section %}
+            <input type="hidden" name="return_section" value="{{ return_section }}">
+        {% endif %}
 
         <div class="complaint-layout">
             <div>
-                <section class="complaint-card">
+                <section class="complaint-card" id="complaint-receipt">
                     <div class="section-heading">
                         <span class="section-number">1</span>
                         <div>
@@ -353,7 +365,7 @@
                     </div>
                 </section>
 
-                <section class="complaint-card">
+                <section class="complaint-card" id="complaint-product">
                     <div class="section-heading">
                         <span class="section-number">2</span>
                         <div>
@@ -413,8 +425,12 @@
                 </section>
 
                 <div class="form-actions">
-                    <a class="cancel-link" href="{{ url_for('complaints.complaint_list') }}">Cancel</a>
-                    {{ form.submit(class_="save-button") }}
+                    <a class="cancel-link" href="{{ cancel_url if editing else url_for('complaints.complaint_list') }}">Cancel</a>
+                    {% if editing %}
+                        {{ form.submit(class_="save-button", value="Save changes") }}
+                    {% else %}
+                        {{ form.submit(class_="save-button") }}
+                    {% endif %}
                 </div>
             </div>
 

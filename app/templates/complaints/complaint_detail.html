@@ -4,6 +4,7 @@
 
 {% block page_title %}Product Quality Complaint{% endblock %}
 
+{% from "attachments/_section.html" import attachments_section %}
 {% block content %}
 <style>
     .complaint-detail-page {
@@ -358,11 +359,12 @@
 
     <div class="detail-layout">
         <main>
-            <section class="detail-card">
-                <div class="card-heading">
+            <details class="detail-card fold-card" id="detail-receipt">
+                <summary class="card-heading">
                     <span class="section-number">1</span>
                     <h2>Complaint receipt and reporter</h2>
-                </div>
+                <a class="fold-edit-link" href="{{ url_for('complaints.edit_complaint', complaint_id=complaint.complaint_id, section='complaint-receipt') }}#complaint-receipt" aria-label="Edit complaint receipt and reporter">Edit</a>
+            </summary>
 
                 <div class="card-content">
                     <div class="detail-grid">
@@ -387,13 +389,14 @@
                         </div>
                     </div>
                 </div>
-            </section>
+            </details>
 
-            <section class="detail-card">
-                <div class="card-heading">
+            <details class="detail-card fold-card" id="detail-product">
+                <summary class="card-heading">
                     <span class="section-number">2</span>
                     <h2>Product and complaint details</h2>
-                </div>
+                <a class="fold-edit-link" href="{{ url_for('complaints.edit_complaint', complaint_id=complaint.complaint_id, section='complaint-product') }}#complaint-product" aria-label="Edit product and complaint details">Edit</a>
+            </summary>
 
                 <div class="card-content">
                     <div class="detail-grid">
@@ -428,13 +431,14 @@
                         <p>{{ complaint.complaint_description }}</p>
                     </div>
                 </div>
-            </section>
+            </details>
 
-            <section class="detail-card">
-                <div class="card-heading">
+            <details class="detail-card fold-card" id="detail-investigation">
+                <summary class="card-heading">
                     <span class="section-number">3</span>
                     <h2>Investigation and closure</h2>
-                </div>
+                <span class="fold-spacer"></span>
+            </summary>
 
                 <div class="card-content">
                     <div class="narrative-box" style="margin-top: 0;">
@@ -459,7 +463,9 @@
                         </div>
                     </div>
                 </div>
-            </section>
+            </details>
+
+            {{ attachments_section('complaint', complaint.complaint_id, attachments, url_for('complaints.complaint_detail', complaint_id=complaint.complaint_id)) }}
         </main>
 
         <aside class="detail-side">

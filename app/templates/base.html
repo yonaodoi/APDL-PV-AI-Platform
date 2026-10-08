@@ -260,7 +260,7 @@
     </style>
     <link
         rel="stylesheet"
-        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-18') }}"
+        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-19') }}"
     >
 </head>
 <body>
@@ -393,6 +393,22 @@
         </div>
     </div>
     <script src="{{ url_for('static', filename='js/voice_entry.js') }}" defer></script>
+    <script>
+        // Open a folded section when the address points at it (for example
+        // after saving an edit), and when a link on the page jumps to it.
+        (function () {
+            function openFromHash() {
+                var id = window.location.hash.slice(1);
+                var target = id && document.getElementById(id);
+                if (target && target.tagName === "DETAILS") {
+                    target.open = true;
+                    target.scrollIntoView({ block: "start" });
+                }
+            }
+            window.addEventListener("hashchange", openFromHash);
+            document.addEventListener("DOMContentLoaded", openFromHash);
+        })();
+    </script>
     <script>
         // Close the account menu when clicking anywhere else or pressing Escape.
         (function () {
