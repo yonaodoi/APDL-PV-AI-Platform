@@ -1,7 +1,14 @@
 from app.db import query_all, query_one, transaction
 
 
-def create_overdue_reminders():
+def create_overdue_reminders(grace_days=0):
+    """Remind the PV team about overdue follow-up tasks.
+
+    While automatic follow-up is chasing reporters, ``grace_days`` holds the
+    reminder back: a task only reaches the team once it has stayed overdue
+    that long, which means the automatic reminders have run out or could
+    not be sent.
+    """
     with transaction() as cursor:
         cursor.execute(
             """
@@ -12,9 +19,10 @@ def create_overdue_reminders():
                    'Follow-up task is overdue: ' || tasks.task_title
             FROM pv.case_follow_up_tasks AS tasks
             WHERE tasks.status IN ('Open', 'In progress')
-              AND tasks.due_date < CURRENT_DATE
+              AND tasks.due_date < CURRENT_DATE - %s
             ON CONFLICT (task_id, reminder_date) DO NOTHING
-            """
+            """,
+            (grace_days,),
         )
         return cursor.rowcount
 
@@ -49,7 +57,14 @@ def ensure_overdue_reminders():
     from app.db import get_db
 
     try:
-        return create_overdue_reminders()
+        from app.services.follow_up_automation import automation_active
+
+        grace = (
+            current_app.config.get("FOLLOW_UP_REMINDER_DAYS", 7)
+            if automation_active()
+            else 0
+        )
+        return create_overdue_reminders(grace)
     except Exception:
         current_app.logger.exception("Could not create overdue reminders")
         try:

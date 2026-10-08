@@ -56,7 +56,8 @@ def test_follow_up_page_groups_tasks_into_one_request_per_case(monkeypatch):
     assert "Email request to reporter" in page
     assert "Download email draft" not in page
     assert "Email + form in Word" not in page
-    assert page.count("Mark done") == 3
+    assert page.count("Not available</button>") == 2
+    assert "Mark done" not in page
     assert 'class="task-status overdue"' in page
 
 
@@ -93,7 +94,7 @@ def test_ensure_overdue_reminders_never_breaks_the_page(monkeypatch):
 
     app = create_app(TestingConfig)
 
-    def fail():
+    def fail(*args):
         raise RuntimeError("database unavailable")
 
     monkeypatch.setattr(reminders, "create_overdue_reminders", fail)

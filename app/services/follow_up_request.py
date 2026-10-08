@@ -22,6 +22,9 @@ from app.services.ai_case_assessment_docx import (
 
 # Checks the PV team resolves itself; never sent to a reporter.
 INTERNAL_CODES = {"follow_up_due_date", "event_coding"}
+# Contradictions between recorded values; often our own typing errors, so the
+# PV team checks them first. They can still be added to a request by hand.
+CHECK_FIRST_CODES = {"fatal_outcome_consistency", "date_sequence", "patient_consistency"}
 
 OUTCOME_OPTIONS = (
     "Recovered/resolved",
@@ -168,19 +171,30 @@ def email_subject(case):
     return f"Follow-up request for adverse reaction report {case['case_number']}"
 
 
-def email_body(case, product, items, due_date):
+def email_body(case, product, items, due_date, reminder_of=None):
     product_name = (product or {}).get("product_name") or "a medicine"
     received = _fmt(case.get("received_date"))
     greeting = f"Dear {case['reporter_name']}," if case.get("reporter_name") else "Dear reporter,"
-    lines = [
-        greeting,
-        "",
-        f"Thank you for reporting a suspected adverse reaction to {product_name}"
-        + (f", received on {received}" if received else "")
-        + f" (our reference {case['case_number']}).",
-        "",
-        "To complete our assessment we need a little more information:",
-    ]
+    if reminder_of:
+        opening = [
+            greeting,
+            "",
+            f"We wrote to you on {_fmt(reminder_of)} about your report of a "
+            f"suspected adverse reaction to {product_name} (our reference "
+            f"{case['case_number']}). We have not yet received the information "
+            "below and would be grateful for your help:",
+        ]
+    else:
+        opening = [
+            greeting,
+            "",
+            f"Thank you for reporting a suspected adverse reaction to {product_name}"
+            + (f", received on {received}" if received else "")
+            + f" (our reference {case['case_number']}).",
+            "",
+            "To complete our assessment we need a little more information:",
+        ]
+    lines = opening
     lines += [f"  {item['number']}. {item['label']}" for item in items]
     lines += [
         "",
@@ -390,12 +404,18 @@ def group_tasks_by_case(tasks, last_requests=None):
             "reporter_email": (task.get("reporter_email") or "").strip(),
             "due_date": task.get("due_date"),
             "reporter_tasks": [],
+            "check_tasks": [],
             "internal_tasks": [],
             "last_request": last_requests.get(task["case_id"]),
         })
         if task.get("due_date") and (not group["due_date"] or task["due_date"] < group["due_date"]):
             group["due_date"] = task["due_date"]
-        bucket = "internal_tasks" if task.get("check_code") in INTERNAL_CODES else "reporter_tasks"
+        if task.get("check_code") in INTERNAL_CODES:
+            bucket = "internal_tasks"
+        elif task.get("check_code") in CHECK_FIRST_CODES:
+            bucket = "check_tasks"
+        else:
+            bucket = "reporter_tasks"
         group[bucket].append(task)
     for group in groups.values():
         email = group["reporter_email"]

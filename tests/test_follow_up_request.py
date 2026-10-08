@@ -131,25 +131,22 @@ class _Transaction:
         return False
 
 
+OPEN_TASKS = [
+    {"task_id": 21, "check_code": "event_onset_date", "due_date": date(2026, 10, 15)},
+    {"task_id": 22, "check_code": "event_outcome", "due_date": date(2026, 10, 15)},
+    {"task_id": 23, "check_code": "event_coding", "due_date": date(2026, 10, 15)},
+]
+
+
 def _client(monkeypatch, case):
-    def fake_query_one(sql, parameters=()):
-        if "FROM pv.safety_cases" in sql:
-            return case
-        return PRODUCT
+    import app.services.follow_up_automation as automation
 
-    def fake_query_all(sql, parameters=()):
-        if "case_completeness_checks" in sql:
-            return [c for c in CHECKS if c["status"] == "Review"]
-        if "case_follow_up_tasks" in sql:
-            return [
-                {"task_id": 21, "check_code": "event_onset_date", "due_date": date(2026, 10, 15)},
-                {"task_id": 22, "check_code": "event_outcome", "due_date": date(2026, 10, 15)},
-                {"task_id": 23, "check_code": "event_coding", "due_date": date(2026, 10, 15)},
-            ]
-        return []
-
-    monkeypatch.setattr(review_routes, "query_one", fake_query_one)
-    monkeypatch.setattr(review_routes, "query_all", fake_query_all)
+    review_checks = [c for c in CHECKS if c["status"] == "Review"]
+    monkeypatch.setattr(
+        automation, "load_case_request",
+        lambda case_id: (case, PRODUCT, review_checks, OPEN_TASKS),
+    )
+    monkeypatch.setattr(review_routes, "load_case_request", automation.load_case_request)
     monkeypatch.setattr(
         "app.services.case_follow_up_reminders.get_open_reminder_count", lambda: 0
     )
@@ -170,16 +167,17 @@ def test_download_returns_one_word_form_for_the_case(monkeypatch):
 
 
 def test_send_emails_once_and_records_each_reporter_task(monkeypatch):
+    import app.services.follow_up_automation as automation
+
     client = _client(monkeypatch, CASE)
     sent, log = [], []
     monkeypatch.setattr(
-        review_routes, "send_follow_up_email",
+        "app.services.follow_up_email.send_follow_up_email",
         lambda app, recipient, subject, body, attachment, filename: sent.append((recipient, subject, filename)),
     )
-    monkeypatch.setattr(review_routes, "transaction", lambda: _Transaction(log))
-    monkeypatch.setattr(
-        "app.services.case_workflow.auto_move_status", lambda *args: True
-    )
+    monkeypatch.setattr(automation, "transaction", lambda: _Transaction(log))
+    monkeypatch.setattr("app.services.case_follow_up.sync_follow_up_flags", lambda cursor, case_id: 2)
+    monkeypatch.setattr("app.services.case_workflow.auto_move_status", lambda *args: True)
 
     response = client.post("/cases/9/follow-up-request/send")
 
@@ -189,14 +187,16 @@ def test_send_emails_once_and_records_each_reporter_task(monkeypatch):
                      "Follow-up request for adverse reaction report APDL-ICSR-26-009",
                      "follow-up-request-APDL-ICSR-26-009.docx")]
     deliveries = [p for sql, p in log if "INSERT INTO pv.case_follow_up_email_deliveries" in sql]
-    assert [p[0] for p in deliveries] == [21, 22]
+    assert [(p[0], p[3], p[4], p[5]) for p in deliveries] == [
+        (21, 1, "Request", False), (22, 1, "Request", False),
+    ]
     assert any("Follow-up request emailed" in str(p) for sql, p in log)
 
 
 def test_send_refuses_without_reporter_email(monkeypatch):
     client = _client(monkeypatch, {**CASE, "reporter_email": None})
     sent = []
-    monkeypatch.setattr(review_routes, "send_follow_up_email", lambda *a: sent.append(a))
+    monkeypatch.setattr("app.services.follow_up_email.send_follow_up_email", lambda *a: sent.append(a))
 
     response = client.post("/cases/9/follow-up-request/send")
 

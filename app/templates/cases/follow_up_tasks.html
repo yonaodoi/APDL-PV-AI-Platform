@@ -19,6 +19,20 @@
     </div>
 </header>
 
+{% if automation.active %}
+    <div class="automation-note is-on" role="status">
+        <strong>Automatic follow-up is on.</strong>
+        Requests are emailed {{ automation.grace_hours }} hours after missing information is found,
+        and a reminder goes out every {{ automation.reminder_days }} days with no reply (up to {{ automation.max_reminders }}).
+        Contradictions are held for you to check first. You only hear about a case if the reporter does not reply.
+    </div>
+{% elif automation.switched_on %}
+    <div class="automation-note" role="status">
+        <strong>Automatic follow-up is waiting for email to be set up.</strong>
+        Until then, use the buttons below to download or email each request.
+    </div>
+{% endif %}
+
 <section class="tasks-register" aria-label="Open follow-up requests by case">
     {% for group in cases %}
         {% set overdue = group.due_date and group.due_date < current_date %}
@@ -31,12 +45,31 @@
                         · Reporter: {{ group.reporter_name or "not recorded" }}{% if group.reporter_email %} ({{ group.reporter_email }}){% endif %}
                         {% if group.due_date %}· Reply due {{ group.due_date.strftime("%d %b %Y") }}{% endif %}
                     </div>
-                    {% if group.last_request %}
+                    {% if group.last_failure %}
+                        <div class="request-failed" role="alert">
+                            Email not sent ({{ group.last_failure.sent_at.strftime("%d %b %Y, %H:%M") }}): {{ group.last_failure.error_message }}
+                        </div>
+                    {% endif %}
+                    {% set h = group.history %}
+                    {% if h %}
+                        <div class="request-sent">
+                            Request emailed {{ h.requested.strftime("%d %b %Y") if h.requested else group.last_request.strftime("%d %b %Y") }}{% if h.reminders %} · {{ h.reminders }} reminder{% if h.reminders != 1 %}s{% endif %} sent{% endif %}
+                            {% if automation.active and h.next_reminder and not h.exhausted %} · next reminder {{ h.next_reminder.strftime("%d %b %Y") }}{% endif %}
+                        </div>
+                    {% elif group.last_request %}
                         <div class="request-sent">Request emailed {{ group.last_request.strftime("%d %b %Y") }}</div>
+                    {% elif automation.active and group.reporter_tasks and group.can_email %}
+                        <div class="request-sent">Will be emailed automatically</div>
                     {% endif %}
                 </div>
-                <span class="task-status {% if overdue %}overdue{% endif %}">
-                    {% if overdue %}Overdue{% elif group.last_request %}Awaiting reply{% else %}Not yet requested{% endif %}
+                <span class="task-status {% if (group.history and group.history.exhausted) or (overdue and not automation.active) %}overdue{% endif %}">
+                    {% if group.history and group.history.exhausted %}No reply after reminders
+                    {% elif group.history or group.last_request %}Awaiting reply
+                    {% elif not group.reporter_tasks and group.check_tasks %}For you to check
+                    {% elif not group.reporter_tasks %}PV team task
+                    {% elif overdue and not automation.active %}Overdue
+                    {% elif automation.active and group.can_email %}Queued to send
+                    {% else %}Not yet requested{% endif %}
                 </span>
             </div>
 
@@ -51,7 +84,7 @@
                             </div>
                             <form method="post" action="{{ url_for('case_review.complete_follow_up_task', task_id=task.task_id) }}">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button class="item-done" type="submit" title="Close this item, for example when the reporter says it is not known">Mark done</button>
+                                <button class="item-done" type="submit" title="The reporter says this is not known or cannot be provided. Stops asking for it.">Not available</button>
                             </form>
                         </li>
                     {% endfor %}
@@ -61,7 +94,7 @@
                     {% if group.can_email %}
                         <form method="post" action="{{ url_for('case_review.send_follow_up_request', case_id=group.case_id) }}" class="send-request-form">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button class="task-complete" type="submit">{% if group.last_request %}Email again{% else %}Email request to reporter{% endif %}</button>
+                            <button class="task-complete" type="submit">{% if group.last_request %}Email again{% elif automation.active %}Send now{% else %}Email request to reporter{% endif %}</button>
                         </form>
                     {% else %}
                         <span class="request-note">No reporter email on the case. <a href="{{ url_for('cases.edit_case', case_id=group.case_id, section='report-details') }}#report-details">Add it</a> to email the request.</span>
@@ -69,8 +102,30 @@
                 </div>
             {% endif %}
 
+            {% if group.check_tasks %}
+                <div class="request-section-title internal">Check first ({{ group.check_tasks|length }})</div>
+                <p class="request-note check-note">Recorded values disagree. This is often a typing error on our side: correct the case and the item closes by itself. If the values are right, the question is added when you download or email the request yourself.</p>
+                <ul class="request-items internal">
+                    {% for task in group.check_tasks %}
+                        <li>
+                            <div>
+                                <strong>{{ task.task_title|replace("Follow up: ", "") }}</strong>
+                                <span>{{ task.task_description }}</span>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+                {% if not group.reporter_tasks %}
+                    <div class="task-actions">
+                        <a class="task-download" href="{{ url_for('case_review.download_follow_up_request', case_id=group.case_id) }}">Download request (Word)</a>
+                        <a class="task-download" href="{{ url_for('cases.case_detail', case_id=group.case_id) }}">Open the case</a>
+                    </div>
+                {% endif %}
+            {% endif %}
+
             {% if group.internal_tasks %}
                 <div class="request-section-title internal">For the PV team</div>
+                <p class="request-note check-note">Closes by itself when done on the case (for example when the event is coded).</p>
                 <ul class="request-items internal">
                     {% for task in group.internal_tasks %}
                         <li>
@@ -78,10 +133,6 @@
                                 <strong>{{ task.task_title|replace("Follow up: ", "") }}</strong>
                                 <span>{{ task.task_description }}</span>
                             </div>
-                            <form method="post" action="{{ url_for('case_review.complete_follow_up_task', task_id=task.task_id) }}">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button class="item-done" type="submit">Mark done</button>
-                            </form>
                         </li>
                     {% endfor %}
                 </ul>
@@ -97,15 +148,27 @@
 </section>
 
 <script>
-    // Prevent sending the same request twice.
+    // Sending talks to the mail server and can take several seconds.
+    // Show that clearly, stop double clicks, and never leave a stale page.
     document.querySelectorAll(".send-request-form").forEach(function (form) {
         form.addEventListener("submit", function () {
             var button = form.querySelector("button");
             setTimeout(function () {
                 button.disabled = true;
-                button.textContent = "Sending…";
+                button.textContent = "Sending… (up to a minute)";
             }, 0);
+            // If the browser has not moved on after 75 seconds, reload to
+            // show what actually happened.
+            setTimeout(function () { window.location.reload(); }, 75000);
         });
+    });
+
+    // A page restored from the browser's back/forward memory may show an
+    // old "Sending…" button or an old error; load it fresh instead.
+    window.addEventListener("pageshow", function (event) {
+        if (event.persisted) {
+            window.location.reload();
+        }
     });
 </script>
 {% endblock %}

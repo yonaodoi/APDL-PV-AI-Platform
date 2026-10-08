@@ -103,9 +103,28 @@ class Config:
         "SMTP_USERNAME",
         SMTP_SENDER_EMAIL,
     )
-    SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
+    # App passwords are shown in groups with gaps; copying them often brings
+    # invisible non-breaking spaces or quotes, which make Gmail hang up.
+    SMTP_PASSWORD = (
+        "".join(
+            ch for ch in os.environ.get("SMTP_PASSWORD", "")
+            if not ch.isspace() and ch not in "\"'\u200b\ufeff"
+        )
+        or None
+    )
     SMTP_USE_SSL = os.environ.get("SMTP_USE_SSL", "true").lower() == "true"
     SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "false").lower() == "true"
+
+    # Automatic follow-up. Requests and reminders are emailed without a click
+    # once email sending is set up (Gmail connection or SMTP_PASSWORD).
+    # Set FOLLOW_UP_AUTO_SEND=false in .env to switch it off.
+    FOLLOW_UP_AUTO_SEND = (
+        os.environ.get("FOLLOW_UP_AUTO_SEND", "true").lower() == "true"
+    )
+    FOLLOW_UP_GRACE_HOURS = int(os.environ.get("FOLLOW_UP_GRACE_HOURS", "24"))
+    FOLLOW_UP_REMINDER_DAYS = int(os.environ.get("FOLLOW_UP_REMINDER_DAYS", "7"))
+    FOLLOW_UP_MAX_REMINDERS = int(os.environ.get("FOLLOW_UP_MAX_REMINDERS", "2"))
+    FOLLOW_UP_CHECK_MINUTES = int(os.environ.get("FOLLOW_UP_CHECK_MINUTES", "60"))
     @classmethod
     def validate(cls):
         missing = []
@@ -131,6 +150,7 @@ class Config:
 
 class TestingConfig(Config):
     TESTING = True
+    FOLLOW_UP_AUTO_SEND = False
     WTF_CSRF_ENABLED = False
     SECRET_KEY = "test-only-secret"
     DATABASE_URL = "postgresql://unused"

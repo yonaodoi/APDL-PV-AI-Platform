@@ -1651,6 +1651,39 @@ summary:focus-visible {
     background: #0d6652;
 }
 
+.follow-up-tasks-page .automation-note {
+    margin: 0 0 16px;
+    padding: 12px 16px;
+    border: 1px solid #f1d5a6;
+    border-radius: 12px;
+    background: #fffaf0;
+    color: #5c4a22;
+    font-size: 12.5px;
+    line-height: 1.55;
+}
+
+.follow-up-tasks-page .automation-note.is-on {
+    border-color: #c7eadb;
+    background: #f0f9f4;
+    color: #1d5a43;
+}
+
+.follow-up-tasks-page .check-note {
+    display: block;
+    margin: 0 0 6px;
+}
+
+.follow-up-tasks-page .request-failed {
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: #fdecec;
+    color: #8f2525;
+    font-size: 11.5px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
 .follow-up-tasks-page .request-sent {
     margin-top: 5px;
     color: #237354;

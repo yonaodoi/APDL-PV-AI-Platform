@@ -221,10 +221,76 @@ def _document_items():
     )]
 
 
+def _follow_up_items():
+    from app.services.follow_up_automation import (
+        email_configured,
+        reminder_status,
+    )
+
+    items = []
+    config = current_app.config
+    try:
+        status = reminder_status(
+            reminder_days=config.get("FOLLOW_UP_REMINDER_DAYS", 7),
+            max_reminders=config.get("FOLLOW_UP_MAX_REMINDERS", 2),
+        )
+    except Exception as error:
+        current_app.logger.warning("Dashboard follow-up query failed: %s", error)
+        try:
+            get_db().rollback()
+        except Exception:
+            pass
+        status = {}
+    exhausted = [case_id for case_id, info in status.items() if info["exhausted"]]
+    if exhausted:
+        rows = _safe_rows(
+            "SELECT case_id, case_number FROM pv.safety_cases WHERE case_id = ANY(%s) ORDER BY case_number",
+            (exhausted,),
+        ) or []
+        items.append(_item(
+            "follow-up-no-reply",
+            "Reporter(s) not replying after reminders",
+            "Automatic reminders have run out. Phone the reporter, or record that "
+            "the information is not available.",
+            [
+                {"label": r["case_number"],
+                 "url": url_for("case_review.follow_up_tasks") + f"#case-{r['case_id']}"}
+                for r in rows
+            ],
+            url_for("case_review.follow_up_tasks"),
+            urgent=True,
+        ))
+
+    if config.get("FOLLOW_UP_AUTO_SEND") and not email_configured():
+        waiting = _safe_rows(
+            """
+            SELECT DISTINCT cases.case_id, cases.case_number
+            FROM pv.case_follow_up_tasks AS tasks
+            JOIN pv.safety_cases AS cases ON cases.case_id = tasks.case_id
+            WHERE tasks.status IN ('Open', 'In progress')
+              AND cases.workflow_status NOT IN ('Submitted', 'Closed')
+            ORDER BY cases.case_number
+            """
+        ) or []
+        if waiting:
+            items.append(_item(
+                "follow-up-email-setup",
+                "Case(s) waiting because follow-up email is not set up",
+                "Set up email sending once and requests and reminders go out on their own.",
+                [
+                    {"label": r["case_number"],
+                     "url": url_for("case_review.follow_up_tasks") + f"#case-{r['case_id']}"}
+                    for r in waiting
+                ],
+                url_for("case_review.follow_up_tasks"),
+            ))
+    return items
+
+
 def get_action_items():
     """All dashboard action items, urgent ones first."""
     items = []
-    for builder in (_complaint_items, _case_items, _signal_items, _document_items):
+    for builder in (_complaint_items, _follow_up_items, _case_items, _signal_items, _document_items):
         try:
             items.extend(builder())
         except Exception:

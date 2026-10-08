@@ -1,5 +1,4 @@
 from datetime import date, datetime
-from email.utils import parseaddr
 import secrets
 
 from flask import (
@@ -19,17 +18,19 @@ from app.audit import write_audit_log
 from app.db import query_all, query_one, transaction
 from app.security import login_required
 from app.services.case_completeness import refresh_case_completeness
+from app.services.follow_up_automation import (
+    automation_active,
+    email_configured,
+    load_case_request,
+    reminder_status,
+    reply_due,
+    request_items,
+    send_case_request,
+)
 from app.services.follow_up_request import (
     build_follow_up_request_docx,
     group_tasks_by_case,
-    build_request_items,
-    email_body,
-    email_subject,
     request_filename,
-)
-from app.services.follow_up_email import (
-    FollowUpEmailError,
-    send_follow_up_email,
 )
 from app.services.gmail_oauth import (
     build_authorization_url,
@@ -405,12 +406,44 @@ def follow_up_tasks():
 
     ensure_overdue_reminders()
     tasks = get_open_follow_up_tasks()
+    cases = group_tasks_by_case(tasks, _last_requests([t["case_id"] for t in tasks]))
+    history = _reminder_history()
+    failures = _last_failures([group["case_id"] for group in cases])
+    for group in cases:
+        group["history"] = history.get(group["case_id"])
+        group["last_failure"] = failures.get(group["case_id"])
     return render_template(
         "cases/follow_up_tasks.html",
         tasks=tasks,
-        cases=group_tasks_by_case(tasks, _last_requests([t["case_id"] for t in tasks])),
+        cases=cases,
         current_date=date.today(),
+        automation={
+            "switched_on": current_app.config.get("FOLLOW_UP_AUTO_SEND"),
+            "email_ready": email_configured(),
+            "active": automation_active(),
+            "grace_hours": current_app.config.get("FOLLOW_UP_GRACE_HOURS", 24),
+            "reminder_days": current_app.config.get("FOLLOW_UP_REMINDER_DAYS", 7),
+            "max_reminders": current_app.config.get("FOLLOW_UP_MAX_REMINDERS", 2),
+            "last_run": current_app.config.get("FOLLOW_UP_LAST_RUN"),
+        },
     )
+
+
+def _reminder_history():
+    try:
+        return reminder_status(
+            reminder_days=current_app.config.get("FOLLOW_UP_REMINDER_DAYS", 7),
+            max_reminders=current_app.config.get("FOLLOW_UP_MAX_REMINDERS", 2),
+        )
+    except Exception:
+        current_app.logger.warning("Could not read follow-up history", exc_info=True)
+        try:
+            from app.db import get_db
+
+            get_db().rollback()
+        except Exception:
+            pass
+        return {}
 
 
 def _last_requests(case_ids):
@@ -438,6 +471,40 @@ def _last_requests(case_ids):
             pass
         return {}
     return {row["case_id"]: row["sent_at"] for row in rows}
+
+
+def _last_failures(case_ids):
+    """The most recent failed send per case, if nothing was sent after it."""
+    if not case_ids:
+        return {}
+    try:
+        rows = query_all(
+            """
+            SELECT DISTINCT ON (failed.case_id)
+                   failed.case_id, failed.sent_at, failed.error_message
+            FROM pv.case_follow_up_email_deliveries AS failed
+            WHERE failed.status = 'Failed'
+              AND failed.case_id = ANY(%s)
+              AND NOT EXISTS (
+                  SELECT 1 FROM pv.case_follow_up_email_deliveries AS later
+                  WHERE later.case_id = failed.case_id
+                    AND later.status = 'Sent'
+                    AND later.sent_at > failed.sent_at
+              )
+            ORDER BY failed.case_id, failed.sent_at DESC
+            """,
+            (list(set(case_ids)),),
+        )
+    except Exception:
+        current_app.logger.warning("Could not read failed follow-up emails", exc_info=True)
+        try:
+            from app.db import get_db
+
+            get_db().rollback()
+        except Exception:
+            pass
+        return {}
+    return {row["case_id"]: row for row in rows}
 
 
 @bp.get("/follow-up-reminders")
@@ -479,11 +546,25 @@ def complete_follow_up_task(task_id):
                 updated_at = CURRENT_TIMESTAMP
             WHERE task_id = %s
               AND status IN ('Open', 'In progress')
-            RETURNING case_id
+            RETURNING case_id, task_title
             """,
             (session["user_id"], task_id),
         )
         task = cursor.fetchone()
+        if task is not None:
+            cursor.execute(
+                """
+                INSERT INTO pv.case_audit_log (case_id, action, details, performed_by)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (
+                    task["case_id"],
+                    "Follow-up item marked not available",
+                    f"{task['task_title'].replace('Follow up: ', '')}: the reporter "
+                    "cannot provide this; it will not be requested again.",
+                    session["user_id"],
+                ),
+            )
 
     if task is None:
         abort(404)
@@ -507,7 +588,7 @@ def complete_follow_up_task(task_id):
             )
         )
 
-    flash("Follow-up task marked as completed.", "success")
+    flash("Marked as not available. The reporter will not be asked for it again.", "success")
     if moved:
         flash(
             "All follow-up tasks for this case are done, so it moved to "
@@ -566,61 +647,14 @@ def review_duplicate_candidate(case_id):
     return redirect(url_for("cases.case_detail", case_id=case_id))
 
 
-def _case_for_request(case_id):
-    case = query_one("SELECT * FROM pv.safety_cases WHERE case_id = %s", (case_id,))
-    if case is None:
-        abort(404)
-    product = query_one(
-        """
-        SELECT *
-        FROM pv.case_products
-        WHERE case_id = %s
-        ORDER BY case_product_id
-        LIMIT 1
-        """,
-        (case_id,),
-    ) or {}
-    checks = query_all(
-        """
-        SELECT check_code AS code, check_label AS label, status, message
-        FROM pv.case_completeness_checks
-        WHERE case_id = %s
-          AND status = 'Review'
-        ORDER BY check_id
-        """,
-        (case_id,),
-    )
-    tasks = query_all(
-        """
-        SELECT task_id, check_code, due_date
-        FROM pv.case_follow_up_tasks
-        WHERE case_id = %s
-          AND status IN ('Open', 'In progress')
-        ORDER BY due_date
-        """,
-        (case_id,),
-    )
-    items = build_request_items(case, product, checks)
-    due_date = min((t["due_date"] for t in tasks), default=None) or case.get(
-        "follow_up_due_date"
-    )
-    return case, product, items, tasks, due_date
-
-
-def _request_document(case, product, items, due_date):
-    return build_follow_up_request_docx(
-        case,
-        product,
-        items,
-        due_date,
-        prepared_by=session.get("full_name"),
-    )
-
-
 @bp.get("/<int:case_id>/follow-up-request.docx")
 @login_required
 def download_follow_up_request(case_id):
-    case, product, items, _, due_date = _case_for_request(case_id)
+    loaded = load_case_request(case_id)
+    if loaded is None:
+        abort(404)
+    case, product, checks, tasks = loaded
+    items = request_items(case, product, checks)
     if not items:
         flash(
             "This case has nothing to ask the reporter. Remaining tasks are "
@@ -628,8 +662,11 @@ def download_follow_up_request(case_id):
             "info",
         )
         return redirect(url_for("case_review.follow_up_tasks"))
+    due = reply_due(tasks, case, days=current_app.config.get("FOLLOW_UP_REMINDER_DAYS", 7))
     return send_file(
-        _request_document(case, product, items, due_date),
+        build_follow_up_request_docx(
+            case, product, items, due, prepared_by=session.get("full_name")
+        ),
         as_attachment=True,
         download_name=request_filename(case),
         mimetype=(
@@ -642,96 +679,15 @@ def download_follow_up_request(case_id):
 @login_required
 def send_follow_up_request(case_id):
     back = url_for("case_review.follow_up_tasks") + f"#case-{case_id}"
-    case, product, items, tasks, due_date = _case_for_request(case_id)
-    if not items:
-        flash("This case has nothing to ask the reporter.", "info")
-        return redirect(back)
-
-    recipient = (case.get("reporter_email") or "").strip()
-    if not recipient or parseaddr(recipient)[1] != recipient:
-        flash(
-            "This case has no valid reporter email address. Add it on the "
-            "case, or download the request and send it another way.",
-            "error",
-        )
-        return redirect(back)
-
-    included = {item["code"] for item in items}
-    request_tasks = [t for t in tasks if t["check_code"] in included] or tasks
-    document = _request_document(case, product, items, due_date)
-    try:
-        send_follow_up_email(
-            current_app,
-            recipient,
-            email_subject(case),
-            email_body(case, product, items, due_date),
-            document,
-            request_filename(case),
-        )
-    except FollowUpEmailError as exc:
-        with transaction() as cursor:
-            for task in request_tasks:
-                cursor.execute(
-                    """
-                    INSERT INTO pv.case_follow_up_email_deliveries (
-                        task_id, case_id, recipient_email, status,
-                        error_message, sent_by
-                    )
-                    VALUES (%s, %s, %s, 'Failed', %s, %s)
-                    """,
-                    (task["task_id"], case_id, recipient, str(exc), session["user_id"]),
-                )
-        flash(str(exc), "error")
-        return redirect(back)
-
-    with transaction() as cursor:
-        for task in request_tasks:
-            cursor.execute(
-                """
-                INSERT INTO pv.case_follow_up_email_deliveries (
-                    task_id, case_id, recipient_email, status, sent_by
-                )
-                VALUES (%s, %s, %s, 'Sent', %s)
-                """,
-                (task["task_id"], case_id, recipient, session["user_id"]),
-            )
-            cursor.execute(
-                """
-                UPDATE pv.case_follow_up_tasks
-                SET status = 'In progress', updated_at = CURRENT_TIMESTAMP
-                WHERE task_id = %s AND status = 'Open'
-                """,
-                (task["task_id"],),
-            )
-        cursor.execute(
-            """
-            INSERT INTO pv.case_audit_log (case_id, action, details, performed_by)
-            VALUES (%s, %s, %s, %s)
-            """,
-            (
-                case_id,
-                "Follow-up request emailed",
-                f"Follow-up request with {len(items)} question(s) sent to "
-                f"{recipient}: " + "; ".join(item["label"] for item in items),
-                session["user_id"],
-            ),
-        )
-        from app.services.case_workflow import auto_move_status
-
-        moved = auto_move_status(
-            cursor,
-            case_id,
-            ("New", "Triage", "Medical review"),
-            "Follow-up requested",
-            f"follow-up request sent to {recipient}.",
-            session["user_id"],
-        )
-
-    flash(
-        f"Follow-up request for {case['case_number']} sent to {recipient} "
-        f"({len(items)} question(s)).",
-        "success",
+    result = send_case_request(
+        case_id,
+        session["user_id"],
+        prepared_by=session.get("full_name"),
     )
-    if moved:
+    if not result["sent"]:
+        flash(result["message"], "error" if result["items"] else "info")
+        return redirect(back)
+    flash(result["message"], "success")
+    if result["moved"]:
         flash("The case status moved to Follow-up requested.", "info")
     return redirect(back)

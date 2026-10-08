@@ -100,4 +100,8 @@ def create_app(config_class=Config):
 
         return {"open_follow_up_reminder_count": get_open_reminder_count()}
 
+    from app.services.follow_up_automation import start_follow_up_scheduler
+
+    start_follow_up_scheduler(app)
+
     return app
