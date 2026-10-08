@@ -5216,3 +5216,58 @@ details.register-fold:not([open]) > summary { border-bottom: 0; }
         border-radius: 14px;
     }
 }
+
+/* Case form opened from a follow-up item: highlight the requested field. */
+.safety-case-form-page .field.needs-input {
+    padding: 10px;
+    border: 2px solid #147d64;
+    border-radius: 10px;
+    background: #f0f9f4;
+}
+.safety-case-form-page .field.needs-input label:not(.checkbox) {
+    color: #0d6652;
+    font-weight: 900;
+    font-size: 13px;
+}
+.safety-case-form-page .section-needs-input .section-title h3 {
+    color: #0d6652;
+    font-weight: 900;
+}
+.safety-case-form-page .needs-input-note {
+    margin-top: 6px;
+    color: #0d6652;
+    font-size: 11.5px;
+    font-weight: 700;
+}
+
+/* Case entry form: boxes use the full width of their column (they were
+   only as wide as their contents), and are a little less tall. */
+.safety-case-form-page .grid,
+.safety-case-form-page .grid.three {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px 18px;
+}
+@media (min-width: 1100px) {
+    .safety-case-form-page .grid,
+    .safety-case-form-page .grid.three {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+.safety-case-form-page .field.full {
+    grid-column: 1 / -1;
+}
+.safety-case-form-page .field .input {
+    display: block;
+    width: 100%;
+    max-width: 640px;
+    box-sizing: border-box;
+    min-height: 34px;
+    padding: 6px 10px;
+}
+.safety-case-form-page .field.full .input {
+    max-width: none;
+}
+.safety-case-form-page .field textarea.input {
+    min-height: 72px;
+}

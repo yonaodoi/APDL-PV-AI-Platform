@@ -92,7 +92,7 @@
                             </div>
                             <div class="item-actions">
                                 {% if task.edit_section %}
-                                    <a class="item-enter" href="{{ url_for('cases.edit_case', case_id=group.case_id, section=task.edit_section, next=url_for('case_review.follow_up_tasks') ~ '#case-' ~ group.case_id) }}#{{ task.edit_section }}" title="Open the case form at this section to enter the reporter's answer. The item closes when you save.">Enter information</a>
+                                    <a class="item-enter" href="{{ url_for('cases.edit_case', case_id=group.case_id, section=task.edit_section, field=task.edit_field, next=url_for('case_review.follow_up_tasks') ~ '#case-' ~ group.case_id) }}#{{ task.edit_field or task.edit_section }}" title="Open the case form at this section to enter the reporter's answer. The item closes when you save.">Enter information</a>
                                 {% endif %}
                                 <form method="post" action="{{ url_for('case_review.complete_follow_up_task', task_id=task.task_id) }}">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -127,7 +127,7 @@
                             </div>
                             {% if task.edit_section %}
                                 <div class="item-actions">
-                                    <a class="item-enter" href="{{ url_for('cases.edit_case', case_id=group.case_id, section=task.edit_section, next=url_for('case_review.follow_up_tasks') ~ '#case-' ~ group.case_id) }}#{{ task.edit_section }}">Correct on the case</a>
+                                    <a class="item-enter" href="{{ url_for('cases.edit_case', case_id=group.case_id, section=task.edit_section, field=task.edit_field, next=url_for('case_review.follow_up_tasks') ~ '#case-' ~ group.case_id) }}#{{ task.edit_field or task.edit_section }}">Correct on the case</a>
                                 </div>
                             {% endif %}
                         </li>

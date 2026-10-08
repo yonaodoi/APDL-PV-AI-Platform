@@ -66,7 +66,8 @@ def test_follow_up_page_groups_tasks_into_one_request_per_case(monkeypatch):
     assert page.count("Not available</button>") == 2
     assert page.count("Enter information</a>") == 2
     assert "section=event-assessment" in page
-    assert "next=/cases/follow-up-tasks%23case-34#event-assessment" in page
+    assert "field=event_outcome" in page
+    assert "next=/cases/follow-up-tasks%23case-34#event_outcome" in page
     assert "Follow-up 2 of 3" in page
     assert "Request emailed 01 Apr 2026, " in page
     assert "Mark done" not in page

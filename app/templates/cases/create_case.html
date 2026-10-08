@@ -366,4 +366,33 @@
     </aside>
 </div>
 </section>
+<script>
+    // Opened from a follow-up item: take the user to the exact field that
+    // needs the reporter's answer and make it stand out.
+    (function () {
+        var params = new URLSearchParams(window.location.search);
+        var fieldId = params.get("field");
+        if (!fieldId) {
+            return;
+        }
+        var input = document.getElementById(fieldId);
+        if (!input) {
+            return;
+        }
+        var box = input.closest(".field") || input.parentElement;
+        box.classList.add("needs-input");
+        var section = input.closest(".section");
+        if (section) {
+            section.classList.add("section-needs-input");
+        }
+        var note = document.createElement("div");
+        note.className = "needs-input-note";
+        note.textContent = "Requested from the reporter: enter the answer here, then click Update safety case.";
+        box.appendChild(note);
+        setTimeout(function () {
+            box.scrollIntoView({ behavior: "smooth", block: "center" });
+            input.focus({ preventScroll: true });
+        }, 150);
+    })();
+</script>
 {% endblock %}

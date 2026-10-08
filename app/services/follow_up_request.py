@@ -57,6 +57,20 @@ EDIT_SECTION_FOR_CODE = {
     "date_sequence": "event-assessment",
 }
 
+# The exact form field to open for each item (its id on the case form).
+EDIT_FIELD_FOR_CODE = {
+    "minimum_patient": "patient_initials",
+    "patient_consistency": "patient_date_of_birth",
+    "identifiable_reporter": "reporter_name",
+    "suspected_product": "product_name",
+    "reported_event": "event_description",
+    "event_onset_date": "event_onset_date",
+    "event_outcome": "event_outcome",
+    "seriousness_basis": "seriousness_criteria",
+    "fatal_outcome_consistency": "event_outcome",
+    "date_sequence": "event_onset_date",
+}
+
 # Plain-language headings for the reporter (the checklist labels are ours).
 REPORTER_LABELS = {
     "minimum_patient": "Patient details",
@@ -426,6 +440,7 @@ def group_tasks_by_case(tasks, last_requests=None):
             group["due_date"] = task["due_date"]
         task = dict(task)
         task["edit_section"] = EDIT_SECTION_FOR_CODE.get(task.get("check_code"))
+        task["edit_field"] = EDIT_FIELD_FOR_CODE.get(task.get("check_code"))
         if task.get("check_code") in INTERNAL_CODES:
             bucket = "internal_tasks"
         elif task.get("check_code") in CHECK_FIRST_CODES:
