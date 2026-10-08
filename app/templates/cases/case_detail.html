@@ -341,6 +341,62 @@
     .collapsible-section > summary .section-edit-link + * { margin-left: 0; }
     .collapsible-section > summary::after { margin-left: 12px; }
 
+
+    .workflow-suggestion,
+    .workflow-readiness {
+        margin: 12px 18px 0;
+        padding: 12px 14px;
+        border-radius: 10px;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+    .workflow-suggestion {
+        border: 1px solid #c9dcf5;
+        background: #f2f7fe;
+        color: #23466f;
+    }
+    .workflow-suggestion.is-current {
+        border-color: #c7eadb;
+        background: #f0f9f4;
+        color: #176247;
+    }
+    .workflow-suggestion-title,
+    .workflow-readiness-title {
+        margin-bottom: 4px;
+        font-weight: bold;
+    }
+    .workflow-suggestion ul,
+    .workflow-readiness ul {
+        margin: 0;
+        padding-left: 16px;
+    }
+    .workflow-readiness ul { list-style: none; padding-left: 0; }
+    .workflow-suggestion form { margin-top: 8px; }
+    .workflow-suggestion button {
+        padding: 7px 12px;
+        border: 0;
+        border-radius: 8px;
+        background: #2d6cb5;
+        color: white;
+        font: inherit;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .workflow-readiness {
+        border: 1px solid #eee3d0;
+        background: #fffcf6;
+        color: #5d5168;
+    }
+    .workflow-readiness .not-ready { color: #8a3a2a; margin-top: 3px; }
+    .workflow-readiness .ready { margin: 0; color: #176247; }
+    .workflow-hint {
+        margin: 0 0 12px 22px;
+        color: #776e7d;
+        font-size: 11px;
+        line-height: 1.4;
+    }
+    .workflow-hint a { color: #6242d7; font-weight: bold; text-decoration: none; }
 </style>
 
 <section class="case-top">
@@ -1056,7 +1112,43 @@
             </div>
         {% endif %}
 
-        <div class="side-heading">Case workflow review</div>
+        <div class="side-heading" id="workflow">Case workflow review</div>
+
+        {% if workflow and workflow.suggestion %}
+            <div class="workflow-suggestion {% if workflow.suggestion.same %}is-current{% endif %}">
+                {% if workflow.suggestion.same %}
+                    <div class="workflow-suggestion-title">Status is up to date: {{ workflow.suggestion.status }}</div>
+                {% else %}
+                    <div class="workflow-suggestion-title">Suggested next status: {{ workflow.suggestion.status }}</div>
+                {% endif %}
+                <ul>
+                    {% for reason in workflow.suggestion.reasons %}
+                        <li>{{ reason }}</li>
+                    {% endfor %}
+                </ul>
+                {% if not workflow.suggestion.same %}
+                    <form method="post" action="{{ url_for('case_review.accept_suggested_status', case_id=case.case_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit">Use “{{ workflow.suggestion.status }}”</button>
+                    </form>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        {% if workflow and case.workflow_status not in ("Ready for submission", "Submitted", "Closed") %}
+            <div class="workflow-readiness">
+                <div class="workflow-readiness-title">Ready for submission?</div>
+                {% if workflow.blockers %}
+                    <ul>
+                        {% for blocker in workflow.blockers %}
+                            <li class="not-ready">✗ {{ blocker }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="ready">✓ Checklist complete, listedness confirmed and causality recorded.</p>
+                {% endif %}
+            </div>
+        {% endif %}
 
         <form method="post" action="{{ url_for('case_review.review_case', case_id=case.case_id) }}" style="padding: 16px 18px; border-bottom: 1px solid #eee8ec;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -1079,17 +1171,33 @@
             <label style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Review notes</label>
             <textarea name="review_notes" style="width: 100%; min-height: 72px; margin-bottom: 13px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px; font: inherit; font-size: 12px; resize: vertical;"></textarea>
 
-            <label style="display: flex; gap: 7px; align-items: center; margin-bottom: 11px; color: #554d5d; font-size: 12px;">
-                <input type="checkbox" name="follow_up_required" {% if case.follow_up_required %}checked{% endif %}>
+            <label style="display: flex; gap: 7px; align-items: center; margin-bottom: 4px; color: #554d5d; font-size: 12px;">
+                <input type="checkbox" name="follow_up_required" {% if case.follow_up_required or (workflow and workflow.open_tasks) %}checked{% endif %}>
                 Follow-up required
             </label>
+            {% if workflow and workflow.open_tasks %}
+                <p class="workflow-hint">Set automatically: {{ workflow.open_tasks }} open follow-up task(s){% if workflow.follow_up_sent %}, request sent{% endif %}. <a href="{{ url_for('case_review.follow_up_tasks') }}">View tasks</a></p>
+            {% else %}
+                <p class="workflow-hint">Ticked automatically when the checklist creates follow-up tasks.</p>
+            {% endif %}
 
             <label style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Follow-up due date</label>
-            <input type="date" name="follow_up_due_date" value="{{ case.follow_up_due_date.strftime('%Y-%m-%d') if case.follow_up_due_date else '' }}" style="width: 100%; margin-bottom: 14px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px;">
+            {% set due = case.follow_up_due_date or (workflow.earliest_due if workflow else None) %}
+            <input type="date" name="follow_up_due_date" value="{{ due.strftime('%Y-%m-%d') if due else '' }}" style="width: 100%; margin-bottom: 14px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px;">
 
             <label for="regulatory_submitted_date" style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Regulatory submission date</label>
             <input type="date" id="regulatory_submitted_date" name="regulatory_submitted_date" value="{{ case.regulatory_submitted_date.strftime('%Y-%m-%d') if case.regulatory_submitted_date else '' }}" style="width: 100%; margin-bottom: 4px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px;">
             <p style="margin: 0 0 14px; color: #776e7d; font-size: 11px;">Stops the reporting clock. Set automatically to today when the status changes to Submitted.</p>
+
+            {% if workflow and workflow.blockers and workflow.can_override %}
+                <div class="workflow-override" data-override-box hidden>
+                    <label style="display: flex; gap: 7px; align-items: center; margin-bottom: 6px; color: #8a3a2a; font-size: 12px; font-weight: bold;">
+                        <input type="checkbox" name="override">
+                        Override the readiness check
+                    </label>
+                    <textarea name="override_reason" placeholder="Reason for proceeding with outstanding items (recorded in the audit trail)" style="width: 100%; min-height: 60px; margin-bottom: 13px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px; font: inherit; font-size: 12px;"></textarea>
+                </div>
+            {% endif %}
 
             <button type="submit" style="width: 100%; padding: 10px; border: 0; border-radius: 8px; background: #7656e8; color: white; cursor: pointer; font-size: 12px; font-weight: bold;">Save review</button>
         </form>
@@ -1157,6 +1265,22 @@
             target.open = true;
             target.scrollIntoView({ block: "start" });
         }
+    })();
+</script>
+
+<script>
+    // Show the override box only when choosing a status the case is not ready for.
+    (function () {
+        var box = document.querySelector("[data-override-box]");
+        var select = document.querySelector('select[name="workflow_status"]');
+        if (!box || !select) { return; }
+        var current = select.value;
+        function update() {
+            var gated = select.value === "Ready for submission" || select.value === "Submitted";
+            box.hidden = !(gated && select.value !== current);
+        }
+        select.addEventListener("change", update);
+        update();
     })();
 </script>
 {% endblock %}

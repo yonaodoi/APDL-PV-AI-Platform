@@ -417,6 +417,7 @@ def case_detail(case_id):
         event_terms=get_case_event_terms(case_id),
         dictionary_terms=get_active_terms(),
         safety_assessment=_load_safety_assessment(case_id),
+        workflow=_workflow_panel(case, completeness_checks),
         document_types=DOCUMENT_TYPES,
         document_type_label=document_type_label,
         attachments=query_all(
@@ -454,6 +455,58 @@ def needs_rereview(assessment):
     )
 
 
+def _rollback_quietly():
+    """Reset the connection after a caught database error, so the rest of
+    the page can still load."""
+    from app.db import get_db
+
+    try:
+        get_db().rollback()
+    except Exception:
+        pass
+
+
+def _workflow_panel(case, completeness_checks):
+    """Suggested status, readiness and follow-up facts for the case page."""
+    from app.services.case_workflow import (
+        STATUSES,
+        can_override,
+        is_designated_qppv,
+        load_workflow_inputs,
+        readiness_blockers,
+        suggest_status,
+    )
+
+    try:
+        _, assessment, follow_up = load_workflow_inputs(case["case_id"])
+    except Exception:
+        current_app.logger.exception(
+            "Could not load workflow information for case %s", case["case_id"]
+        )
+        _rollback_quietly()
+        return None
+    open_tasks = follow_up.get("open_tasks") or 0
+    return {
+        "statuses": STATUSES,
+        "suggestion": suggest_status(
+            case,
+            completeness_checks,
+            assessment,
+            open_tasks,
+            follow_up.get("follow_up_sent"),
+        ),
+        "blockers": readiness_blockers(
+            completeness_checks, assessment, case.get("causality_assessment")
+        ),
+        "open_tasks": open_tasks,
+        "earliest_due": follow_up.get("earliest_due"),
+        "follow_up_sent": follow_up.get("follow_up_sent"),
+        "can_override": can_override(
+            session.get("role"), is_designated_qppv(session.get("user_id"))
+        ),
+    }
+
+
 def _load_safety_assessment(case_id):
     try:
         assessment = query_one(
@@ -470,6 +523,7 @@ def _load_safety_assessment(case_id):
         current_app.logger.exception(
             "Could not load the listedness assessment for case %s", case_id
         )
+        _rollback_quietly()
         return None
     if assessment:
         assessment = dict(assessment)
@@ -587,6 +641,20 @@ def apply_document_suggestions(case_id, attachment_id):
         actor_user_id=session["user_id"],
     )
     flash(f"{len(applied)} update(s) applied: {', '.join(applied)}.", "success")
+    if attachment.get("document_type") == "follow_up":
+        from app.services.case_workflow import auto_move_status
+
+        with transaction() as cursor:
+            moved = auto_move_status(
+                cursor,
+                case_id,
+                ("Follow-up requested",),
+                "Medical review",
+                f"follow-up response {attachment['original_filename']} was applied.",
+                session["user_id"],
+            )
+        if moved:
+            flash("The follow-up response was applied, so the case moved to Medical review.", "info")
 
     listedness_flash = listedness_message(
         run_automatic_listedness(case_id, actor_user_id=session["user_id"])

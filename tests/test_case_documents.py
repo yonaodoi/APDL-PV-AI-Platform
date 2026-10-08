@@ -263,6 +263,25 @@ def test_applying_suggestions_updates_case_and_rechecks(monkeypatch):
         case_routes, "screen_case_for_signals",
         lambda case_id, actor_user_id=None: calls.append(("screen",)) or ([], False),
     )
+
+    class Cursor:
+        def __init__(self):
+            self.rows = [{"case_id": 9}]
+
+        def execute(self, sql, params):
+            calls.append(("sql", " ".join(sql.split())[:40]))
+
+        def fetchone(self):
+            return self.rows.pop(0) if self.rows else None
+
+    class Tx:
+        def __enter__(self):
+            return Cursor()
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(case_routes, "transaction", lambda: Tx())
     client = _signed_in_client(monkeypatch)
 
     response = client.post(
@@ -271,12 +290,16 @@ def test_applying_suggestions_updates_case_and_rechecks(monkeypatch):
     )
 
     assert response.headers["Location"].endswith("/cases/9#attachments")
-    assert calls == [
+    assert calls[:2] == [
         ("apply", {"patient_sex"}),
         ("audit", "Case updated from attached document"),
-        ("listedness",),
-        ("screen",),
     ]
+    # A follow-up response moves the case from Follow-up requested to Medical review.
+    assert any(
+        c[0] == "sql" and c[1].startswith("UPDATE pv.safety_cases SET workflow")
+        for c in calls
+    )
+    assert calls[-2:] == [("listedness",), ("screen",)]
 
 
 def test_dismissing_suggestions_changes_nothing_in_the_case(monkeypatch):

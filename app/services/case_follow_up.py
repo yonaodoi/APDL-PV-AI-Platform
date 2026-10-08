@@ -44,6 +44,7 @@ def sync_case_follow_up_tasks(case, checks):
                 ),
             )
 
+        completed_now = 0
         if review_checks:
             cursor.execute(
                 """
@@ -62,6 +63,7 @@ def sync_case_follow_up_tasks(case, checks):
                 """,
                 (case["case_id"], case["case_id"]),
             )
+            completed_now = cursor.rowcount
         else:
             cursor.execute(
                 """
@@ -74,6 +76,54 @@ def sync_case_follow_up_tasks(case, checks):
                 """,
                 (case["case_id"],),
             )
+            completed_now = cursor.rowcount
+
+        sync_follow_up_flags(cursor, case["case_id"], tasks_just_completed=completed_now)
+
+
+def sync_follow_up_flags(cursor, case_id, tasks_just_completed=0):
+    """Keep the case's follow-up fields in step with its follow-up tasks.
+
+    Open tasks set "follow-up required" and the earliest due date. When the
+    last open task is completed, the flag is cleared. A follow-up a reviewer
+    ticked by hand with no tasks behind it is left alone.
+    """
+    cursor.execute(
+        """
+        SELECT COUNT(*) AS open_tasks, MIN(due_date) AS earliest_due
+        FROM pv.case_follow_up_tasks
+        WHERE case_id = %s
+          AND status IN ('Open', 'In progress')
+        """,
+        (case_id,),
+    )
+    row = cursor.fetchone()
+    if row and row["open_tasks"]:
+        cursor.execute(
+            """
+            UPDATE pv.safety_cases
+            SET follow_up_required = TRUE,
+                follow_up_due_date = %s
+            WHERE case_id = %s
+              AND (
+                  follow_up_required IS DISTINCT FROM TRUE
+                  OR follow_up_due_date IS DISTINCT FROM %s
+              )
+            """,
+            (row["earliest_due"], case_id, row["earliest_due"]),
+        )
+    elif tasks_just_completed:
+        cursor.execute(
+            """
+            UPDATE pv.safety_cases
+            SET follow_up_required = FALSE,
+                follow_up_due_date = NULL
+            WHERE case_id = %s
+              AND follow_up_required = TRUE
+            """,
+            (case_id,),
+        )
+    return row["open_tasks"] if row else 0
 
 
 def get_open_follow_up_tasks():

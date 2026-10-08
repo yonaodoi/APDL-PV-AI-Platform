@@ -19,6 +19,7 @@ from flask import (
 from flask import current_app
 from docx import Document
 
+from app.audit import write_audit_log
 from app.db import query_all, query_one, transaction
 from app.security import login_required
 from app.services.case_completeness import refresh_case_completeness
@@ -90,7 +91,8 @@ VALID_STATUSES = {
 def review_case(case_id):
     case = query_one(
         """
-        SELECT case_id, case_number, received_date, regulatory_submitted_date
+        SELECT case_id, case_number, received_date, regulatory_submitted_date,
+               workflow_status
         FROM pv.safety_cases
         WHERE case_id = %s
         """,
@@ -150,6 +152,42 @@ def review_case(case_id):
         flash("Follow-up due date is not valid.", "error")
         return redirect(url_for("cases.case_detail", case_id=case_id))
 
+    from app.services.case_workflow import (
+        can_override,
+        is_designated_qppv,
+        load_workflow_inputs,
+        needs_override,
+        readiness_blockers,
+    )
+
+    checks, assessment, _ = load_workflow_inputs(case_id)
+    blockers = readiness_blockers(checks, assessment, causality_assessment)
+    override_reason = request.form.get("override_reason", "").strip()
+    override_note = ""
+    if (
+        needs_override(workflow_status, blockers)
+        and workflow_status != case.get("workflow_status")
+    ):
+        allowed = can_override(
+            session.get("role"), is_designated_qppv(session.get("user_id"))
+        )
+        if not (allowed and request.form.get("override") == "on" and override_reason):
+            flash(
+                f"The case is not ready for \"{workflow_status}\": "
+                + " ".join(blockers)
+                + (
+                    " To proceed anyway, tick Override and give a reason."
+                    if allowed
+                    else " Only a QPPV, Deputy QPPV or Medical Reviewer can override."
+                ),
+                "error",
+            )
+            return redirect(url_for("cases.case_detail", case_id=case_id) + "#workflow")
+        override_note = (
+            f" Readiness check overridden. Reason: {override_reason}. "
+            f"Outstanding: {' '.join(blockers)}"
+        )
+
     with transaction() as cursor:
         cursor.execute(
             """
@@ -181,6 +219,7 @@ def review_case(case_id):
                 else ""
             )
             + (f" Review note: {review_notes}" if review_notes else "")
+            + override_note
         )
 
         cursor.execute(
@@ -211,8 +250,69 @@ def review_case(case_id):
     )
     refresh_case_completeness(updated_case, products)
 
+    if override_note:
+        write_audit_log(
+            record_type="case",
+            record_id=case_id,
+            action="Readiness check overridden",
+            details=(
+                f"Status set to {workflow_status} with outstanding items. "
+                f"Reason: {override_reason}. Outstanding: {' '.join(blockers)}"
+            ),
+            actor_user_id=session["user_id"],
+        )
+
     flash(f"Case {case['case_number']} was updated.", "success")
-    return redirect(url_for("cases.case_detail", case_id=case_id))
+    return redirect(url_for("cases.case_detail", case_id=case_id) + "#workflow")
+
+
+@bp.post("/<int:case_id>/accept-suggested-status")
+@login_required
+def accept_suggested_status(case_id):
+    from app.services.case_workflow import load_workflow_inputs, suggest_status
+
+    case = query_one(
+        "SELECT * FROM pv.safety_cases WHERE case_id = %s", (case_id,)
+    )
+    if case is None:
+        abort(404)
+    checks, assessment, follow_up = load_workflow_inputs(case_id)
+    suggestion = suggest_status(
+        case,
+        checks,
+        assessment,
+        follow_up.get("open_tasks") or 0,
+        follow_up.get("follow_up_sent"),
+    )
+    if not suggestion or suggestion["same"]:
+        flash("The case status is already up to date.", "info")
+        return redirect(url_for("cases.case_detail", case_id=case_id) + "#workflow")
+
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.safety_cases
+            SET workflow_status = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE case_id = %s
+            """,
+            (suggestion["status"], case_id),
+        )
+        cursor.execute(
+            """
+            INSERT INTO pv.case_audit_log (case_id, action, details, performed_by)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (
+                case_id,
+                "Case reviewed",
+                f"Status changed to {suggestion['status']} (suggested): "
+                + " ".join(suggestion["reasons"]),
+                session["user_id"],
+            ),
+        )
+    flash(f"Status changed to {suggestion['status']}.", "success")
+    return redirect(url_for("cases.case_detail", case_id=case_id) + "#workflow")
 
 
 @bp.get("/follow-up-tasks")
@@ -277,7 +377,32 @@ def complete_follow_up_task(task_id):
     if task is None:
         abort(404)
 
+    from app.services.case_follow_up import sync_follow_up_flags
+    from app.services.case_workflow import auto_move_status
+
+    with transaction() as cursor:
+        remaining = sync_follow_up_flags(
+            cursor, task["case_id"], tasks_just_completed=1
+        )
+        moved = (
+            not remaining
+            and auto_move_status(
+                cursor,
+                task["case_id"],
+                ("Follow-up requested",),
+                "Medical review",
+                "all follow-up tasks are completed.",
+                session["user_id"],
+            )
+        )
+
     flash("Follow-up task marked as completed.", "success")
+    if moved:
+        flash(
+            "All follow-up tasks for this case are done, so it moved to "
+            "Medical review.",
+            "info",
+        )
     return redirect(url_for("case_review.follow_up_tasks"))
 
 
@@ -539,8 +664,20 @@ def send_follow_up_email_route(task_id):
                 session["user_id"],
             ),
         )
+        from app.services.case_workflow import auto_move_status
+
+        moved = auto_move_status(
+            cursor,
+            task["case_id"],
+            ("New", "Triage", "Medical review"),
+            "Follow-up requested",
+            f"follow-up form sent to {recipient}.",
+            session["user_id"],
+        )
 
     flash(f"Follow-up form sent to {recipient}.", "success")
+    if moved:
+        flash("The case status moved to Follow-up requested.", "info")
     return redirect(url_for("case_review.follow_up_tasks"))
 
 
