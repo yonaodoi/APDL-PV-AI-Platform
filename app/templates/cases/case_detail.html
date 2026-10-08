@@ -421,6 +421,47 @@
         opacity: 0.6;
         cursor: progress;
     }
+
+    .mark-submitted {
+        margin: 12px 18px 0;
+        padding: 12px 14px;
+        border: 1px solid #c7eadb;
+        border-radius: 10px;
+        background: #f0f9f4;
+        color: #2f4f43;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+    .mark-submitted-title { font-weight: bold; color: #176247; }
+    .mark-submitted p { margin: 4px 0 8px; }
+    .mark-submitted label { display: block; margin-bottom: 4px; font-size: 11px; font-weight: bold; }
+    .mark-submitted input[type="date"] {
+        width: 100%;
+        margin-bottom: 8px;
+        padding: 8px;
+        border: 1px solid #c7dccf;
+        border-radius: 8px;
+        background: white;
+        font: inherit;
+    }
+    .mark-submitted button {
+        width: 100%;
+        padding: 9px;
+        border: 0;
+        border-radius: 8px;
+        background: #176247;
+        color: white;
+        font: inherit;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .submitted-on {
+        margin: 12px 18px 0;
+        color: #176247;
+        font-size: 12px;
+        font-weight: bold;
+    }
 </style>
 
 <section class="case-top">
@@ -1140,6 +1181,8 @@
 
         {% if request.args.get("workflow_saved") == "status" %}
             <div class="workflow-saved" role="status">✓ Status changed to <strong>{{ case.workflow_status }}</strong>.</div>
+        {% elif request.args.get("workflow_saved") == "submitted" %}
+            <div class="workflow-saved" role="status">✓ Marked as submitted on {{ case.regulatory_submitted_date.strftime("%d %b %Y") if case.regulatory_submitted_date else "" }}. The reporting clock has stopped.</div>
         {% elif request.args.get("workflow_saved") == "review" %}
             <div class="workflow-saved" role="status">✓ Review saved. Status: <strong>{{ case.workflow_status }}</strong>.</div>
         {% endif %}
@@ -1186,6 +1229,19 @@
             </div>
         {% endif %}
 
+        {% if case.workflow_status == "Ready for submission" and not case.regulatory_submitted_date %}
+            <form class="mark-submitted" method="post" action="{{ url_for('case_review.mark_submitted', case_id=case.case_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mark-submitted-title">Sent to the regulator?</div>
+                <p>Record the date the report was submitted. This moves the case to Submitted and stops the reporting clock.</p>
+                <label for="submitted_on">Date submitted</label>
+                <input type="date" id="submitted_on" name="submitted_on" value="{{ today_iso }}" max="{{ today_iso }}" required>
+                <button type="submit">Mark as submitted</button>
+            </form>
+        {% elif case.regulatory_submitted_date %}
+            <p class="submitted-on">✓ Submitted to the regulator on {{ case.regulatory_submitted_date.strftime("%d %b %Y") }}.</p>
+        {% endif %}
+
         <form method="post" action="{{ url_for('case_review.review_case', case_id=case.case_id) }}" style="padding: 16px 18px; border-bottom: 1px solid #eee8ec;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -1224,9 +1280,11 @@
             {% set due = case.follow_up_due_date or (workflow.earliest_due if workflow else None) %}
             <input type="date" name="follow_up_due_date" value="{{ due.strftime('%Y-%m-%d') if due else '' }}" style="width: 100%; margin-bottom: 14px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px;">
 
-            <label for="regulatory_submitted_date" style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Regulatory submission date</label>
-            <input type="date" id="regulatory_submitted_date" name="regulatory_submitted_date" value="{{ case.regulatory_submitted_date.strftime('%Y-%m-%d') if case.regulatory_submitted_date else '' }}" style="width: 100%; margin-bottom: 4px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px;">
-            <p style="margin: 0 0 14px; color: #776e7d; font-size: 11px;">Stops the reporting clock. Set automatically to today when the status changes to Submitted.</p>
+            {% if case.regulatory_submitted_date or case.workflow_status in ("Submitted", "Closed") %}
+                <label for="regulatory_submitted_date" style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Regulatory submission date</label>
+                <input type="date" id="regulatory_submitted_date" name="regulatory_submitted_date" value="{{ case.regulatory_submitted_date.strftime('%Y-%m-%d') if case.regulatory_submitted_date else '' }}" max="{{ today_iso }}" style="width: 100%; margin-bottom: 4px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px;">
+                <p style="margin: 0 0 14px; color: #776e7d; font-size: 11px;">The date the report was sent to the regulator. Correct it here if needed.</p>
+            {% endif %}
 
             {% if workflow and workflow.blockers and workflow.can_override %}
                 <div class="workflow-override" data-override-box hidden>

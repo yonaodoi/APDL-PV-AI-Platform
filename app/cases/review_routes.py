@@ -269,6 +269,80 @@ def review_case(case_id):
     )
 
 
+@bp.post("/<int:case_id>/mark-submitted")
+@login_required
+def mark_submitted(case_id):
+    case = query_one(
+        """
+        SELECT case_id, case_number, received_date, workflow_status,
+               regulatory_submitted_date
+        FROM pv.safety_cases
+        WHERE case_id = %s
+        """,
+        (case_id,),
+    )
+    if case is None:
+        abort(404)
+    back = url_for("cases.case_detail", case_id=case_id) + "#workflow"
+
+    try:
+        submitted_on = datetime.strptime(
+            request.form.get("submitted_on", "").strip(), "%Y-%m-%d"
+        ).date()
+    except ValueError:
+        flash("Enter the date the report was submitted.", "error")
+        return redirect(back)
+    if submitted_on > date.today():
+        flash("The submission date cannot be in the future.", "error")
+        return redirect(back)
+    if submitted_on < case["received_date"]:
+        flash("The submission date cannot be before the case was received.", "error")
+        return redirect(back)
+    if case["workflow_status"] != "Ready for submission":
+        flash(
+            "Only a case that is Ready for submission can be marked as submitted.",
+            "error",
+        )
+        return redirect(back)
+
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.safety_cases
+            SET workflow_status = 'Submitted',
+                regulatory_submitted_date = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE case_id = %s
+            """,
+            (submitted_on, case_id),
+        )
+        cursor.execute(
+            """
+            INSERT INTO pv.case_audit_log (case_id, action, details, performed_by)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (
+                case_id,
+                "Case reviewed",
+                f"Status changed to Submitted. Submitted to the regulator on "
+                f"{submitted_on:%d %b %Y}.",
+                session["user_id"],
+            ),
+        )
+    write_audit_log(
+        record_type="case",
+        record_id=case_id,
+        action="Case submitted to regulator",
+        details=f"{case['case_number']} submitted on {submitted_on:%d %b %Y}.",
+        actor_user_id=session["user_id"],
+    )
+    flash(f"{case['case_number']} marked as submitted on {submitted_on:%d %b %Y}.", "success")
+    return redirect(
+        url_for("cases.case_detail", case_id=case_id, workflow_saved="submitted")
+        + "#workflow"
+    )
+
+
 @bp.post("/<int:case_id>/accept-suggested-status")
 @login_required
 def accept_suggested_status(case_id):

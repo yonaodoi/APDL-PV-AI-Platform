@@ -286,3 +286,66 @@ def test_saved_review_returns_to_panel_with_confirmation(monkeypatch):
     )
 
     assert response.headers["Location"].endswith("/cases/9?workflow_saved=review#workflow")
+
+
+def _patch_submit(monkeypatch, status="Ready for submission"):
+    import app.cases.review_routes as review_routes
+
+    executed, audits = [], []
+    monkeypatch.setattr(
+        review_routes,
+        "query_one",
+        lambda sql, params=(): {
+            "case_id": 9,
+            "case_number": "APDL-ICSR-26-016",
+            "received_date": date(2026, 9, 8),
+            "workflow_status": status,
+            "regulatory_submitted_date": None,
+        },
+    )
+
+    class Tx:
+        def __enter__(self):
+            cursor = _Cursor([])
+            executed.append(cursor)
+            return cursor
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(review_routes, "transaction", lambda: Tx())
+    monkeypatch.setattr(review_routes, "write_audit_log", lambda **k: audits.append(k))
+    return executed, audits
+
+
+def test_mark_submitted_records_date_and_status(monkeypatch):
+    executed, audits = _patch_submit(monkeypatch)
+    client = _client(monkeypatch)
+
+    response = client.post("/cases/9/mark-submitted", data={"submitted_on": "2026-10-07"})
+
+    update = executed[0].executed[0]
+    assert "workflow_status = 'Submitted'" in update[0]
+    assert update[1] == (date(2026, 10, 7), 9)
+    assert audits[0]["action"] == "Case submitted to regulator"
+    assert response.headers["Location"].endswith("workflow_saved=submitted#workflow")
+
+
+def test_mark_submitted_rejects_future_and_early_dates(monkeypatch):
+    executed, _ = _patch_submit(monkeypatch)
+    client = _client(monkeypatch)
+
+    client.post("/cases/9/mark-submitted", data={"submitted_on": "2999-01-01"})
+    client.post("/cases/9/mark-submitted", data={"submitted_on": "2026-09-01"})
+    client.post("/cases/9/mark-submitted", data={"submitted_on": "not a date"})
+
+    assert executed == []
+
+
+def test_only_ready_cases_can_be_marked_submitted(monkeypatch):
+    executed, _ = _patch_submit(monkeypatch, status="Triage")
+    client = _client(monkeypatch)
+
+    client.post("/cases/9/mark-submitted", data={"submitted_on": "2026-10-07"})
+
+    assert executed == []

@@ -418,6 +418,7 @@ def case_detail(case_id):
         dictionary_terms=get_active_terms(),
         safety_assessment=_load_safety_assessment(case_id),
         workflow=_workflow_panel(case, completeness_checks),
+        today_iso=date.today().isoformat(),
         document_types=DOCUMENT_TYPES,
         document_type_label=document_type_label,
         attachments=query_all(
