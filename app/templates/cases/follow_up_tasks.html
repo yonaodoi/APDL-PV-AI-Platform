@@ -53,7 +53,7 @@
                     {% set h = group.history %}
                     {% if h %}
                         <div class="request-sent">
-                            Request emailed {{ (h.requested or group.last_request)|when }}{% if h.reminders %} · {{ h.reminders }} reminder{% if h.reminders != 1 %}s{% endif %} sent, last {{ h.last_sent|when }}{% endif %}
+                            {% if h.sends > 1 %}Last emailed {{ h.last_sent|when }} · first request {{ h.requested|when }}{% else %}Request emailed {{ (h.last_sent or group.last_request)|when }}{% endif %}
                             {% if automation.active and h.next_reminder and not h.exhausted %} · next reminder {{ h.next_reminder.strftime("%d %b %Y") }}{% endif %}
                         </div>
                     {% elif group.last_request %}
@@ -73,8 +73,8 @@
                         {% else %}Not yet requested{% endif %}
                     </span>
                     {% if group.history %}
-                        {% set sent_count = 1 + group.history.reminders %}
-                        <span class="follow-up-count" title="Request plus reminders emailed to the reporter">Follow-up {{ sent_count }} of {{ 1 + automation.max_reminders }}</span>
+                        {% set sent_count = group.history.sends %}
+                        <span class="follow-up-count" title="Request plus reminders emailed to the reporter">Follow-up {{ sent_count }}{% if sent_count <= 1 + automation.max_reminders %} of {{ 1 + automation.max_reminders }}{% endif %}</span>
                     {% elif group.last_request %}
                         <span class="follow-up-count">Follow-up 1 of {{ 1 + automation.max_reminders }}</span>
                     {% endif %}

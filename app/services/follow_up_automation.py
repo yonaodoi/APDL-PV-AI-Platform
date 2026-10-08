@@ -270,7 +270,7 @@ def cases_needing_request(grace_hours=24):
 def reminder_status(today=None, reminder_days=7, max_reminders=2):
     """Per-case follow-up email history for cases still waiting on a reply.
 
-    Returns {case_id: {"requested": dt, "reminders": n, "last_sent": dt,
+    Returns {case_id: {"requested": dt, "sends": n, "reminders": n, "last_sent": dt,
     "due": date, "next_reminder": date or None, "exhausted": bool}}.
     """
     today = today or date.today()
@@ -278,7 +278,7 @@ def reminder_status(today=None, reminder_days=7, max_reminders=2):
         """
         SELECT d.case_id,
                MIN(d.sent_at) FILTER (WHERE d.kind = 'Request') AS requested,
-               COUNT(DISTINCT d.sent_at) FILTER (WHERE d.kind = 'Reminder') AS reminders,
+               COUNT(DISTINCT d.sent_at) AS sends,
                MAX(d.sent_at) AS last_sent,
                (SELECT MIN(t.due_date) FROM pv.case_follow_up_tasks AS t
                  WHERE t.case_id = d.case_id
@@ -300,13 +300,17 @@ def reminder_status(today=None, reminder_days=7, max_reminders=2):
     for row in rows:
         last = row["last_sent"]
         last_day = last.date() if isinstance(last, datetime) else last
-        reminders = row["reminders"] or 0
+        # Every email counts: the first request, automatic reminders, and
+        # any "Email again" sent by hand.
+        sends = row["sends"] or 1
+        reminders = max(sends - 1, 0)
         exhausted = reminders >= max_reminders
         next_reminder = None
         if not exhausted and row["due"]:
             next_reminder = max(row["due"] + timedelta(days=1), last_day + timedelta(days=reminder_days))
         status[row["case_id"]] = {
             "requested": row["requested"],
+            "sends": sends,
             "reminders": reminders,
             "last_sent": last,
             "due": row["due"],
@@ -314,6 +318,20 @@ def reminder_status(today=None, reminder_days=7, max_reminders=2):
             "exhausted": exhausted and bool(row["due"]) and row["due"] < today,
         }
     return status
+
+
+def previously_sent(case_id):
+    """True when a follow-up email for this case has already gone out."""
+    row = query_one(
+        """
+        SELECT EXISTS (
+            SELECT 1 FROM pv.case_follow_up_email_deliveries
+            WHERE case_id = %s AND status = 'Sent'
+        ) AS sent
+        """,
+        (case_id,),
+    )
+    return bool(row and row["sent"])
 
 
 def cases_needing_reminder(today=None, reminder_days=7, max_reminders=2):

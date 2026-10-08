@@ -147,6 +147,7 @@ def _client(monkeypatch, case):
         lambda case_id: (case, PRODUCT, review_checks, OPEN_TASKS),
     )
     monkeypatch.setattr(review_routes, "load_case_request", automation.load_case_request)
+    monkeypatch.setattr(review_routes, "previously_sent", lambda case_id: False)
     monkeypatch.setattr(
         "app.services.case_follow_up_reminders.get_open_reminder_count", lambda: 0
     )
@@ -202,3 +203,20 @@ def test_send_refuses_without_reporter_email(monkeypatch):
 
     assert response.status_code == 302
     assert sent == []
+
+
+def test_email_again_is_sent_as_a_reminder(monkeypatch):
+    import app.services.follow_up_automation as automation
+
+    client = _client(monkeypatch, CASE)
+    monkeypatch.setattr(review_routes, "previously_sent", lambda case_id: True)
+    kinds = []
+    monkeypatch.setattr(
+        review_routes, "send_case_request",
+        lambda case_id, actor, **kw: kinds.append(kw["kind"])
+        or {"sent": True, "message": "ok", "items": [1], "moved": False},
+    )
+
+    client.post("/cases/9/follow-up-request/send")
+
+    assert kinds == ["Reminder"]

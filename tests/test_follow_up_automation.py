@@ -67,11 +67,11 @@ def test_reply_date_is_never_in_the_past():
 def test_reminder_schedule_and_running_out(monkeypatch):
     sent = datetime(2026, 10, 5, 9, tzinfo=timezone.utc)
     rows = [
-        {"case_id": 1, "requested": sent, "reminders": 0, "last_sent": sent, "due": date(2026, 10, 12)},
-        {"case_id": 2, "requested": sent, "reminders": 1, "last_sent": datetime(2026, 10, 18, tzinfo=timezone.utc),
+        {"case_id": 1, "requested": sent, "sends": 1, "last_sent": sent, "due": date(2026, 10, 12)},
+        {"case_id": 2, "requested": sent, "sends": 2, "last_sent": datetime(2026, 10, 18, tzinfo=timezone.utc),
          "due": date(2026, 10, 19)},
-        {"case_id": 3, "requested": sent, "reminders": 2, "last_sent": sent, "due": date(2026, 10, 12)},
-        {"case_id": 4, "requested": sent, "reminders": 0, "last_sent": sent, "due": date(2026, 10, 25)},
+        {"case_id": 3, "requested": sent, "sends": 3, "last_sent": sent, "due": date(2026, 10, 12)},
+        {"case_id": 4, "requested": sent, "sends": 1, "last_sent": sent, "due": date(2026, 10, 25)},
     ]
     monkeypatch.setattr(automation, "query_all", lambda sql, parameters=(): rows)
 

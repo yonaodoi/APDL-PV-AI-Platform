@@ -22,6 +22,7 @@ from app.services.follow_up_automation import (
     automation_active,
     email_configured,
     load_case_request,
+    previously_sent,
     reminder_status,
     reply_due,
     request_items,
@@ -679,9 +680,13 @@ def download_follow_up_request(case_id):
 @login_required
 def send_follow_up_request(case_id):
     back = url_for("case_review.follow_up_tasks") + f"#case-{case_id}"
+    # A second email to the same reporter is a reminder: it says so in the
+    # subject and text, and counts as the next follow-up.
+    kind = "Reminder" if previously_sent(case_id) else "Request"
     result = send_case_request(
         case_id,
         session["user_id"],
+        kind=kind,
         prepared_by=session.get("full_name"),
     )
     if not result["sent"]:

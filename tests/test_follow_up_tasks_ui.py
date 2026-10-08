@@ -33,7 +33,7 @@ def test_follow_up_page_groups_tasks_into_one_request_per_case(monkeypatch):
     )
     monkeypatch.setattr(
         "app.cases.review_routes._reminder_history",
-        lambda: {34: {"requested": sent, "reminders": 1, "last_sent": sent,
+        lambda: {34: {"requested": sent, "sends": 2, "reminders": 1, "last_sent": sent,
                       "due": date(2026, 4, 10), "next_reminder": None, "exhausted": False}},
     )
     monkeypatch.setattr("app.cases.review_routes._last_failures", lambda case_ids: {})
@@ -69,7 +69,7 @@ def test_follow_up_page_groups_tasks_into_one_request_per_case(monkeypatch):
     assert "field=event_outcome" in page
     assert "next=/cases/follow-up-tasks%23case-34#event_outcome" in page
     assert "Follow-up 2 of 3" in page
-    assert "Request emailed 01 Apr 2026, " in page
+    assert "Last emailed 01 Apr 2026, " in page
     assert "Mark done" not in page
     assert 'class="task-status overdue"' in page
 
