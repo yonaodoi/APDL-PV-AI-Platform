@@ -33,6 +33,11 @@ from app.rsi.forms import (
     ReferenceSafetyInformationForm,
 )
 from app.security import login_required, roles_required
+from app.services.rsi_versions import (
+    duplicate_current_groups,
+    make_current,
+    rsi_group_label,
+)
 from app.services.signal_detection import (
     screen_case_for_signals,
     summarise_screening,
@@ -84,7 +89,86 @@ def rsi_list():
     return render_template(
         "rsi/rsi_list.html",
         documents=documents,
+        duplicate_groups=duplicate_current_groups(documents),
     )
+
+
+def _load_rsi_or_404(rsi_id):
+    document = query_one(
+        """
+        SELECT rsi_id, product_name, document_type, market,
+               document_version, is_current
+        FROM pv.reference_safety_information
+        WHERE rsi_id = %s
+        """,
+        (rsi_id,),
+    )
+    if not document:
+        abort(404)
+    return document
+
+
+def _describe_rsi(document):
+    version = document.get("document_version")
+    return rsi_group_label(document) + (f" (version {version})" if version else "")
+
+
+@bp.post("/<int:rsi_id>/make-current")
+@roles_required(*REVIEWER_ROLES)
+def make_rsi_current(rsi_id):
+    document = _load_rsi_or_404(rsi_id)
+    with transaction() as cursor:
+        superseded = make_current(cursor, document)
+
+    write_audit_log(
+        record_type="reference_safety_information",
+        record_id=rsi_id,
+        action="Marked as current reference",
+        details=(
+            f"{_describe_rsi(document)}. "
+            f"{superseded} other document(s) marked historic."
+        ),
+        actor_user_id=session["user_id"],
+    )
+    flash(
+        "Document marked as the current reference"
+        + (
+            f"; {superseded} other document(s) marked historic."
+            if superseded
+            else "."
+        ),
+        "success",
+    )
+    return redirect(url_for("rsi.rsi_list"))
+
+
+@bp.post("/<int:rsi_id>/make-historic")
+@roles_required(*REVIEWER_ROLES)
+def make_rsi_historic(rsi_id):
+    document = _load_rsi_or_404(rsi_id)
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.reference_safety_information
+            SET is_current = FALSE
+            WHERE rsi_id = %s
+            """,
+            (rsi_id,),
+        )
+
+    write_audit_log(
+        record_type="reference_safety_information",
+        record_id=rsi_id,
+        action="Marked as historic reference",
+        details=f"{_describe_rsi(document)}.",
+        actor_user_id=session["user_id"],
+    )
+    flash(
+        "Document marked historic. It will no longer be used for "
+        "listedness review.",
+        "success",
+    )
+    return redirect(url_for("rsi.rsi_list"))
 
 
 @bp.route("/new", methods=["GET", "POST"])
@@ -173,6 +257,22 @@ def create_rsi():
                 ),
             )
             rsi_id = cursor.fetchone()["rsi_id"]
+            superseded = make_current(
+                cursor,
+                {
+                    "rsi_id": rsi_id,
+                    "product_name": form.product_name.data.strip(),
+                    "document_type": form.document_type.data,
+                    "market": form.market.data.strip() or None,
+                },
+            )
+        if superseded:
+            flash(
+                f"{superseded} older document(s) for the same product, "
+                "document type and market were marked historic. This "
+                "document is now the current reference.",
+                "success",
+            )
         if stored_filename:
             try:
                 extracted_text = extract_reference_document_text(

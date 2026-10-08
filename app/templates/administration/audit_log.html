@@ -167,9 +167,11 @@
             <p>Review recorded platform actions for pharmacovigilance traceability.</p>
         </div>
 
-        <a class="back-link" href="{{ url_for('administration.user_list') }}">
-            ← Back to administration
-        </a>
+        {% if session.get('role') == 'System Administrator' %}
+            <a class="back-link" href="{{ url_for('administration.user_list') }}">
+                ← Back to administration
+            </a>
+        {% endif %}
     </header>
 
     <section class="audit-register">

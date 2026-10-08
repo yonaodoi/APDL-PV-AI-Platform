@@ -258,3 +258,9 @@ textarea {
         line-height: 34px;
     }
 }
+.alert-info,
+.alert-warning {
+    color: #5b4a1c;
+    background-color: #fff7e3;
+    border: 1px solid #f1dfae;
+}

@@ -55,3 +55,35 @@ def test_audit_trail_shows_record_numbers_actions_and_links(monkeypatch):
 def test_audit_record_label_falls_back_to_readable_text():
     assert admin_routes.audit_record_label("psur") == "PSUR"
     assert admin_routes.audit_record_label("batch_record") == "Batch record"
+
+
+def _layout_page(monkeypatch, role):
+    from flask import render_template
+
+    monkeypatch.setattr(
+        "app.services.case_follow_up_reminders.get_open_reminder_count",
+        lambda: 0,
+    )
+    app = create_app(TestingConfig)
+    app.add_url_rule(
+        "/_layout-test",
+        endpoint="layout_test",
+        view_func=lambda: render_template("base.html"),
+    )
+    client = app.test_client()
+    with client.session_transaction() as user_session:
+        user_session["user_id"] = 1
+        user_session["full_name"] = "Test User"
+        user_session["role"] = role
+    return client.get("/_layout-test").get_data(as_text=True)
+
+
+def test_audit_trail_is_in_the_menu_for_administrators_and_auditors(monkeypatch):
+    admin_page = _layout_page(monkeypatch, "System Administrator")
+    auditor_page = _layout_page(monkeypatch, "Auditor")
+    officer_page = _layout_page(monkeypatch, "PV Officer")
+
+    assert 'href="/administration/audit-log"' in admin_page
+    assert 'href="/administration/audit-log"' in auditor_page
+    assert ">Administration</a>" not in auditor_page
+    assert 'href="/administration/audit-log"' not in officer_page

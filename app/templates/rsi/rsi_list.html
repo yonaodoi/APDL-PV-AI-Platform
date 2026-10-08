@@ -175,6 +175,37 @@
         text-align: center;
     }
 
+    .rsi-duplicate-warning {
+        margin-bottom: 20px;
+        padding: 14px 16px;
+        border: 1px solid #f0c9a8;
+        border-radius: 10px;
+        background: #fff6ee;
+        color: #7a4a1e;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .rsi-duplicate-warning ul {
+        margin: 8px 0 0;
+        padding-left: 18px;
+    }
+
+    .status-form {
+        margin-top: 8px;
+    }
+
+    .status-change-button {
+        padding: 5px 9px;
+        border: 1px solid #ded6e5;
+        border-radius: 8px;
+        background: white;
+        color: #6242d7;
+        font-size: 11px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
     .rsi-table-scroll {
         overflow-x: auto;
     }
@@ -235,7 +266,7 @@
         <div>
             <p class="rsi-kicker">MEDICAL AND SAFETY REFERENCE</p>
             <h1>Reference safety information</h1>
-            <p>Maintain the approved innovator and reference-product safety information used for listedness review.</p>
+            <p>Maintain the approved innovator and reference-product safety information used for listedness review. Only current documents are used; adding a new document makes it current and marks older ones for the same product, document type and market historic.</p>
         </div>
 
         <div class="rsi-header-actions">
@@ -252,6 +283,20 @@
     <div class="rsi-note">
         Use only an approved, current document or official regulator/innovator source. Listedness and expectedness conclusions remain the responsibility of the authorised reviewer.
     </div>
+
+    {% if duplicate_groups %}
+        <div class="rsi-duplicate-warning" role="alert">
+            <strong>More than one current document for the same reference.</strong>
+            Only one document should be in force for each product, document
+            type and market. Click <em>Mark historic</em> on the copies
+            that are no longer in force.
+            <ul>
+                {% for group in duplicate_groups %}
+                    <li>{{ group.label }}: {{ group.documents|length }} current documents</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
 
     <section class="rsi-register">
         <div class="rsi-register-heading">
@@ -296,8 +341,16 @@
                             <td>
                                 {% if document.is_current %}
                                     <span class="current-tag">Current</span>
+                                    <form method="post" action="{{ url_for('rsi.make_rsi_historic', rsi_id=document.rsi_id) }}" class="status-form">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="status-change-button">Mark historic</button>
+                                    </form>
                                 {% else %}
                                     <span class="historic-tag">Historic</span>
+                                    <form method="post" action="{{ url_for('rsi.make_rsi_current', rsi_id=document.rsi_id) }}" class="status-form">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="status-change-button">Make current</button>
+                                    </form>
                                 {% endif %}
                             </td>
 

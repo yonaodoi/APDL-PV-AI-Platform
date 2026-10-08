@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from flask import Flask, session
+from flask import Flask, redirect, request, session, url_for
 
 from config import Config
 from .cli import register_cli
@@ -80,6 +80,15 @@ def create_app(config_class=Config):
         if session.get("user_id"):
             session.permanent = True
             session["last_activity_at"] = datetime.now(timezone.utc).isoformat()
+
+        # A user signed in with a temporary password must choose a new one
+        # before using anything else.
+        if session.get("must_change_password") and request.endpoint not in (
+            "auth.change_password",
+            "auth.logout",
+            "static",
+        ):
+            return redirect(url_for("auth.change_password"))
 
     @app.context_processor
     def inject_follow_up_reminder_count():

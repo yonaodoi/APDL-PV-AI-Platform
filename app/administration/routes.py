@@ -1,4 +1,15 @@
-from flask import Blueprint, abort, flash, redirect, render_template, session, url_for
+from datetime import datetime, timezone
+
+from flask import (
+    Blueprint,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from werkzeug.security import generate_password_hash
 
 from app.administration.forms import UserCreateForm
@@ -24,12 +35,28 @@ def user_list():
             u.last_login_at,
             u.created_at,
             u.is_designated_qppv,
+            u.locked_until,
+            COALESCE(
+                (to_jsonb(u) ->> 'must_change_password')::boolean,
+                FALSE
+            ) AS must_change_password,
             r.role_name
         FROM pv.users AS u
         JOIN pv.roles AS r ON r.role_id = u.role_id
         ORDER BY u.is_active DESC, u.full_name
         """
     )
+
+    now = datetime.now(timezone.utc)
+    users = [
+        {
+            **user,
+            "is_locked": bool(
+                user.get("locked_until") and user["locked_until"] > now
+            ),
+        }
+        for user in users
+    ]
 
     return render_template("administration/user_list.html", users=users)
 
@@ -82,9 +109,10 @@ def create_user():
                     username,
                     full_name,
                     email,
-                    password_hash
+                    password_hash,
+                    must_change_password
                 )
-                VALUES (%s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, TRUE)
                 RETURNING user_id
                 """,
                 (
@@ -111,6 +139,224 @@ def create_user():
     return render_template(
         "administration/create_user.html",
         form=form,
+    )
+
+
+MIN_PASSWORD_LENGTH = 10
+
+
+def _load_user_or_404(user_id):
+    user = query_one(
+        """
+        SELECT
+            u.user_id,
+            u.username,
+            u.full_name,
+            u.email,
+            u.role_id,
+            u.is_active,
+            u.is_designated_qppv,
+            u.failed_login_attempts,
+            u.locked_until,
+            u.last_login_at,
+            COALESCE(
+                (to_jsonb(u) ->> 'must_change_password')::boolean,
+                FALSE
+            ) AS must_change_password,
+            r.role_name
+        FROM pv.users AS u
+        JOIN pv.roles AS r ON r.role_id = u.role_id
+        WHERE u.user_id = %s
+        """,
+        (user_id,),
+    )
+    if not user:
+        abort(404)
+    user["is_locked"] = bool(
+        user.get("locked_until")
+        and user["locked_until"] > datetime.now(timezone.utc)
+    )
+    return user
+
+
+def validate_temporary_password(password, confirmation):
+    if len(password or "") < MIN_PASSWORD_LENGTH:
+        return (
+            f"The temporary password must contain at least "
+            f"{MIN_PASSWORD_LENGTH} characters."
+        )
+    if password != confirmation:
+        return "The two passwords do not match."
+    return None
+
+
+@bp.get("/users/<int:user_id>")
+@roles_required("System Administrator")
+def manage_user(user_id):
+    user = _load_user_or_404(user_id)
+    roles = query_all(
+        """
+        SELECT role_id, role_name
+        FROM pv.roles
+        ORDER BY role_name
+        """
+    )
+    return render_template(
+        "administration/manage_user.html",
+        user=user,
+        roles=roles,
+        is_self=user_id == session["user_id"],
+    )
+
+
+@bp.post("/users/<int:user_id>/role")
+@roles_required("System Administrator")
+def change_user_role(user_id):
+    user = _load_user_or_404(user_id)
+    back = url_for("administration.manage_user", user_id=user_id)
+
+    if user_id == session["user_id"]:
+        flash(
+            "You cannot change your own role. Ask another administrator.",
+            "error",
+        )
+        return redirect(back)
+
+    try:
+        role_id = int(request.form.get("role_id", ""))
+    except ValueError:
+        flash("Choose a role.", "error")
+        return redirect(back)
+
+    role = query_one(
+        "SELECT role_id, role_name FROM pv.roles WHERE role_id = %s",
+        (role_id,),
+    )
+    if not role:
+        flash("Choose a role.", "error")
+        return redirect(back)
+
+    if role_id == user["role_id"]:
+        flash("The role was not changed.", "info")
+        return redirect(back)
+
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.users
+            SET role_id = %s,
+                updated_at = NOW()
+            WHERE user_id = %s
+            """,
+            (role_id, user_id),
+        )
+
+    write_audit_log(
+        record_type="user",
+        record_id=user_id,
+        action="Role changed",
+        details=(
+            f"Account: {user['username']}. Role changed from "
+            f"{user['role_name']} to {role['role_name']}. The new role "
+            "applies from the user's next sign-in."
+        ),
+        actor_user_id=session["user_id"],
+    )
+    flash(
+        f"{user['full_name']} is now {role['role_name']}. The change "
+        "applies from their next sign-in.",
+        "success",
+    )
+    return redirect(back)
+
+
+@bp.post("/users/<int:user_id>/reset-password")
+@roles_required("System Administrator")
+def reset_user_password(user_id):
+    user = _load_user_or_404(user_id)
+    back = url_for("administration.manage_user", user_id=user_id)
+
+    if user_id == session["user_id"]:
+        flash(
+            "Use Change password from your account menu to change your "
+            "own password.",
+            "error",
+        )
+        return redirect(back)
+
+    error = validate_temporary_password(
+        request.form.get("new_password", ""),
+        request.form.get("confirm_password", ""),
+    )
+    if error:
+        flash(error, "error")
+        return redirect(back)
+
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.users
+            SET password_hash = %s,
+                must_change_password = TRUE,
+                failed_login_attempts = 0,
+                locked_until = NULL,
+                updated_at = NOW()
+            WHERE user_id = %s
+            """,
+            (
+                generate_password_hash(request.form["new_password"]),
+                user_id,
+            ),
+        )
+
+    write_audit_log(
+        record_type="user",
+        record_id=user_id,
+        action="Password reset by administrator",
+        details=(
+            f"Account: {user['username']}. Temporary password set; the "
+            "user must choose a new password at next sign-in. Any lock "
+            "was cleared."
+        ),
+        actor_user_id=session["user_id"],
+    )
+    flash(
+        f"Temporary password set for {user['full_name']}. Share it "
+        "securely; they will be asked to choose their own at next sign-in.",
+        "success",
+    )
+    return redirect(back)
+
+
+@bp.post("/users/<int:user_id>/unlock")
+@roles_required("System Administrator")
+def unlock_user(user_id):
+    user = _load_user_or_404(user_id)
+
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.users
+            SET failed_login_attempts = 0,
+                locked_until = NULL,
+                updated_at = NOW()
+            WHERE user_id = %s
+            """,
+            (user_id,),
+        )
+
+    write_audit_log(
+        record_type="user",
+        record_id=user_id,
+        action="Account unlocked",
+        details=f"Account: {user['username']}. Failed attempts cleared.",
+        actor_user_id=session["user_id"],
+    )
+    flash(f"{user['full_name']}'s account is unlocked.", "success")
+    return redirect(
+        request.form.get("return_to") == "list"
+        and url_for("administration.user_list")
+        or url_for("administration.manage_user", user_id=user_id)
     )
 
 

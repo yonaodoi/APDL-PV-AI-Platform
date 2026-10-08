@@ -329,14 +329,21 @@
                     >PSURs</a>
                 </div>
 
-                {% if session.get('role') == 'System Administrator' %}
+                {% if session.get('role') in ('System Administrator', 'Auditor') %}
                     <div class="nav-group">
                         <div class="nav-label">SYSTEM</div>
+                        {% if session.get('role') == 'System Administrator' %}
+                            <a
+                                class="nav-link {% if request.endpoint.startswith('administration.') and request.endpoint != 'administration.audit_log' %}active{% endif %}"
+                                href="{{ url_for('administration.user_list') }}"
+                                {% if request.endpoint.startswith('administration.') and request.endpoint != 'administration.audit_log' %}aria-current="page"{% endif %}
+                            >Administration</a>
+                        {% endif %}
                         <a
-                            class="nav-link {% if request.endpoint.startswith('administration.') %}active{% endif %}"
-                            href="{{ url_for('administration.user_list') }}"
-                            {% if request.endpoint.startswith('administration.') %}aria-current="page"{% endif %}
-                        >Administration</a>
+                            class="nav-link {% if request.endpoint == 'administration.audit_log' %}active{% endif %}"
+                            href="{{ url_for('administration.audit_log') }}"
+                            {% if request.endpoint == 'administration.audit_log' %}aria-current="page"{% endif %}
+                        >Audit Trail</a>
                     </div>
                 {% endif %}
             </nav>

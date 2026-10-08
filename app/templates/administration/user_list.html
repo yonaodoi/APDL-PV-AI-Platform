@@ -176,13 +176,52 @@
         text-align: center;
     }
 
-    @media (max-width: 850px) {
-        .user-table th:nth-child(3),
-        .user-table td:nth-child(3),
-        .user-table th:nth-child(5),
-        .user-table td:nth-child(5) {
-            display: none;
-        }
+    .admin-header-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .audit-trail-button {
+        padding: 12px 15px;
+        border: 1px solid #ded6e5;
+        border-radius: 9px;
+        background: white;
+        color: #6242d7;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .user-table-scroll {
+        overflow-x: auto;
+    }
+
+    .user-table {
+        min-width: 820px;
+    }
+
+    .status-locked,
+    .status-note {
+        display: inline-block;
+        margin-top: 6px;
+        padding: 4px 8px;
+        border-radius: 20px;
+        background: #fff3df;
+        color: #8a5a12;
+        font-size: 11px;
+        font-weight: bold;
+    }
+
+    .manage-link {
+        display: inline-block;
+        margin-bottom: 8px;
+        color: #6242d7;
+        font-size: 12px;
+        font-weight: bold;
+        text-decoration: none;
     }
 
     @media (max-width: 600px) {
@@ -209,9 +248,14 @@
             <p>Create authorised accounts and manage platform access.</p>
         </div>
 
-        <a class="new-user-button" href="{{ url_for('administration.create_user') }}">
-            + Create user account
-        </a>
+        <div class="admin-header-actions">
+            <a class="audit-trail-button" href="{{ url_for('administration.audit_log') }}">
+                View audit trail
+            </a>
+            <a class="new-user-button" href="{{ url_for('administration.create_user') }}">
+                + Create user account
+            </a>
+        </div>
     </header>
 
     <div class="summary-row">
@@ -226,6 +270,7 @@
         </div>
 
         {% if users %}
+            <div class="user-table-scroll">
             <table class="user-table">
                 <thead>
                     <tr>
@@ -262,8 +307,15 @@
                                 {% else %}
                                     <span class="status-inactive">Inactive</span>
                                 {% endif %}
+                                {% if user.is_locked %}
+                                    <span class="status-locked">Locked</span>
+                                {% endif %}
+                                {% if user.must_change_password %}
+                                    <span class="status-note">Temporary password</span>
+                                {% endif %}
                             </td>
                             <td>
+                                <a class="manage-link" href="{{ url_for('administration.manage_user', user_id=user.user_id) }}">Manage</a>
                                 <form method="post" action="{{ url_for('administration.toggle_user_status', user_id=user.user_id) }}">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button class="status-button" type="submit">
@@ -281,6 +333,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
         {% else %}
             <div class="empty-state">No users have been created.</div>
         {% endif %}
