@@ -190,6 +190,11 @@ def test_apply_updates_only_ticked_fields_and_logs_them(monkeypatch):
     audit = [e for e in executed if "case_audit_log" in e[0]][0]
     assert "Patient sex" in audit[1][2] and "Batch number" in audit[1][2]
     assert "Injected" not in audit[1][2]
+    status = [e for e in executed if "record_attachments" in e[0]][0]
+    assert status[1][0] == docs.STATUS_READY
+    assert "2 update(s) applied; 2 suggestion(s) still to review" in status[1][1]
+    remaining = [s["field"] for s in __import__("json").loads(status[1][2])]
+    assert remaining == ["event_onset_date", "case_id"]
 
 
 def _signed_in_client(monkeypatch):
@@ -297,7 +302,7 @@ def test_dismissing_suggestions_changes_nothing_in_the_case(monkeypatch):
     client.post("/cases/9/attachments/3/suggestions", data={"action": "dismiss"})
 
     assert not any("pv.safety_cases" in sql for sql in executed)
-    assert any("Suggested updates were dismissed" in sql for sql in executed)
+    assert any("suggested updates were dismissed" in sql for sql in executed)
 
 
 def test_upload_saves_document_type_and_starts_processing(monkeypatch):
@@ -346,3 +351,61 @@ def test_upload_saves_document_type_and_starts_processing(monkeypatch):
     assert processed[0][0]["document_type"] == "follow_up"
     assert processed[0][0]["attachment_id"] == 21
     assert processed[0][1] == 9
+
+
+def test_product_details_from_a_different_product_start_unticked():
+    values = {"product_name": "oral antihistamine", "route": "oral", "patient_sex": "Female"}
+    mismatch = docs.product_mismatch({"product_name": "fffff", "generic_name": None}, values)
+    suggestions = docs.build_suggestions(
+        CASE, {"product_name": "fffff"}, values, "follow-up response", date(2026, 10, 8),
+        mismatched_product=mismatch,
+    )
+    by_field = {s["field"]: s for s in suggestions}
+
+    assert mismatch == "oral antihistamine"
+    assert "oral antihistamine" in by_field["route"]["check_reason"]
+    assert by_field["product_name"]["check_reason"]
+    assert by_field["patient_sex"]["check_reason"] is None
+
+
+def test_same_product_named_differently_is_not_a_mismatch():
+    product = {"product_name": "ABPARA", "generic_name": "paracetamol"}
+    assert docs.product_mismatch(product, {"product_name": "Abpara 500 mg tablets"}) is None
+    assert docs.product_mismatch(product, {"product_name": "Paracetamol"}) is None
+    assert docs.product_mismatch(product, {}) is None
+
+
+def test_values_the_ai_was_unsure_about_are_flagged():
+    suggestions = docs.build_suggestions(
+        CASE, PRODUCT, {"patient_sex": "Female", "country_id": "5"}, "source report",
+        date(2026, 10, 8), COUNTRIES, uncertain=["patient_sex", "country"],
+    )
+    assert all(s["check_reason"] == "The AI marked this value as uncertain." for s in suggestions)
+
+
+def test_weight_with_units_becomes_a_number():
+    assert docs.weight_in_kg("62 kg") == "62"
+    assert docs.weight_in_kg("62.5kg") == "62.5"
+    assert docs.weight_in_kg("62,5 kg") == "62.5"
+    assert docs.weight_in_kg("about sixty") is None
+    assert docs.normalise_extracted({"patient_weight_kg": "62 kg"}, COUNTRIES) == {"patient_weight_kg": "62"}
+    assert docs.typed_value("patient_weight_kg", "62 kg") == "62"
+
+
+def test_apply_failure_shows_message_and_changes_nothing(monkeypatch):
+    import app.cases.routes as case_routes
+
+    def broken(*a):
+        raise ValueError("invalid input syntax for type numeric")
+
+    monkeypatch.setattr(case_routes, "query_one", lambda sql, params=(): ATTACHMENT)
+    monkeypatch.setattr(case_routes, "apply_suggestions", broken)
+    client = _signed_in_client(monkeypatch)
+
+    response = client.post(
+        "/cases/9/attachments/3/suggestions",
+        data={"action": "apply", "field": ["patient_sex"]},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/cases/9/attachments/3/suggestions")

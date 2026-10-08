@@ -95,6 +95,14 @@
     .kind-add { background: #eee9ff; color: #5a3fc4; }
     .kind-change { background: #fff3df; color: #8a5a12; }
     .current-empty { color: #a39aa8; font-style: italic; }
+    .check-reason {
+        display: block;
+        margin-top: 6px;
+        color: #a33a3a;
+        font-size: 11.5px;
+        font-weight: normal;
+        line-height: 1.4;
+    }
     .suggest-actions {
         display: flex;
         flex-wrap: wrap;
@@ -147,7 +155,7 @@
                     The AI read this document and found these differences from the case.
                     Check each value against the document. Ticked rows are applied; the
                     case changes only when you click <strong>Apply selected updates</strong>.
-                    Changes to existing values start unticked.
+                    Changes to existing values, and values marked ⚠ for checking, start unticked.
                 </p>
                 <div class="suggest-scroll">
                     <table class="suggest-table">
@@ -163,13 +171,16 @@
                             {% for item in suggestions %}
                                 <tr>
                                     <td>
-                                        <input type="checkbox" name="field" value="{{ item.field }}" id="field-{{ item.field }}" {% if item.kind != "change" %}checked{% endif %}>
+                                        <input type="checkbox" name="field" value="{{ item.field }}" id="field-{{ item.field }}" {% if item.kind != "change" and not item.check_reason %}checked{% endif %}>
                                     </td>
                                     <td class="field-name">
                                         <label for="field-{{ item.field }}">{{ item.label }}</label><br>
                                         <span class="kind-tag kind-{{ item.kind }}">
                                             {% if item.kind == "fill" %}Fills an empty field{% elif item.kind == "add" %}Adds to existing text{% else %}Changes the current value{% endif %}
                                         </span>
+                                        {% if item.check_reason %}
+                                            <span class="check-reason">⚠ {{ item.check_reason }}</span>
+                                        {% endif %}
                                     </td>
                                     <td>{% if item.current %}{{ item.current }}{% else %}<span class="current-empty">Empty</span>{% endif %}</td>
                                     <td>{{ item.proposed }}</td>

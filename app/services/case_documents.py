@@ -120,6 +120,20 @@ CHOICES = {
 }
 
 
+def weight_in_kg(value):
+    """'62 kg', '62.5kg', '62' -> '62' / '62.5'; anything else -> None."""
+    import re
+
+    text = str(value or "").strip().lower().replace(",", ".")
+    match = re.fullmatch(r"(\d{1,3}(?:\.\d{1,2})?)\s*(kg|kgs|kilograms?)?", text)
+    if not match:
+        return None
+    number = float(match.group(1))
+    if not 0 < number < 500:
+        return None
+    return match.group(1)
+
+
 def _text(value):
     if value is None:
         return ""
@@ -148,6 +162,10 @@ def normalise_extracted(extracted, countries):
                 values[field] = time.fromisoformat(str(raw).strip()).isoformat()[:5]
             except ValueError:
                 continue
+        elif field == "patient_weight_kg":
+            weight = weight_in_kg(raw)
+            if weight:
+                values[field] = weight
         elif field == "patient_age_years":
             try:
                 age = int(str(raw).strip())
@@ -179,9 +197,31 @@ def normalise_extracted(extracted, countries):
     return values
 
 
-def build_suggestions(case, product, values, document_label, received_on, countries=()):
-    """Suggested updates where the document differs from the case."""
+def product_mismatch(product, values):
+    """The document's product name, if it is not the case's suspect product."""
+    named = (values.get("product_name") or "").strip()
+    if not named or not product:
+        return None
+    named_key = named.casefold()
+    for known in (product.get("product_name"), product.get("generic_name")):
+        known_key = (known or "").strip().casefold()
+        if known_key and (known_key in named_key or named_key in known_key):
+            return None
+    return named
+
+
+def build_suggestions(
+    case, product, values, document_label, received_on, countries=(),
+    uncertain=(), mismatched_product=None,
+):
+    """Suggested updates where the document differs from the case.
+
+    Suggestions that need a closer look carry a ``check_reason`` and are
+    shown unticked: values the AI marked uncertain, and product details
+    when the document names a different product.
+    """
     country_names = {str(c["country_id"]): c["country_name"] for c in countries}
+    uncertain = set(uncertain or ())
     suggestions = []
     for field, proposed in values.items():
         table = "case" if field in CASE_FIELDS else "product"
@@ -208,6 +248,16 @@ def build_suggestions(case, product, values, document_label, received_on, countr
                 return country_names.get(str(value), value) if value else ""
             return value
 
+        check_reason = None
+        if table == "product" and mismatched_product:
+            check_reason = (
+                f'The document names "{mismatched_product}", not this '
+                "case's suspect product. Check this detail belongs to the "
+                "suspect product."
+            )
+        elif field in uncertain or (field == "country_id" and "country" in uncertain):
+            check_reason = "The AI marked this value as uncertain."
+
         suggestions.append(
             {
                 "field": field,
@@ -217,6 +267,7 @@ def build_suggestions(case, product, values, document_label, received_on, countr
                 "current": show(current),
                 "proposed": show(proposed),
                 "new_value": new_value,
+                "check_reason": check_reason,
             }
         )
     order = list(CASE_FIELDS) + list(PRODUCT_FIELDS)
@@ -234,6 +285,11 @@ def typed_value(field, value):
         return time.fromisoformat(value)
     if field in ("patient_age_years", "country_id"):
         return int(value)
+    if field == "patient_weight_kg":
+        weight = weight_in_kg(value)
+        if weight is None:
+            raise ValueError(f"Weight must be a number of kilograms, not {value!r}.")
+        return weight
     return value
 
 
@@ -439,7 +495,9 @@ def read_document_for_suggestions(app, attachment_id, case_id, file_path, docume
             values = normalise_extracted(extracted, countries)
             case, product = _case_and_product(case_id)
             suggestions = build_suggestions(
-                case, product, values, document_label, date.today(), countries
+                case, product, values, document_label, date.today(), countries,
+                uncertain=extracted.get("uncertain_fields") or (),
+                mismatched_product=product_mismatch(product, values),
             )
             if suggestions:
                 _set_status(
@@ -608,16 +666,28 @@ def apply_suggestions(case_id, attachment, selected_fields, actor_user_id):
                 actor_user_id,
             ),
         )
+        applied_fields = {s["field"] for s in suggestions}
+        remaining = [
+            s for s in (attachment.get("suggested_updates") or [])
+            if s["field"] not in applied_fields
+        ]
+        if remaining:
+            status = STATUS_READY
+            note = (
+                f"{len(suggestions)} update(s) applied; {len(remaining)} "
+                "suggestion(s) still to review or dismiss."
+            )
+        else:
+            status = STATUS_APPLIED
+            note = f"{len(suggestions)} update(s) applied to the case."
         cursor.execute(
             """
             UPDATE pv.record_attachments
-            SET processing_status = %s, processing_note = %s
+            SET processing_status = %s,
+                processing_note = %s,
+                suggested_updates = %s::jsonb
             WHERE attachment_id = %s
             """,
-            (
-                STATUS_APPLIED,
-                f"{len(suggestions)} update(s) applied to the case.",
-                attachment["attachment_id"],
-            ),
+            (status, note, json.dumps(remaining), attachment["attachment_id"]),
         )
     return [s["label"] for s in suggestions]

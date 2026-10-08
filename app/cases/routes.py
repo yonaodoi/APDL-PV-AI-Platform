@@ -524,7 +524,8 @@ def apply_document_suggestions(case_id, attachment_id):
                 """
                 UPDATE pv.record_attachments
                 SET processing_status = %s,
-                    processing_note = 'Suggested updates were dismissed.'
+                    processing_note = 'Remaining suggested updates were dismissed.',
+                    suggested_updates = '[]'::jsonb
                 WHERE attachment_id = %s
                 """,
                 (STATUS_DISMISSED, attachment_id),
@@ -555,7 +556,26 @@ def apply_document_suggestions(case_id, attachment_id):
             )
         )
 
-    applied = apply_suggestions(case_id, attachment, selected, session["user_id"])
+    try:
+        applied = apply_suggestions(
+            case_id, attachment, selected, session["user_id"]
+        )
+    except Exception as error:
+        current_app.logger.exception(
+            "Applying document suggestions failed for case %s", case_id
+        )
+        flash(
+            "The updates could not be applied, so the case was not changed. "
+            f"A value was not accepted: {error}. Untick that row and try again.",
+            "error",
+        )
+        return redirect(
+            url_for(
+                "cases.review_document_suggestions",
+                case_id=case_id,
+                attachment_id=attachment_id,
+            )
+        )
     write_audit_log(
         record_type="case",
         record_id=case_id,
