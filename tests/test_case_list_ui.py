@@ -54,3 +54,31 @@ def test_seriousness_filter_uses_serious_and_non_serious(monkeypatch):
     assert "Routine" not in page
     assert '<option value="Non-serious" selected>Non-serious</option>' in old_link
     assert any("seriousness = FALSE" in sql for sql in queries)
+
+
+def test_case_register_folds_open_from_its_heading(monkeypatch):
+    app = create_app(TestingConfig)
+    rows = [{
+        "case_id": 6, "case_number": "APDL-ICSR-26-016", "product_name": "ABPARA",
+        "country_name": "Uganda", "event_description": "Rash", "workflow_status": "New",
+        "received_date": __import__("datetime").date(2026, 9, 8), "seriousness": False,
+    }]
+    monkeypatch.setattr(case_routes, "query_all", lambda sql, parameters=(): rows)
+    monkeypatch.setattr(case_routes, "query_one", lambda sql, parameters=(): {"count": 0, "overdue_count": 0})
+    monkeypatch.setattr(
+        "app.services.case_follow_up_reminders.get_open_reminder_count",
+        lambda: 0,
+    )
+
+    with app.test_client() as client:
+        with client.session_transaction() as user_session:
+            user_session["user_id"] = 1
+            user_session["full_name"] = "Test User"
+            user_session["role"] = "System Administrator"
+
+        plain = client.get("/cases/").get_data(as_text=True)
+        filtered = client.get("/cases/?priority=Serious").get_data(as_text=True)
+
+    assert '<details class="case-register fold-card register-fold" id="all-cases" >' in plain
+    assert '<summary class="register-toolbar">' in plain
+    assert 'id="all-cases" open>' in filtered

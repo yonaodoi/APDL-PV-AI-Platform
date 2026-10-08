@@ -4805,6 +4805,34 @@ details.fold-card > summary:hover { background: #fcfbfd; }
 .fold-edit-link:hover { background: #eee9ff; }
 details.fold-card > summary .fold-spacer { margin-left: auto; }
 
+/* Register tables that fold open from their heading (safety cases) */
+details.register-fold > summary.register-toolbar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+}
+details.register-fold > summary .register-count { margin-left: auto; }
+details.register-fold > summary::after {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 auto;
+    place-items: center;
+    margin-left: 4px;
+    border: 1px solid #d3e8d9;
+    border-radius: 8px;
+    background: #f4faf6;
+    color: #237354;
+    font-size: 14px;
+}
+details.register-fold > summary:hover::after { background: #e5f2e9; }
+details.register-fold > summary:focus-visible {
+    outline: 2px solid var(--violet, #147d64);
+    outline-offset: -2px;
+}
+details.register-fold:not([open]) > summary { border-bottom: 0; }
+
 /* ==========================================================================
    Forest and lime theme
    Dark forest green frames the tool (navigation and register banners);

@@ -368,11 +368,12 @@
     <a class="summary-chip summary-chip-link{% if overdue_count %} summary-chip-alert{% endif %}" href="{{ url_for('cases.case_list', deadline='overdue') }}"><strong>{{ overdue_count }}</strong><span>Overdue for reporting</span></a>
 </section>
 
-<section class="case-register">
-    <div class="register-toolbar">
+{% set any_filter = selected_product or selected_country or selected_status or selected_priority or selected_deadline or start_date or end_date %}
+<details class="case-register fold-card register-fold" id="all-cases" {% if any_filter or not cases %}open{% endif %}>
+    <summary class="register-toolbar">
         <h3>All safety cases</h3>
-        <span>{{ cases|length }} shown · newest first</span>
-    </div>
+        <span class="register-count">{{ cases|length }} {% if any_filter %}matching{% else %}cases{% endif %} · newest first</span>
+    </summary>
 
     {% if cases %}
         <div class="case-table-wrap" role="region" aria-label="Safety cases" tabindex="0">
@@ -428,6 +429,6 @@
             {% endif %}
         </div>
     {% endif %}
-</section>
+</details>
 </section>
 {% endblock %}
