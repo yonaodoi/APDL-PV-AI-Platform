@@ -260,7 +260,7 @@
     </style>
     <link
         rel="stylesheet"
-        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-23') }}"
+        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-24') }}"
     >
 </head>
 <body>
@@ -289,9 +289,9 @@
                         {% if request.endpoint.startswith('cases.') or request.endpoint.startswith('case_ai_reports.') %}aria-current="page"{% endif %}
                     >Safety Cases</a>
                     <a
-                        class="nav-link {% if request.endpoint in ('case_review.review_queue', 'case_review.follow_up_tasks', 'case_review.complete_follow_up_task', 'case_review.download_follow_up_document', 'case_review.download_follow_up_docx', 'case_review.send_follow_up_email_route', 'case_review.download_follow_up_email_draft', 'case_review.download_follow_up_email_docx') %}active{% endif %}"
+                        class="nav-link {% if request.endpoint in ('case_review.review_queue', 'case_review.follow_up_tasks', 'case_review.complete_follow_up_task', 'case_review.download_follow_up_request', 'case_review.send_follow_up_request') %}active{% endif %}"
                         href="{{ url_for('case_review.follow_up_tasks') }}"
-                        {% if request.endpoint in ('case_review.review_queue', 'case_review.follow_up_tasks', 'case_review.complete_follow_up_task', 'case_review.download_follow_up_document', 'case_review.download_follow_up_docx', 'case_review.send_follow_up_email_route', 'case_review.download_follow_up_email_draft', 'case_review.download_follow_up_email_docx') %}aria-current="page"{% endif %}
+                        {% if request.endpoint in ('case_review.review_queue', 'case_review.follow_up_tasks', 'case_review.complete_follow_up_task', 'case_review.download_follow_up_request', 'case_review.send_follow_up_request') %}aria-current="page"{% endif %}
                     >Follow-up Tasks</a>
                     <a
                         class="nav-link {% if request.endpoint in ('case_review.follow_up_reminders', 'case_review.acknowledge_follow_up_reminder') %}active{% endif %}"

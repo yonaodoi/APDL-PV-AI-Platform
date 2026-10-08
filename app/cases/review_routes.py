@@ -1,9 +1,6 @@
 from datetime import date, datetime
 from email.utils import parseaddr
-from email.message import EmailMessage
-from io import BytesIO
 import secrets
-from copy import deepcopy
 
 from flask import (
     Blueprint,
@@ -17,14 +14,19 @@ from flask import (
     url_for,
 )
 from flask import current_app
-from docx import Document
 
 from app.audit import write_audit_log
 from app.db import query_all, query_one, transaction
 from app.security import login_required
 from app.services.case_completeness import refresh_case_completeness
-from app.services.abacus_follow_up_pdf import build_abacus_follow_up_pdf
-from app.services.abacus_follow_up_docx import build_abacus_follow_up_docx
+from app.services.follow_up_request import (
+    build_follow_up_request_docx,
+    group_tasks_by_case,
+    build_request_items,
+    email_body,
+    email_subject,
+    request_filename,
+)
 from app.services.follow_up_email import (
     FollowUpEmailError,
     send_follow_up_email,
@@ -402,11 +404,40 @@ def follow_up_tasks():
     from app.services.case_follow_up_reminders import ensure_overdue_reminders
 
     ensure_overdue_reminders()
+    tasks = get_open_follow_up_tasks()
     return render_template(
         "cases/follow_up_tasks.html",
-        tasks=get_open_follow_up_tasks(),
+        tasks=tasks,
+        cases=group_tasks_by_case(tasks, _last_requests([t["case_id"] for t in tasks])),
         current_date=date.today(),
     )
+
+
+def _last_requests(case_ids):
+    """Latest successful follow-up email per case (empty if unreadable)."""
+    if not case_ids:
+        return {}
+    try:
+        rows = query_all(
+            """
+            SELECT case_id, MAX(sent_at) AS sent_at
+            FROM pv.case_follow_up_email_deliveries
+            WHERE status = 'Sent'
+              AND case_id = ANY(%s)
+            GROUP BY case_id
+            """,
+            (list(set(case_ids)),),
+        )
+    except Exception:
+        current_app.logger.warning("Could not read follow-up email deliveries", exc_info=True)
+        try:
+            from app.db import get_db
+
+            get_db().rollback()
+        except Exception:
+            pass
+        return {}
+    return {row["case_id"]: row["sent_at"] for row in rows}
 
 
 @bp.get("/follow-up-reminders")
@@ -535,22 +566,10 @@ def review_duplicate_candidate(case_id):
     return redirect(url_for("cases.case_detail", case_id=case_id))
 
 
-@bp.get("/follow-up-tasks/<int:task_id>/document")
-@login_required
-def download_follow_up_document(task_id):
-    task = query_one(
-        """
-        SELECT tasks.*, cases.*
-             , assigned_user.full_name AS assigned_to_name
-        FROM pv.case_follow_up_tasks AS tasks
-        JOIN pv.safety_cases AS cases ON cases.case_id = tasks.case_id
-        WHERE tasks.task_id = %s
-        """,
-        (task_id,),
-    )
-    if task is None:
+def _case_for_request(case_id):
+    case = query_one("SELECT * FROM pv.safety_cases WHERE case_id = %s", (case_id,))
+    if case is None:
         abort(404)
-
     product = query_one(
         """
         SELECT *
@@ -559,188 +578,141 @@ def download_follow_up_document(task_id):
         ORDER BY case_product_id
         LIMIT 1
         """,
-        (task["case_id"],),
+        (case_id,),
     ) or {}
     checks = query_all(
         """
-        SELECT check_code AS code, check_label AS label,
-               status, message
+        SELECT check_code AS code, check_label AS label, status, message
         FROM pv.case_completeness_checks
         WHERE case_id = %s
-          AND check_code = %s
           AND status = 'Review'
         ORDER BY check_id
         """,
-        (task["case_id"], task["check_code"]),
+        (case_id,),
     )
+    tasks = query_all(
+        """
+        SELECT task_id, check_code, due_date
+        FROM pv.case_follow_up_tasks
+        WHERE case_id = %s
+          AND status IN ('Open', 'In progress')
+        ORDER BY due_date
+        """,
+        (case_id,),
+    )
+    items = build_request_items(case, product, checks)
+    due_date = min((t["due_date"] for t in tasks), default=None) or case.get(
+        "follow_up_due_date"
+    )
+    return case, product, items, tasks, due_date
 
-    pdf = build_abacus_follow_up_pdf(
-        current_app.config["ABACUS_FOLLOW_UP_TEMPLATE_PATH"],
-        task,
+
+def _request_document(case, product, items, due_date):
+    return build_follow_up_request_docx(
+        case,
         product,
-        task,
-        checks,
-    )
-    filename = f"case-follow-up-{task['case_number']}-{task_id}.pdf"
-    return send_file(
-        pdf,
-        as_attachment=True,
-        download_name=filename,
-        mimetype="application/pdf",
+        items,
+        due_date,
+        prepared_by=session.get("full_name"),
     )
 
 
-@bp.get("/follow-up-tasks/<int:task_id>/document.docx")
+@bp.get("/<int:case_id>/follow-up-request.docx")
 @login_required
-def download_follow_up_docx(task_id):
-    task = query_one(
-        """
-        SELECT tasks.*, cases.*
-        FROM pv.case_follow_up_tasks AS tasks
-        JOIN pv.safety_cases AS cases ON cases.case_id = tasks.case_id
-        LEFT JOIN pv.users AS assigned_user
-            ON assigned_user.user_id = tasks.assigned_to
-        WHERE tasks.task_id = %s
-        """,
-        (task_id,),
-    )
-    if task is None:
-        abort(404)
-
-    product = query_one(
-        """
-        SELECT *
-        FROM pv.case_products
-        WHERE case_id = %s
-        ORDER BY case_product_id
-        LIMIT 1
-        """,
-        (task["case_id"],),
-    ) or {}
-    check = query_one(
-        """
-        SELECT check_code AS code, check_label AS label,
-               status, message
-        FROM pv.case_completeness_checks
-        WHERE case_id = %s
-          AND check_code = %s
-          AND status = 'Review'
-        """,
-        (task["case_id"], task["check_code"]),
-    )
-    if check is None:
-        abort(404)
-
-    document = build_abacus_follow_up_docx(
-        task,
-        product,
-        task,
-        check,
-    )
-    filename = f"case-follow-up-{task['case_number']}-{task_id}.docx"
+def download_follow_up_request(case_id):
+    case, product, items, _, due_date = _case_for_request(case_id)
+    if not items:
+        flash(
+            "This case has nothing to ask the reporter. Remaining tasks are "
+            "for the PV team.",
+            "info",
+        )
+        return redirect(url_for("case_review.follow_up_tasks"))
     return send_file(
-        document,
+        _request_document(case, product, items, due_date),
         as_attachment=True,
-        download_name=filename,
+        download_name=request_filename(case),
         mimetype=(
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         ),
     )
 
 
-@bp.post("/follow-up-tasks/<int:task_id>/send-email")
+@bp.post("/<int:case_id>/follow-up-request/send")
 @login_required
-def send_follow_up_email_route(task_id):
-    task = query_one(
-        """
-        SELECT tasks.*, cases.*, cases.reporter_email
-        FROM pv.case_follow_up_tasks AS tasks
-        JOIN pv.safety_cases AS cases ON cases.case_id = tasks.case_id
-        WHERE tasks.task_id = %s
-        """,
-        (task_id,),
-    )
-    if task is None:
-        abort(404)
+def send_follow_up_request(case_id):
+    back = url_for("case_review.follow_up_tasks") + f"#case-{case_id}"
+    case, product, items, tasks, due_date = _case_for_request(case_id)
+    if not items:
+        flash("This case has nothing to ask the reporter.", "info")
+        return redirect(back)
 
-    recipient = (task.get("reporter_email") or "").strip()
+    recipient = (case.get("reporter_email") or "").strip()
     if not recipient or parseaddr(recipient)[1] != recipient:
         flash(
-            "This case does not have a valid reporter email address.",
+            "This case has no valid reporter email address. Add it on the "
+            "case, or download the request and send it another way.",
             "error",
         )
-        return redirect(url_for("case_review.follow_up_tasks"))
+        return redirect(back)
 
-
-    product = query_one(
-        """
-        SELECT *
-        FROM pv.case_products
-        WHERE case_id = %s
-        ORDER BY case_product_id
-        LIMIT 1
-        """,
-        (task["case_id"],),
-    ) or {}
-    check = query_one(
-        """
-        SELECT check_code AS code, check_label AS label,
-               status, message
-        FROM pv.case_completeness_checks
-        WHERE case_id = %s
-          AND check_code = %s
-          AND status = 'Review'
-        """,
-        (task["case_id"], task["check_code"]),
-    )
-    if check is None:
-        abort(404)
-
-    document = build_abacus_follow_up_docx(task, product, task, check)
+    included = {item["code"] for item in items}
+    request_tasks = [t for t in tasks if t["check_code"] in included] or tasks
+    document = _request_document(case, product, items, due_date)
     try:
-        send_follow_up_email(current_app, recipient, task, document)
+        send_follow_up_email(
+            current_app,
+            recipient,
+            email_subject(case),
+            email_body(case, product, items, due_date),
+            document,
+            request_filename(case),
+        )
     except FollowUpEmailError as exc:
         with transaction() as cursor:
+            for task in request_tasks:
+                cursor.execute(
+                    """
+                    INSERT INTO pv.case_follow_up_email_deliveries (
+                        task_id, case_id, recipient_email, status,
+                        error_message, sent_by
+                    )
+                    VALUES (%s, %s, %s, 'Failed', %s, %s)
+                    """,
+                    (task["task_id"], case_id, recipient, str(exc), session["user_id"]),
+                )
+        flash(str(exc), "error")
+        return redirect(back)
+
+    with transaction() as cursor:
+        for task in request_tasks:
             cursor.execute(
                 """
                 INSERT INTO pv.case_follow_up_email_deliveries (
-                    task_id, case_id, recipient_email, status,
-                    error_message, sent_by
+                    task_id, case_id, recipient_email, status, sent_by
                 )
-                VALUES (%s, %s, %s, 'Failed', %s, %s)
+                VALUES (%s, %s, %s, 'Sent', %s)
                 """,
-                (
-                    task_id,
-                    task["case_id"],
-                    recipient,
-                    str(exc),
-                    session["user_id"],
-                ),
+                (task["task_id"], case_id, recipient, session["user_id"]),
             )
-        flash(str(exc), "error")
-        return redirect(url_for("case_review.follow_up_tasks"))
-
-    with transaction() as cursor:
+            cursor.execute(
+                """
+                UPDATE pv.case_follow_up_tasks
+                SET status = 'In progress', updated_at = CURRENT_TIMESTAMP
+                WHERE task_id = %s AND status = 'Open'
+                """,
+                (task["task_id"],),
+            )
         cursor.execute(
             """
-            INSERT INTO pv.case_follow_up_email_deliveries (
-                task_id, case_id, recipient_email, status, sent_by
-            )
-            VALUES (%s, %s, %s, 'Sent', %s)
-            """,
-            (task_id, task["case_id"], recipient, session["user_id"]),
-        )
-        cursor.execute(
-            """
-            INSERT INTO pv.case_audit_log (
-                case_id, action, details, performed_by
-            )
+            INSERT INTO pv.case_audit_log (case_id, action, details, performed_by)
             VALUES (%s, %s, %s, %s)
             """,
             (
-                task["case_id"],
-                "Follow-up form emailed",
-                f"Abacus Word follow-up form sent to {recipient}.",
+                case_id,
+                "Follow-up request emailed",
+                f"Follow-up request with {len(items)} question(s) sent to "
+                f"{recipient}: " + "; ".join(item["label"] for item in items),
                 session["user_id"],
             ),
         )
@@ -748,173 +720,18 @@ def send_follow_up_email_route(task_id):
 
         moved = auto_move_status(
             cursor,
-            task["case_id"],
+            case_id,
             ("New", "Triage", "Medical review"),
             "Follow-up requested",
-            f"follow-up form sent to {recipient}.",
+            f"follow-up request sent to {recipient}.",
             session["user_id"],
         )
 
-    flash(f"Follow-up form sent to {recipient}.", "success")
+    flash(
+        f"Follow-up request for {case['case_number']} sent to {recipient} "
+        f"({len(items)} question(s)).",
+        "success",
+    )
     if moved:
         flash("The case status moved to Follow-up requested.", "info")
-    return redirect(url_for("case_review.follow_up_tasks"))
-
-
-@bp.get("/follow-up-tasks/<int:task_id>/email-draft")
-@login_required
-def download_follow_up_email_draft(task_id):
-    task = query_one(
-        """
-        SELECT tasks.*, cases.*
-        FROM pv.case_follow_up_tasks AS tasks
-        JOIN pv.safety_cases AS cases ON cases.case_id = tasks.case_id
-        WHERE tasks.task_id = %s
-        """,
-        (task_id,),
-    )
-    if task is None:
-        abort(404)
-
-    recipient = (task.get("reporter_email") or "").strip()
-    if not recipient or parseaddr(recipient)[1] != recipient:
-        flash(
-            "This case does not have a valid reporter email address.",
-            "error",
-        )
-        return redirect(url_for("case_review.follow_up_tasks"))
-
-    product = query_one(
-        """
-        SELECT *
-        FROM pv.case_products
-        WHERE case_id = %s
-        ORDER BY case_product_id
-        LIMIT 1
-        """,
-        (task["case_id"],),
-    ) or {}
-    check = query_one(
-        """
-        SELECT check_code AS code, check_label AS label,
-               status, message
-        FROM pv.case_completeness_checks
-        WHERE case_id = %s
-          AND check_code = %s
-          AND status = 'Review'
-        """,
-        (task["case_id"], task["check_code"]),
-    )
-    if check is None:
-        abort(404)
-
-    document = build_abacus_follow_up_docx(task, product, task, check)
-    message = EmailMessage()
-    message["Subject"] = f"Case follow-up required - {task['case_number']}"
-    message["From"] = current_app.config["SMTP_SENDER_EMAIL"]
-    message["To"] = recipient
-    message.set_content(
-        "Please find attached the Abacus case follow-up form for "
-        f"case {task['case_number']}. Please complete and return the form "
-        "to the Pharmacovigilance team."
-    )
-    message.add_attachment(
-        document.getvalue(),
-        maintype="application",
-        subtype="vnd.openxmlformats-officedocument.wordprocessingml.document",
-        filename=f"case-follow-up-{task['case_number']}-{task['task_id']}.docx",
-    )
-    draft = BytesIO(message.as_bytes())
-    draft.seek(0)
-    return send_file(
-        draft,
-        as_attachment=True,
-        download_name=f"case-follow-up-{task['case_number']}.eml",
-        mimetype="message/rfc822",
-    )
-
-
-@bp.get("/follow-up-tasks/<int:task_id>/email.docx")
-@login_required
-def download_follow_up_email_docx(task_id):
-    task = query_one(
-        """
-        SELECT tasks.*, cases.*
-        FROM pv.case_follow_up_tasks AS tasks
-        JOIN pv.safety_cases AS cases ON cases.case_id = tasks.case_id
-        WHERE tasks.task_id = %s
-        """,
-        (task_id,),
-    )
-    if task is None:
-        abort(404)
-
-    recipient = (task.get("reporter_email") or "").strip()
-    if not recipient or parseaddr(recipient)[1] != recipient:
-        flash(
-            "This case does not have a valid reporter email address.",
-            "error",
-        )
-        return redirect(url_for("case_review.follow_up_tasks"))
-
-    product = query_one(
-        """
-        SELECT *
-        FROM pv.case_products
-        WHERE case_id = %s
-        ORDER BY case_product_id
-        LIMIT 1
-        """,
-        (task["case_id"],),
-    ) or {}
-    check = query_one(
-        """
-        SELECT check_code AS code, check_label AS label,
-               status, message
-        FROM pv.case_completeness_checks
-        WHERE case_id = %s
-          AND check_code = %s
-          AND status = 'Review'
-        """,
-        (task["case_id"], task["check_code"]),
-    )
-    if check is None:
-        abort(404)
-
-    form_document = build_abacus_follow_up_docx(
-        task,
-        product,
-        task,
-        check,
-    )
-    form_document.seek(0)
-    form = Document(form_document)
-    document = Document()
-    document.add_heading("EMAIL MESSAGE", level=1)
-    document.add_paragraph(f"To: {recipient}")
-    document.add_paragraph(
-        f"Subject: Case follow-up required - {task['case_number']}"
-    )
-    document.add_paragraph()
-    document.add_paragraph(
-        "Please find attached the Abacus case follow-up form for "
-        f"case {task['case_number']}. Please complete and return the form "
-        "to the Pharmacovigilance team."
-    )
-    document.add_page_break()
-    for element in form.element.body:
-        if element.tag.endswith("sectPr"):
-            continue
-        document.element.body.append(deepcopy(element))
-
-    output = BytesIO()
-    document.save(output)
-    output.seek(0)
-    return send_file(
-        output,
-        as_attachment=True,
-        download_name=f"case-follow-up-email-{task['case_number']}.docx",
-        mimetype=(
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        ),
-    )
+    return redirect(back)

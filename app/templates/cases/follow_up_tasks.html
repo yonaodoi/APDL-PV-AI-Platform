@@ -8,46 +8,104 @@
 <section class="follow-up-tasks-page">
 <header class="tasks-header">
     <div>
-        <h2>Follow-up tasks</h2>
+        <h2>Follow-up requests</h2>
         <p>
-            Open tasks generated from unresolved case completeness checks.
+            One request per case, built from the information still missing.
+            Questions go to the reporter in a single form; PV-team tasks stay here.
         </p>
     </div>
     <div class="tasks-header-actions">
         <a href="{{ url_for('case_review.follow_up_reminders') }}">Overdue reminders</a>
-        <a href="{{ url_for('cases.review_queue') }}">Review queue</a>
     </div>
 </header>
 
-<section class="tasks-register" aria-label="Open follow-up tasks">
-    {% for task in tasks %}
-        <article class="task-card">
+<section class="tasks-register" aria-label="Open follow-up requests by case">
+    {% for group in cases %}
+        {% set overdue = group.due_date and group.due_date < current_date %}
+        <article class="task-card request-card" id="case-{{ group.case_id }}">
             <div class="task-card-main">
                 <div>
-                    <a class="task-title" href="{{ url_for('cases.case_detail', case_id=task.case_id) }}">{{ task.task_title }}</a>
+                    <a class="task-title" href="{{ url_for('cases.case_detail', case_id=group.case_id) }}">Case {{ group.case_number }}</a>
                     <div class="task-meta">
-                        Case {{ task.case_number }} · {{ task.assigned_to_name or "Unassigned" }} · Due {{ task.due_date.strftime("%d %b %Y") }}
+                        {{ group.workflow_status }}
+                        · Reporter: {{ group.reporter_name or "not recorded" }}{% if group.reporter_email %} ({{ group.reporter_email }}){% endif %}
+                        {% if group.due_date %}· Reply due {{ group.due_date.strftime("%d %b %Y") }}{% endif %}
                     </div>
-                    <p>{{ task.task_description }}</p>
+                    {% if group.last_request %}
+                        <div class="request-sent">Request emailed {{ group.last_request.strftime("%d %b %Y") }}</div>
+                    {% endif %}
                 </div>
-                <span class="task-status {% if task.due_date < current_date %}overdue{% endif %}">
-                    {% if task.due_date < current_date %}Overdue{% else %}{{ task.status }}{% endif %}
+                <span class="task-status {% if overdue %}overdue{% endif %}">
+                    {% if overdue %}Overdue{% elif group.last_request %}Awaiting reply{% else %}Not yet requested{% endif %}
                 </span>
             </div>
-            <form class="task-actions" method="post" action="{{ url_for('case_review.complete_follow_up_task', task_id=task.task_id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <a class="task-download" download href="{{ url_for('case_review.download_follow_up_docx', task_id=task.task_id) }}">Download Word form</a>
-                <a class="task-download" download href="{{ url_for('case_review.download_follow_up_email_draft', task_id=task.task_id) }}">Download email draft</a>
-                <a class="task-download" download href="{{ url_for('case_review.download_follow_up_email_docx', task_id=task.task_id) }}">Email + form in Word</a>
-                <button class="task-complete" type="submit">Mark completed</button>
-            </form>
+
+            {% if group.reporter_tasks %}
+                <div class="request-section-title">To ask the reporter ({{ group.reporter_tasks|length }})</div>
+                <ol class="request-items">
+                    {% for task in group.reporter_tasks %}
+                        <li>
+                            <div>
+                                <strong>{{ task.task_title|replace("Follow up: ", "") }}</strong>
+                                <span>{{ task.task_description }}</span>
+                            </div>
+                            <form method="post" action="{{ url_for('case_review.complete_follow_up_task', task_id=task.task_id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="item-done" type="submit" title="Close this item, for example when the reporter says it is not known">Mark done</button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                </ol>
+                <div class="task-actions">
+                    <a class="task-download" href="{{ url_for('case_review.download_follow_up_request', case_id=group.case_id) }}">Download request (Word)</a>
+                    {% if group.can_email %}
+                        <form method="post" action="{{ url_for('case_review.send_follow_up_request', case_id=group.case_id) }}" class="send-request-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="task-complete" type="submit">{% if group.last_request %}Email again{% else %}Email request to reporter{% endif %}</button>
+                        </form>
+                    {% else %}
+                        <span class="request-note">No reporter email on the case. <a href="{{ url_for('cases.edit_case', case_id=group.case_id, section='report-details') }}#report-details">Add it</a> to email the request.</span>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            {% if group.internal_tasks %}
+                <div class="request-section-title internal">For the PV team</div>
+                <ul class="request-items internal">
+                    {% for task in group.internal_tasks %}
+                        <li>
+                            <div>
+                                <strong>{{ task.task_title|replace("Follow up: ", "") }}</strong>
+                                <span>{{ task.task_description }}</span>
+                            </div>
+                            <form method="post" action="{{ url_for('case_review.complete_follow_up_task', task_id=task.task_id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="item-done" type="submit">Mark done</button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
         </article>
     {% else %}
         <div class="tasks-empty">
-            <h3>No open follow-up tasks</h3>
-            <p>New tasks will appear when a case has unresolved follow-up requirements.</p>
+            <h3>No open follow-up</h3>
+            <p>Cases appear here when the completeness checklist finds missing information.</p>
         </div>
     {% endfor %}
 </section>
 </section>
+
+<script>
+    // Prevent sending the same request twice.
+    document.querySelectorAll(".send-request-form").forEach(function (form) {
+        form.addEventListener("submit", function () {
+            var button = form.querySelector("button");
+            setTimeout(function () {
+                button.disabled = true;
+                button.textContent = "Sending…";
+            }, 0);
+        });
+    });
+</script>
 {% endblock %}

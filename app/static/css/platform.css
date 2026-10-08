@@ -1651,6 +1651,98 @@ summary:focus-visible {
     background: #0d6652;
 }
 
+.follow-up-tasks-page .request-sent {
+    margin-top: 5px;
+    color: #237354;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.follow-up-tasks-page .request-section-title {
+    margin: 16px 0 6px;
+    color: #244a3d;
+    font-size: 11px;
+    font-weight: 850;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+.follow-up-tasks-page .request-section-title.internal {
+    color: #7a6a3c;
+}
+
+.follow-up-tasks-page .request-items {
+    display: grid;
+    gap: 0;
+    margin: 0;
+    padding: 0 0 0 20px;
+}
+
+.follow-up-tasks-page .request-items.internal {
+    padding-left: 0;
+    list-style: none;
+}
+
+.follow-up-tasks-page .request-items li {
+    padding: 8px 0;
+    border-top: 1px solid #edf2ee;
+    color: #52645a;
+    font-size: 12px;
+}
+
+.follow-up-tasks-page .request-items li > div:first-child {
+    display: inline-grid;
+    gap: 2px;
+    width: calc(100% - 100px);
+    vertical-align: top;
+}
+
+.follow-up-tasks-page .request-items li strong {
+    color: #264b3d;
+    font-size: 12.5px;
+}
+
+.follow-up-tasks-page .request-items li form {
+    display: inline-block;
+    float: right;
+}
+
+.follow-up-tasks-page .item-done {
+    padding: 4px 9px;
+    border: 1px solid #d3e3d8;
+    border-radius: 7px;
+    background: #ffffff;
+    color: #5d7666;
+    font: inherit;
+    font-size: 10.5px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.follow-up-tasks-page .item-done:hover {
+    border-color: #9fcbb2;
+    color: #237354;
+}
+
+.follow-up-tasks-page .send-request-form {
+    display: inline-block;
+}
+
+.follow-up-tasks-page .request-note {
+    color: #7a6a3c;
+    font-size: 11.5px;
+}
+
+.follow-up-tasks-page .request-note a {
+    color: #147d64;
+    font-weight: 800;
+}
+
+.follow-up-tasks-page button[disabled] {
+    opacity: 0.6;
+    cursor: progress;
+}
+
 .follow-up-tasks-page .tasks-empty {
     padding: 48px 24px;
     color: #71817a;
@@ -4883,7 +4975,8 @@ details.register-fold:not([open]) > summary { border-bottom: 0; }
 .app-shell .signal-workspace-page .signals-header,
 .app-shell .psur-workspace-page .psur-header,
 .app-shell .rsi-page .rsi-header,
-.app-shell .reporting-page .reporting-header {
+.app-shell .reporting-page .reporting-header,
+.app-shell .follow-up-tasks-page .tasks-header {
     position: relative;
     display: flex;
     flex-wrap: wrap;
@@ -4908,7 +5001,8 @@ details.register-fold:not([open]) > summary { border-bottom: 0; }
 .app-shell .signal-workspace-page .signals-header > div:first-child,
 .app-shell .psur-workspace-page .psur-header > div:first-child,
 .app-shell .rsi-page .rsi-header > div:first-child,
-.app-shell .reporting-page .reporting-header > div:first-child {
+.app-shell .reporting-page .reporting-header > div:first-child,
+.app-shell .follow-up-tasks-page .tasks-header > div:first-child {
     flex: 1 1 320px;
     min-width: 0;
 }
@@ -4919,7 +5013,8 @@ details.register-fold:not([open]) > summary { border-bottom: 0; }
 .app-shell .signal-workspace-page .signals-header,
 .app-shell .psur-workspace-page .psur-header,
 .app-shell .rsi-page .rsi-header,
-.app-shell .reporting-page .reporting-header {
+.app-shell .reporting-page .reporting-header,
+.app-shell .follow-up-tasks-page .tasks-header {
     flex-direction: row;
     justify-content: flex-start;
     align-items: center;
@@ -4931,7 +5026,8 @@ details.register-fold:not([open]) > summary { border-bottom: 0; }
 .app-shell .signal-workspace-page .signals-header h2,
 .app-shell .psur-workspace-page .psur-header h2,
 .app-shell .rsi-page .rsi-header h1,
-.app-shell .reporting-page .reporting-header h2 {
+.app-shell .reporting-page .reporting-header h2,
+.app-shell .follow-up-tasks-page .tasks-header h2 {
     margin: 0 0 8px;
     color: var(--on-forest);
     font-size: clamp(23px, 3vw, 30px);
@@ -4945,7 +5041,8 @@ details.register-fold:not([open]) > summary { border-bottom: 0; }
 .app-shell .signal-workspace-page .signals-header p,
 .app-shell .psur-workspace-page .psur-header p,
 .app-shell .rsi-page .rsi-header p:not(.rsi-kicker),
-.app-shell .reporting-page .reporting-header p:not(.eyebrow) {
+.app-shell .reporting-page .reporting-header p:not(.eyebrow),
+.app-shell .follow-up-tasks-page .tasks-header p {
     max-width: 640px;
     margin: 0;
     color: var(--on-forest-muted);
@@ -5001,7 +5098,8 @@ details.register-fold:not([open]) > summary { border-bottom: 0; }
 .app-shell .case-list-page .cases-header .new-case-button.secondary-case-button,
 .app-shell .quality-complaint-page .complaints-header .new-complaint-button.document-action,
 .app-shell .signal-workspace-page .signals-header .signal-notifications-link,
-.app-shell .rsi-page .rsi-header .close-rsi-button {
+.app-shell .rsi-page .rsi-header .close-rsi-button,
+.app-shell .follow-up-tasks-page .tasks-header-actions a {
     border: 1px solid rgba(255, 255, 255, 0.38);
     background: transparent;
     color: var(--on-forest);
@@ -5012,7 +5110,8 @@ details.register-fold:not([open]) > summary { border-bottom: 0; }
 .app-shell .case-list-page .cases-header .new-case-button.secondary-case-button:hover,
 .app-shell .quality-complaint-page .complaints-header .new-complaint-button.document-action:hover,
 .app-shell .signal-workspace-page .signals-header .signal-notifications-link:hover,
-.app-shell .rsi-page .rsi-header .close-rsi-button:hover {
+.app-shell .rsi-page .rsi-header .close-rsi-button:hover,
+.app-shell .follow-up-tasks-page .tasks-header-actions a:hover {
     border-color: var(--lime);
     background: rgba(198, 221, 93, 0.10);
     color: var(--on-forest);
@@ -5037,7 +5136,8 @@ details.register-fold:not([open]) > summary { border-bottom: 0; }
     .app-shell .signal-workspace-page .signals-header,
     .app-shell .psur-workspace-page .psur-header,
     .app-shell .rsi-page .rsi-header,
-    .app-shell .reporting-page .reporting-header {
+    .app-shell .reporting-page .reporting-header,
+    .app-shell .follow-up-tasks-page .tasks-header {
         padding: 22px 18px;
         border-radius: 14px;
     }

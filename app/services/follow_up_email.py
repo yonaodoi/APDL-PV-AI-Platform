@@ -2,11 +2,13 @@ class FollowUpEmailError(RuntimeError):
     """Raised when a follow-up email cannot be sent."""
 
 
-def send_follow_up_email(app, recipient, task, document):
+def send_follow_up_email(app, recipient, subject, body, attachment, filename):
+    """Send one email with a Word attachment, by Gmail if connected,
+    otherwise by SMTP."""
     from app.services.gmail_oauth import send_gmail_message
 
     try:
-        send_gmail_message(app, recipient, task, document)
+        send_gmail_message(app, recipient, subject, body, attachment, filename)
         return
     except RuntimeError as exc:
         if "not connected" not in str(exc):
@@ -22,26 +24,20 @@ def send_follow_up_email(app, recipient, task, document):
     from email.message import EmailMessage
 
     message = EmailMessage()
-    message["Subject"] = (
-        f"Case follow-up required - {task['case_number']}"
-    )
+    message["Subject"] = subject
     message["From"] = (
         f"{app.config['SMTP_SENDER_NAME']} "
         f"<{app.config['SMTP_SENDER_EMAIL']}>"
     )
     message["To"] = recipient
-    message.set_content(
-        "Please find attached the Abacus case follow-up form for "
-        f"case {task['case_number']}. Please complete and return the form "
-        "to the Pharmacovigilance team."
-    )
+    message.set_content(body)
     message.add_attachment(
-        document.getvalue(),
+        attachment.getvalue(),
         maintype="application",
         subtype=(
             "vnd.openxmlformats-officedocument.wordprocessingml.document"
         ),
-        filename=f"case-follow-up-{task['case_number']}-{task['task_id']}.docx",
+        filename=filename,
     )
 
     try:

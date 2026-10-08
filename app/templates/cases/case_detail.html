@@ -1271,7 +1271,7 @@
                 Follow-up required
             </label>
             {% if workflow and workflow.open_tasks %}
-                <p class="workflow-hint">Set automatically: {{ workflow.open_tasks }} open follow-up task(s){% if workflow.follow_up_sent %}, request sent{% endif %}. <a href="{{ url_for('case_review.follow_up_tasks') }}">View tasks</a></p>
+                <p class="workflow-hint">Set automatically: {{ workflow.open_tasks }} open follow-up task(s){% if workflow.follow_up_sent %}, request sent{% endif %}. <a href="{{ url_for('case_review.follow_up_tasks') }}#case-{{ case.case_id }}">Open follow-up request</a></p>
             {% else %}
                 <p class="workflow-hint">Ticked automatically when the checklist creates follow-up tasks.</p>
             {% endif %}

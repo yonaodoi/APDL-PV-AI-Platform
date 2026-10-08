@@ -5,20 +5,30 @@ from app import create_app
 from config import TestingConfig
 
 
-def test_follow_up_task_register_preserves_actions_and_due_state(monkeypatch):
+def test_follow_up_page_groups_tasks_into_one_request_per_case(monkeypatch):
     app = create_app(TestingConfig)
-    task = {
-        "task_id": 12,
+    base = {
         "case_id": 34,
-        "task_title": "Request missing information",
         "case_number": "CASE-2026-034",
+        "workflow_status": "Triage",
+        "reporter_name": "Dr Okello",
+        "reporter_email": "okello@example.com",
         "assigned_to_name": "PV Team",
-        "due_date": date(2026, 4, 10),
-        "task_description": "Confirm the patient outcome.",
         "status": "Open",
     }
+    tasks = [
+        {**base, "task_id": 12, "check_code": "event_outcome", "task_title": "Follow up: Event outcome",
+         "task_description": "Record the outcome or select Unknown.", "due_date": date(2026, 4, 10)},
+        {**base, "task_id": 13, "check_code": "event_onset_date", "task_title": "Follow up: Event onset date",
+         "task_description": "Confirm the event onset date.", "due_date": date(2026, 4, 12)},
+        {**base, "task_id": 14, "check_code": "follow_up_due_date", "task_title": "Follow up: Follow-up plan",
+         "task_description": "Set a due date when follow-up is required.", "due_date": date(2026, 4, 12)},
+    ]
     monkeypatch.setattr(
-        follow_up_service, "get_open_follow_up_tasks", lambda: [task]
+        follow_up_service, "get_open_follow_up_tasks", lambda: tasks
+    )
+    monkeypatch.setattr(
+        "app.cases.review_routes._last_requests", lambda case_ids: {}
     )
     monkeypatch.setattr(
         "app.services.case_follow_up_reminders.get_open_reminder_count",
@@ -39,12 +49,14 @@ def test_follow_up_task_register_preserves_actions_and_due_state(monkeypatch):
     page = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert "Request missing information" in page
-    assert "Download Word form" in page
-    assert "Download email draft" in page
-    assert "Email + form in Word" in page
-    assert "Mark completed" in page
-    assert 'name="csrf_token"' in page
+    assert page.count('class="task-card request-card"') == 1
+    assert "To ask the reporter (2)" in page
+    assert "For the PV team" in page
+    assert "/cases/34/follow-up-request.docx" in page
+    assert "Email request to reporter" in page
+    assert "Download email draft" not in page
+    assert "Email + form in Word" not in page
+    assert page.count("Mark done") == 3
     assert 'class="task-status overdue"' in page
 
 

@@ -133,6 +133,8 @@ def get_open_follow_up_tasks():
             tasks.*,
             cases.case_number,
             cases.workflow_status,
+            cases.reporter_name,
+            cases.reporter_email,
             users.full_name AS assigned_to_name
         FROM pv.case_follow_up_tasks AS tasks
         JOIN pv.safety_cases AS cases

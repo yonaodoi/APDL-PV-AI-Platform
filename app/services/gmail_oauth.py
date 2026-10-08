@@ -64,7 +64,7 @@ def complete_authorization(app, authorization_response, state):
     )
 
 
-def send_gmail_message(app, recipient, task, document):
+def send_gmail_message(app, recipient, subject, body, attachment, filename):
     token_path = app.config["GMAIL_OAUTH_TOKEN_PATH"]
     if not token_path.exists():
         raise RuntimeError(
@@ -85,19 +85,15 @@ def send_gmail_message(app, recipient, task, document):
         )
 
     message = EmailMessage()
-    message["Subject"] = f"Case follow-up required - {task['case_number']}"
+    message["Subject"] = subject
     message["From"] = app.config["SMTP_SENDER_EMAIL"]
     message["To"] = recipient
-    message.set_content(
-        "Please find attached the Abacus case follow-up form for "
-        f"case {task['case_number']}. Please complete and return the form "
-        "to the Pharmacovigilance team."
-    )
+    message.set_content(body)
     message.add_attachment(
-        document.getvalue(),
+        attachment.getvalue(),
         maintype="application",
         subtype="vnd.openxmlformats-officedocument.wordprocessingml.document",
-        filename=f"case-follow-up-{task['case_number']}-{task['task_id']}.docx",
+        filename=filename,
     )
     encoded_message = base64.urlsafe_b64encode(
         message.as_bytes()
