@@ -40,3 +40,12 @@ def test_upload_ignores_return_links_to_other_websites(monkeypatch):
 
     assert "evil" not in response.headers["Location"]
     assert response.headers["Location"].endswith("/records/case/9/attachments")
+
+
+def test_edited_section_returns_to_the_same_section_on_the_case_page():
+    import app.cases.routes as case_routes
+
+    assert case_routes._case_page_anchor("report-details") == "#case-receipt"
+    assert case_routes._case_page_anchor("event-assessment") == "#case-event"
+    assert case_routes._case_page_anchor("javascript:alert(1)") == ""
+    assert case_routes._case_page_anchor(None) == ""

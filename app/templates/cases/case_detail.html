@@ -326,6 +326,21 @@
     .collapsible-section[open] > summary { border-bottom: 1px solid #eee8ec; }
     .collapsible-section[open] > summary::after { transform: rotate(90deg); }
     .collapsible-section > summary:hover { background: #fcfbfd; }
+    .section-edit-link {
+        margin-left: auto;
+        padding: 5px 12px;
+        border: 1px solid #dcd1ee;
+        border-radius: 8px;
+        background: #faf8ff;
+        color: #6242d7;
+        font-size: 12px;
+        font-weight: bold;
+        text-decoration: none;
+    }
+    .section-edit-link:hover { background: #eee9ff; }
+    .collapsible-section > summary .section-edit-link + * { margin-left: 0; }
+    .collapsible-section > summary::after { margin-left: 12px; }
+
 </style>
 
 <section class="case-top">
@@ -817,10 +832,11 @@
             </div>
         </section>
 
-        <details class="detail-section collapsible-section">
+        <details class="detail-section collapsible-section" id="case-receipt">
             <summary class="section-title">
                 <span class="section-icon">1</span>
                 Case receipt and reporter
+            <a class="section-edit-link" href="{{ url_for('cases.edit_case', case_id=case.case_id, section='report-details') }}#report-details" aria-label="Edit case receipt and reporter">Edit</a>
             </summary>
 
             <div class="detail-content">
@@ -873,10 +889,11 @@
             </div>
         </details>
 
-        <details class="detail-section collapsible-section">
+        <details class="detail-section collapsible-section" id="case-patient">
             <summary class="section-title">
                 <span class="section-icon">2</span>
                 Patient information
+            <a class="section-edit-link" href="{{ url_for('cases.edit_case', case_id=case.case_id, section='patient-information') }}#patient-information" aria-label="Edit patient information">Edit</a>
             </summary>
 
             <div class="detail-content">
@@ -926,10 +943,11 @@
             </div>
         </details>
 
-        <details class="detail-section collapsible-section">
+        <details class="detail-section collapsible-section" id="case-product">
             <summary class="section-title">
                 <span class="section-icon">3</span>
                 Suspected medicinal product
+            <a class="section-edit-link" href="{{ url_for('cases.edit_case', case_id=case.case_id, section='product-details') }}#product-details" aria-label="Edit suspected medicinal product">Edit</a>
             </summary>
 
             <div class="detail-content">
@@ -975,10 +993,11 @@
             </div>
         </details>
 
-        <details class="detail-section collapsible-section">
+        <details class="detail-section collapsible-section" id="case-event">
             <summary class="section-title">
                 <span class="section-icon">4</span>
                 Adverse event and assessment
+            <a class="section-edit-link" href="{{ url_for('cases.edit_case', case_id=case.case_id, section='event-assessment') }}#event-assessment" aria-label="Edit adverse event and assessment">Edit</a>
             </summary>
 
             <div class="detail-content">
@@ -1128,5 +1147,16 @@
     if (document.querySelector("[data-reading]")) {
         setTimeout(function () { window.location.reload(); }, 10000);
     }
+</script>
+
+<script>
+    // Open the section named in the address (e.g. after saving an edit).
+    (function () {
+        var target = window.location.hash && document.getElementById(window.location.hash.slice(1));
+        if (target && target.tagName === "DETAILS") {
+            target.open = true;
+            target.scrollIntoView({ block: "start" });
+        }
+    })();
 </script>
 {% endblock %}

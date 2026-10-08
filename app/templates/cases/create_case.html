@@ -58,6 +58,9 @@
 <div class="layout">
     <form id="safety-case-form" method="post" {% if not editing %}data-guided-voice="true"{% endif %}>
         {{ form.hidden_tag() }}
+        {% if editing and return_section %}
+            <input type="hidden" name="return_section" value="{{ return_section }}">
+        {% endif %}
         {% if source_complaint %}
             <input type="hidden" name="from_complaint_id" value="{{ source_complaint.complaint_id }}">
         {% endif %}
@@ -324,7 +327,7 @@
         </section>
 
         <div class="actions">
-            <a class="button secondary" href="{% if editing %}{{ url_for('cases.case_detail', case_id=case.case_id) }}{% else %}{{ url_for('core.dashboard') }}{% endif %}">Cancel</a>
+            <a class="button secondary" href="{% if editing %}{{ url_for('cases.case_detail', case_id=case.case_id) }}{{ return_anchor or "" }}{% else %}{{ url_for('core.dashboard') }}{% endif %}">Cancel</a>
 <button class="button primary" type="submit">{% if editing %}Update safety case{% else %}Create safety case{% endif %}</button>
         </div>
     </form>

@@ -212,7 +212,7 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 summary:focus-visible {
-    outline: 3px solid rgba(216, 129, 99, 0.75);
+    outline: 2px solid rgba(20, 125, 100, 0.55);
     outline-offset: 2px;
 }
 
@@ -1926,7 +1926,7 @@ summary:focus-visible {
 
 .signal-detail-page .input {
     min-height: 42px;
-    border-color: #d5e2d9;
+    border: 1px solid #d5e2d9;
     border-radius: 8px;
     background: #fbfdfb;
     color: #27483b;
@@ -1938,8 +1938,10 @@ summary:focus-visible {
     line-height: 1.6;
 }
 
-.signal-detail-page .input:focus {
+.signal-detail-page .input:focus,
+.signal-detail-page .input:focus-visible {
     border-color: #4b9978;
+    outline: none;
     box-shadow: 0 0 0 3px rgba(20, 125, 100, 0.12);
 }
 
@@ -3282,7 +3284,7 @@ summary:focus-visible {
 .safety-case-form-page .input {
     min-height: 41px;
     padding: 9px 10px;
-    border-color: #d5e2d9;
+    border: 1px solid #d5e2d9;
     border-radius: 8px;
     background: #fbfdfb;
     color: #27483b;
@@ -3294,8 +3296,10 @@ summary:focus-visible {
     line-height: 1.55;
 }
 
-.safety-case-form-page .input:focus {
+.safety-case-form-page .input:focus,
+.safety-case-form-page .input:focus-visible {
     border-color: #4b9978;
+    outline: none;
     box-shadow: 0 0 0 3px rgba(20, 125, 100, 0.12);
 }
 

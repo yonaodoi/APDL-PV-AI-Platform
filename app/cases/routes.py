@@ -1198,6 +1198,20 @@ def populate_case_form(form, case, product):
     form.form_id.data = case["form_id"]
 
 
+# Edit-form section -> matching section on the case page.
+EDIT_SECTIONS = {
+    "report-details": "case-receipt",
+    "patient-information": "case-patient",
+    "product-details": "case-product",
+    "event-assessment": "case-event",
+}
+
+
+def _case_page_anchor(section):
+    anchor = EDIT_SECTIONS.get(section or "")
+    return f"#{anchor}" if anchor else ""
+
+
 @bp.route("/<int:case_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_case(case_id):
@@ -1406,13 +1420,19 @@ def edit_case(case_id):
                 "Automated signal screening could not run for this case.",
                 "warning",
             )
-        return redirect(url_for("cases.case_detail", case_id=case_id))
+        return redirect(
+            url_for("cases.case_detail", case_id=case_id)
+            + _case_page_anchor(request.form.get("return_section"))
+        )
 
     populate_case_form(form, case, product)
 
+    section = request.args.get("section")
     return render_template(
         "cases/create_case.html",
         form=form,
         editing=True,
         case=case,
+        return_section=section if section in EDIT_SECTIONS else None,
+        return_anchor=_case_page_anchor(section),
     )
