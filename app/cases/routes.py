@@ -466,6 +466,28 @@ def _rollback_quietly():
         pass
 
 
+def _last_review(case_id):
+    """Most recent status change or review for the workflow panel."""
+    try:
+        return query_one(
+            """
+            SELECT audit.action, audit.details, audit.performed_at,
+                   users.full_name
+            FROM pv.case_audit_log AS audit
+            LEFT JOIN pv.users AS users ON users.user_id = audit.performed_by
+            WHERE audit.case_id = %s
+              AND audit.action IN ('Case reviewed', 'Status changed automatically')
+            ORDER BY audit.performed_at DESC
+            LIMIT 1
+            """,
+            (case_id,),
+        )
+    except Exception:
+        current_app.logger.exception("Could not load last review for case %s", case_id)
+        _rollback_quietly()
+        return None
+
+
 def _workflow_panel(case, completeness_checks):
     """Suggested status, readiness and follow-up facts for the case page."""
     from app.services.case_workflow import (
@@ -509,6 +531,7 @@ def _workflow_panel(case, completeness_checks):
         "blockers": readiness_blockers(
             completeness_checks, assessment, case.get("causality_assessment")
         ),
+        "last_review": _last_review(case["case_id"]),
         "open_tasks": open_tasks,
         "earliest_due": follow_up.get("earliest_due"),
         "follow_up_sent": follow_up.get("follow_up_sent"),

@@ -263,7 +263,10 @@ def review_case(case_id):
         )
 
     flash(f"Case {case['case_number']} was updated.", "success")
-    return redirect(url_for("cases.case_detail", case_id=case_id) + "#workflow")
+    return redirect(
+        url_for("cases.case_detail", case_id=case_id, workflow_saved="review")
+        + "#workflow"
+    )
 
 
 @bp.post("/<int:case_id>/accept-suggested-status")
@@ -312,7 +315,10 @@ def accept_suggested_status(case_id):
             ),
         )
     flash(f"Status changed to {suggestion['status']}.", "success")
-    return redirect(url_for("cases.case_detail", case_id=case_id) + "#workflow")
+    return redirect(
+        url_for("cases.case_detail", case_id=case_id, workflow_saved="status")
+        + "#workflow"
+    )
 
 
 @bp.get("/follow-up-tasks")

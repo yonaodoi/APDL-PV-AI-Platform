@@ -397,6 +397,30 @@
         line-height: 1.4;
     }
     .workflow-hint a { color: #6242d7; font-weight: bold; text-decoration: none; }
+
+    .workflow-saved {
+        margin: 12px 18px 0;
+        padding: 10px 12px;
+        border: 1px solid #c7eadb;
+        border-radius: 10px;
+        background: #e7f6ef;
+        color: #176247;
+        font-size: 12.5px;
+    }
+    .workflow-last {
+        margin: 10px 18px 0;
+        color: #776e7d;
+        font-size: 11px;
+        line-height: 1.45;
+    }
+    .workflow-last span {
+        display: block;
+        color: #5d5168;
+    }
+    .side-panel button[disabled] {
+        opacity: 0.6;
+        cursor: progress;
+    }
 </style>
 
 <section class="case-top">
@@ -1114,6 +1138,18 @@
 
         <div class="side-heading" id="workflow">Case workflow review</div>
 
+        {% if request.args.get("workflow_saved") == "status" %}
+            <div class="workflow-saved" role="status">✓ Status changed to <strong>{{ case.workflow_status }}</strong>.</div>
+        {% elif request.args.get("workflow_saved") == "review" %}
+            <div class="workflow-saved" role="status">✓ Review saved. Status: <strong>{{ case.workflow_status }}</strong>.</div>
+        {% endif %}
+        {% if workflow and workflow.last_review %}
+            <p class="workflow-last">
+                Last review: {{ workflow.last_review.performed_at.strftime("%d %b %Y, %H:%M") }}{% if workflow.last_review.full_name %} · {{ workflow.last_review.full_name }}{% endif %}
+                <span>{{ workflow.last_review.details|truncate(140) }}</span>
+            </p>
+        {% endif %}
+
         {% if workflow and workflow.suggestion %}
             <div class="workflow-suggestion {% if workflow.suggestion.same %}is-current{% endif %}">
                 {% if workflow.suggestion.same %}
@@ -1285,5 +1321,19 @@
         select.addEventListener("change", update);
         update();
     })();
+</script>
+
+<script>
+    // Prevent double submits from the workflow panel.
+    document.querySelectorAll(".side-panel form").forEach(function (form) {
+        form.addEventListener("submit", function () {
+            form.querySelectorAll("button[type=submit]").forEach(function (button) {
+                setTimeout(function () {
+                    button.disabled = true;
+                    button.textContent = "Saving…";
+                }, 0);
+            });
+        });
+    });
 </script>
 {% endblock %}

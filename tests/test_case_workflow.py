@@ -274,3 +274,15 @@ def test_review_note_for_a_case_with_nothing_outstanding():
     assert "Causality: not yet assessed." in note
     assert "Follow-up: none outstanding." in note
     assert note.endswith("Status New is appropriate.")
+
+
+def test_saved_review_returns_to_panel_with_confirmation(monkeypatch):
+    _patch_review(monkeypatch, ([PASS], CONFIRMED, {}))
+    client = _client(monkeypatch)
+
+    response = client.post(
+        "/cases/9/review",
+        data={"workflow_status": "Medical review", "causality_assessment": "Possible"},
+    )
+
+    assert response.headers["Location"].endswith("/cases/9?workflow_saved=review#workflow")
