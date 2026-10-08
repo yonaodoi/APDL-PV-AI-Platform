@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+
+{% block title %}Regulatory Reporting Register | APDL PV{% endblock %}
+{% block page_title %}Regulatory Reporting Register{% endblock %}
+
+{% block content %}
+<style>
+    .reporting-page {
+        max-width: 1180px;
+        margin: 0 auto;
+    }
+
+    .reporting-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-start;
+        margin-bottom: 22px;
+    }
+
+    .back-link {
+        display: inline-block;
+        margin-bottom: 10px;
+        color: #147d64;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+    }
+
+    .eyebrow {
+        margin: 0 0 8px;
+        color: #147d64;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: .9px;
+    }
+
+    .reporting-header h2 {
+        margin: 0 0 8px;
+        color: #18342f;
+        font-size: 28px;
+    }
+
+    .reporting-header p {
+        max-width: 700px;
+        margin: 0;
+        color: #49685a;
+        font-size: 14px;
+        line-height: 1.55;
+    }
+
+    .export-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 19px;
+    }
+
+    .export-button {
+        display: inline-block;
+        padding: 11px 14px;
+        border-radius: 8px;
+        color: white;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+    }
+
+    .export-button.word {
+        background: #147d64;
+    }
+
+    .export-button.csv {
+        background: #147d64;
+    }
+
+    .filter-card,
+    .table-card {
+        margin-bottom: 20px;
+        padding: 20px;
+        border: 1px solid #e5f2ed;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(24, 52, 47, .025);
+    }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: 1.4fr 1.1fr 1.1fr 1.1fr 1fr 1fr auto;
+        gap: 13px;
+        align-items: end;
+    }
+
+    .field label {
+        display: block;
+        margin-bottom: 7px;
+        color: #49685a;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: .4px;
+        text-transform: uppercase;
+    }
+
+    .input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 11px;
+        border: 1px solid #cfe1d6;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #18342f;
+        font: inherit;
+        font-size: 13px;
+    }
+
+    .input:focus {
+        outline: none;
+        border-color: #147d64;
+        box-shadow: 0 0 0 3px #f4f9f6;
+    }
+
+    .button {
+        padding: 11px 15px;
+        border: 0;
+        border-radius: 8px;
+        background: #147d64;
+        color: white;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .filter-note {
+        margin: 13px 0 0;
+        color: #49685a;
+        font-size: 12px;
+    }
+
+    .table-heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .table-heading h3 {
+        margin: 0;
+        color: #18342f;
+        font-size: 16px;
+    }
+
+    .record-count {
+        color: #147d64;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .records-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .records-table th {
+        padding: 12px 10px;
+        background: #ffffff;
+        color: #71817c;
+        font-size: 10px;
+        letter-spacing: .5px;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    .records-table td {
+        padding: 13px 10px;
+        border-top: 1px solid #e5f2ed;
+        color: #49685a;
+        font-size: 13px;
+        vertical-align: top;
+    }
+
+    .product-cell {
+        color: #18342f;
+        font-weight: bold;
+    }
+
+    .status-pill {
+        display: inline-block;
+        padding: 5px 8px;
+        border-radius: 16px;
+        background: #f4f9f6;
+        color: #147d64;
+        font-size: 11px;
+        font-weight: bold;
+    }
+
+    .description-cell {
+        max-width: 380px;
+        color: #49685a;
+        line-height: 1.45;
+    }
+
+    .empty-state {
+        padding: 42px 20px;
+        color: #49685a;
+        text-align: center;
+    }
+
+    @media (max-width: 960px) {
+        .filter-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 650px) {
+        .reporting-header {
+            display: block;
+        }
+
+        .filter-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .table-card {
+            overflow-x: auto;
+        }
+
+        .records-table th:nth-child(3),
+        .records-table td:nth-child(3) {
+            display: none;
+        }
+    }
+</style>
+
+<section class="reporting-page">
+    <header class="reporting-header">
+        <div>
+            <a
+                class="back-link"
+                href="{{ url_for('core.analytics_home') }}"
+            >
+                ← Back to Analytics Centre
+            </a>
+
+            <p class="eyebrow">FILTERED DATA AND REPORT EXPORT</p>
+            <h2>Regulatory Reporting Register</h2>
+            <p>
+                Filter the combined PV and regulatory records, inspect the
+                resulting register, and download the selected information.
+            </p>
+        </div>
+    </header>
+
+    <div class="export-actions">
+        <a
+            class="export-button word"
+            href="{{ url_for(
+                'core.regulatory_reporting',
+                product=selected_product,
+                start_date=start_date.isoformat(),
+                end_date=end_date.isoformat(),
+                country=selected_country,
+                record_type=selected_record_type,
+                status=selected_status,
+                download='word'
+            ) }}"
+        >
+            Download management report
+        </a>
+
+        <a
+            class="export-button csv"
+            href="{{ url_for(
+                'core.download_regulatory_reporting_csv',
+                product=selected_product,
+                start_date=start_date.isoformat(),
+                end_date=end_date.isoformat(),
+                country=selected_country,
+                record_type=selected_record_type,
+                status=selected_status
+            ) }}"
+        >
+            Download filtered data
+        </a>
+    </div>
+
+    <section class="filter-card">
+        <form method="get" class="filter-grid">
+            <div class="field">
+                <label for="product">Product</label>
+                <select class="input" id="product" name="product">
+                    <option value="">All products</option>
+                    {% for product in products %}
+                        <option
+                            value="{{ product.product_name }}"
+                            {% if selected_product == product.product_name %}selected{% endif %}
+                        >
+                            {{ product.product_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="country">Country / market</label>
+                <select class="input" id="country" name="country">
+                    <option value="">All countries / markets</option>
+                    {% for country in countries %}
+                        <option
+                            value="{{ country.country_name }}"
+                            {% if selected_country == country.country_name %}selected{% endif %}
+                        >
+                            {{ country.country_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="record_type">Record type</label>
+                <select class="input" id="record_type" name="record_type">
+                    <option value="">All record types</option>
+                    <option value="Safety case" {% if selected_record_type == "Safety case" %}selected{% endif %}>Safety cases</option>
+                    <option value="Product complaint" {% if selected_record_type == "Product complaint" %}selected{% endif %}>Product quality complaints</option>
+                    <option value="Safety signal" {% if selected_record_type == "Safety signal" %}selected{% endif %}>Safety signals</option>
+                    <option value="PSUR" {% if selected_record_type == "PSUR" %}selected{% endif %}>PSURs</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="status">Status</label>
+                <select class="input" id="status" name="status">
+                    <option value="">All statuses</option>
+                    {% for status in statuses %}
+                        <option
+                            value="{{ status.status }}"
+                            {% if selected_status == status.status %}selected{% endif %}
+                        >
+                            {{ status.status }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="start_date">From</label>
+                <input
+                    class="input"
+                    id="start_date"
+                    name="start_date"
+                    type="date"
+                    value="{{ start_date.isoformat() }}"
+                >
+            </div>
+
+            <div class="field">
+                <label for="end_date">To</label>
+                <input
+                    class="input"
+                    id="end_date"
+                    name="end_date"
+                    type="date"
+                    value="{{ end_date.isoformat() }}"
+                >
+            </div>
+
+            <button class="button" type="submit">Apply filters</button>
+        </form>
+
+        <p class="filter-note">
+            Showing {{ start_date.strftime("%d %b %Y") }}
+            to {{ end_date.strftime("%d %b %Y") }}.
+        </p>
+    </section>
+
+    <section class="table-card">
+        <div class="table-heading">
+            <h3>Detailed reporting register</h3>
+            <span class="record-count">
+                {{ detailed_records|length }} record(s), latest 250 shown
+            </span>
+        </div>
+
+        {% if detailed_records %}
+            <table class="records-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Product</th>
+                        <th>Record type</th>
+                        <th>Reference</th>
+                        <th>Status</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in detailed_records %}
+                        <tr>
+                            <td>{{ row.report_date.strftime("%d %b %Y") }}</td>
+                            <td class="product-cell">{{ row.product_name }}</td>
+                            <td>{{ row.record_type }}</td>
+                            <td>{{ row.record_number }}</td>
+                            <td>
+                                <span class="status-pill">{{ row.status }}</span>
+                            </td>
+                            <td class="description-cell">{{ row.description }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">
+                No reporting records matched the selected filters.
+            </div>
+        {% endif %}
+    </section>
+</section>
+{% endblock %}

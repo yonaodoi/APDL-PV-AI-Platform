@@ -137,3 +137,12 @@ def test_submission_date_validation():
     assert validate_submission_date(final, date(2026, 9, 1), today) == []
     assert validate_submission_date(final, date(2026, 6, 1), today)
     assert validate_submission_date(final, date(2026, 10, 8), today)
+
+
+def test_designated_qppv_can_approve_with_administrator_role():
+    report = {"status": "Under review"}
+
+    assert validate_status_change(
+        report, "Approved", "System Administrator", designated_qppv=True
+    ) == []
+    assert validate_status_change(report, "Approved", "System Administrator")

@@ -1,0 +1,416 @@
+{% extends "base.html" %}
+
+{% block title %}Product Quality Complaints | APDL PV{% endblock %}
+{% block page_title %}Product Quality Complaints{% endblock %}
+
+{% block content %}
+<style>
+    .complaints-header {
+        display:flex;
+        justify-content:space-between;
+        gap:20px;
+        align-items:flex-end;
+        margin-bottom:24px;
+    }
+
+    .complaints-header h2 {
+        margin:0 0 7px;
+        color:#18342f;
+        font-size:28px;
+        letter-spacing:-0.5px;
+    }
+
+    .complaints-header p {
+        margin:0;
+        color:#49685a;
+        font-size:14px;
+    }
+
+    .new-complaint-button {
+        padding:12px 17px;
+        border-radius:9px;
+        background:#147d64;
+        color:white;
+        font-size:14px;
+        font-weight:bold;
+        text-decoration:none;
+        white-space:nowrap;
+        box-shadow:0 7px 15px rgba(20, 125, 100,.2);
+    }
+    .complaint-filter {
+        margin-bottom:20px;
+        padding:18px;
+        border:1px solid #e5f2ed;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(24, 52, 47,.025);
+    }
+
+    .complaints-header-actions {
+        display:flex;
+        flex-wrap:wrap;
+        gap:9px;
+        justify-content:flex-end;
+    }
+
+    .filter-grid {
+        display:grid;
+        grid-template-columns:1.5fr 1.2fr 1.15fr 1fr 1fr 1fr auto;
+        gap:12px;
+        align-items:end;
+    }
+
+    .filter-field label {
+        display:block;
+        margin-bottom:7px;
+        color:#49685a;
+        font-size:11px;
+        font-weight:bold;
+        letter-spacing:.4px;
+        text-transform:uppercase;
+    }
+
+    .filter-input {
+        width:100%;
+        padding:10px 11px;
+        border:1px solid #cfe1d6;
+        border-radius:8px;
+        background:#ffffff;
+        color:#18342f;
+        font:inherit;
+        font-size:13px;
+    }
+
+    .filter-button {
+        padding:11px 16px;
+        border:0;
+        border-radius:8px;
+        background:#147d64;
+        color:white;
+        font-size:13px;
+        font-weight:bold;
+        cursor:pointer;
+    }
+
+    .complaint-summary {
+        display:flex;
+        gap:13px;
+        margin-bottom:20px;
+    }
+
+    .summary-chip {
+        padding:9px 12px;
+        border:1px solid #e5f2ed;
+        border-radius:9px;
+        background:white;
+        color:#49685a;
+        font-size:12px;
+    }
+
+    .summary-chip strong {
+        margin-right:4px;
+        color:#147d64;
+    }
+
+    .complaint-register {
+        overflow:hidden;
+        border:1px solid #e5f2ed;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(24, 52, 47,.035);
+    }
+
+    .register-toolbar {
+        display:flex;
+        justify-content:space-between;
+        gap:16px;
+        align-items:center;
+        padding:16px 20px;
+        border-bottom:1px solid #e5f2ed;
+    }
+
+    .register-toolbar h3 {
+        margin:0;
+        color:#18342f;
+        font-size:15px;
+    }
+
+    .register-toolbar span {
+        color:#71817c;
+        font-size:12px;
+    }
+
+    .complaint-table {
+        width:100%;
+        border-collapse:collapse;
+    }
+
+    .complaint-table-wrap {
+        overflow-x:auto;
+    }
+
+    .complaint-table th {
+        padding:13px 20px;
+        color:#71817c;
+        background:#ffffff;
+        font-size:10px;
+        letter-spacing:.6px;
+        text-align:left;
+        text-transform:uppercase;
+    }
+
+    .complaint-table td {
+        padding:16px 20px;
+        border-top:1px solid #e5f2ed;
+        color:#49685a;
+        font-size:13px;
+        vertical-align:top;
+    }
+
+    .complaint-number {
+        color:#18342f;
+        font-weight:bold;
+    }
+
+    .complaint-number a {
+        color:inherit;
+        text-decoration:none;
+    }
+
+    .product-name {
+        color:#18342f;
+        font-weight:bold;
+    }
+
+    .status-pill,
+    .severity-pill {
+        display:inline-block;
+        padding:5px 9px;
+        border-radius:20px;
+        font-size:11px;
+        font-weight:bold;
+    }
+
+    .status-pill {
+        background:#f4f9f6;
+        color:#147d64;
+    }
+
+    .severity-pill {
+        background:#e5f2ed;
+        color:#49685a;
+    }
+
+    .severity-high {
+        background:#ffe9e6;
+        color:#cc5149;
+    }
+
+    .empty-state {
+        padding:60px 25px;
+        color:#49685a;
+        text-align:center;
+    }
+
+    .empty-icon {
+        width:42px;
+        height:42px;
+        display:grid;
+        place-items:center;
+        margin:0 auto 13px;
+        border-radius:12px;
+        background:#f4f9f6;
+        color:#147d64;
+        font-size:22px;
+        font-weight:bold;
+    }
+
+    .empty-state h3 {
+        margin:0 0 7px;
+        color:#18342f;
+        font-size:16px;
+    }
+
+    .empty-state p {
+        margin:0;
+        font-size:13px;
+    }
+
+    @media (max-width:700px) {
+        .complaints-header {
+            display:block;
+        }
+
+        .new-complaint-button {
+            display:inline-block;
+            margin-top:17px;
+        }
+
+        .complaints-header-actions {
+            justify-content:flex-start;
+        }
+
+        .complaint-summary {
+            flex-wrap:wrap;
+        }
+
+    }
+</style>
+
+<div class="quality-complaint-page">
+<header class="complaints-header">
+    <div>
+        <h2>Product quality complaint register</h2>
+        <p>Track product quality, packaging, labelling and other complaints.</p>
+    </div>
+
+    <div class="complaints-header-actions">
+        <a class="new-complaint-button document-action" href="{{ url_for('complaints.extract_complaint_from_document') }}">
+            Create product quality complaint from document
+        </a>
+        <a class="new-complaint-button" href="{{ url_for('complaints.create_complaint') }}">
+            + New complaint
+        </a>
+    </div>
+</header>
+
+<section class="complaint-filter">
+    <form method="get" class="filter-grid">
+        <div class="filter-field">
+            <label for="product">Product</label>
+            <select class="filter-input" id="product" name="product">
+                <option value="">All products</option>
+                {% for product in products %}
+                    <option value="{{ product.product_name }}" {% if selected_product == product.product_name %}selected{% endif %}>
+                        {{ product.product_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="country">Country / market</label>
+            <select class="filter-input" id="country" name="country">
+                <option value="">All countries / markets</option>
+                {% for country in countries %}
+                    <option value="{{ country.country_name }}" {% if selected_country == country.country_name %}selected{% endif %}>
+                        {{ country.country_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="status">Status</label>
+            <select class="filter-input" id="status" name="status">
+                <option value="">All statuses</option>
+                {% for status in statuses %}
+                    <option value="{{ status.status }}" {% if selected_status == status.status %}selected{% endif %}>
+                        {{ status.status }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="severity">Severity</label>
+            <select class="filter-input" id="severity" name="severity">
+                <option value="">All severities</option>
+                {% for severity in severities %}
+                    <option value="{{ severity.severity }}" {% if selected_severity == severity.severity %}selected{% endif %}>
+                        {{ severity.severity }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="start_date">From</label>
+            <input class="filter-input" id="start_date" name="start_date" type="date" value="{{ start_date }}">
+        </div>
+
+        <div class="filter-field">
+            <label for="end_date">To</label>
+            <input class="filter-input" id="end_date" name="end_date" type="date" value="{{ end_date }}">
+        </div>
+
+        <div class="filter-actions">
+            <button class="filter-button" type="submit">Apply filters</button>
+            <a class="clear-filters" href="{{ url_for('complaints.complaint_list') }}">Clear filters</a>
+        </div>
+    </form>
+</section>
+
+<div class="quality-report-actions">
+    <a href="{{ url_for('complaints.preview_product_complaint_reporting_summary', product=selected_product, country=selected_country, status=selected_status, severity=selected_severity, start_date=start_date, end_date=end_date) }}">Preview filtered report</a>
+
+    <a href="{{ url_for('complaints.download_product_complaint_reporting_summary', product=selected_product, country=selected_country, status=selected_status, severity=selected_severity, start_date=start_date, end_date=end_date) }}">Download report (Word)</a>
+</div>
+
+<section class="complaint-summary" aria-label="Filtered complaint totals">
+    <div class="summary-chip"><strong>{{ complaints|length }}</strong><span>Matching complaints</span></div>
+    <div class="summary-chip"><strong>{{ complaints|selectattr("status", "equalto", "Under investigation")|list|length }}</strong><span>Under investigation</span></div>
+    <div class="summary-chip"><strong>{{ complaints|selectattr("severity", "equalto", "Serious")|list|length }}</strong><span>Serious complaints</span></div>
+</section>
+
+<section class="complaint-register">
+    <div class="register-toolbar">
+        <h3>All product quality complaints</h3>
+        <span>{{ complaints|length }} shown · newest first</span>
+    </div>
+
+    {% if complaints %}
+        <div class="complaint-table-wrap" role="region" aria-label="Product quality complaints" tabindex="0">
+        <table class="complaint-table">
+            <thead>
+                <tr>
+                    <th scope="col">Complaint ID</th>
+                    <th scope="col">Product</th>
+                    <th scope="col">Batch</th>
+                    <th scope="col">Country</th>
+                    <th scope="col">Category</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Received</th>
+                    <th scope="col">Severity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for complaint in complaints %}
+                    <tr>
+                        <td class="complaint-number">
+                            <a href="{{ url_for('complaints.complaint_detail', complaint_id=complaint.complaint_id) }}">
+                                {{ complaint.complaint_number }}
+                            </a>
+                        </td>
+                        <td class="product-name">{{ complaint.product_name }}</td>
+                        <td>{{ complaint.batch_number or "Not recorded" }}</td>
+                        <td>{{ complaint.country_name or "Not recorded" }}</td>
+                        <td>{{ complaint.complaint_category }}</td>
+                        <td><span class="status-pill">{{ complaint.status }}</span></td>
+                        <td>{{ complaint.date_received.strftime("%d %b %Y") }}</td>
+                        <td>
+                            <span class="severity-pill {% if complaint.severity in ('Serious', 'Critical') %}severity-high{% endif %}">
+                                {{ complaint.severity }}
+                            </span>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-icon" aria-hidden="true">+</div>
+            {% if selected_product or selected_country or selected_status or selected_severity or start_date or end_date %}
+                <h3>No matching complaints</h3>
+                <p>Try changing or clearing one or more filters.</p>
+                <a class="empty-clear-link" href="{{ url_for('complaints.complaint_list') }}">Clear all filters</a>
+            {% else %}
+                <h3>No product quality complaints yet</h3>
+                <p>Create the first product quality complaint to begin tracking investigations and actions.</p>
+            {% endif %}
+        </div>
+    {% endif %}
+</section>
+</div>
+{% endblock %}

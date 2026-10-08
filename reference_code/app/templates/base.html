@@ -10,15 +10,15 @@
     >
     <style>
         :root {
-            --ink: #282037;
-            --muted: #746d7d;
-            --violet: #7656e8;
-            --violet-dark: #5f3ed4;
-            --violet-soft: #eee9ff;
-            --page: #f7f4f6;
+            --ink: #18342f;
+            --muted: #49685a;
+            --violet: #147d64;
+            --violet-dark: #147d64;
+            --violet-soft: #f4f9f6;
+            --page: #f4f9f6;
             --surface: #ffffff;
-            --sidebar: #fffafb;
-            --line: #e9e2e7;
+            --sidebar: #ffffff;
+            --line: #e5f2ed;
         }
 
         * {
@@ -61,7 +61,7 @@
             color: white;
             font-size: 28px;
             font-weight: bold;
-            box-shadow: 0 6px 15px rgba(118, 86, 232, 0.2);
+            box-shadow: 0 6px 15px rgba(20, 125, 100, 0.2);
         }
 
         .brand-name {
@@ -78,7 +78,7 @@
 
         .nav-label {
             margin: 24px 12px 8px;
-            color: #a099a6;
+            color: #71817c;
             font-size: 10px;
             font-weight: bold;
             letter-spacing: 0.9px;
@@ -89,7 +89,7 @@
             margin: 3px 0;
             padding: 11px 12px;
             border-radius: 8px;
-            color: #5d5568;
+            color: #49685a;
             text-decoration: none;
             font-size: 14px;
             font-weight: bold;
@@ -146,13 +146,13 @@
 
         .account-menu summary:hover,
         .account-menu[open] summary {
-            border-color: #e2dbe7;
+            border-color: #cfe1d6;
             background: #ffffff;
         }
 
         .user-avatar {
-            width: 32px;
-            height: 32px;
+            width: 29px;
+            height: 29px;
             display: grid;
             place-items: center;
             border-radius: 9px;
@@ -168,7 +168,7 @@
         }
 
         .account-chevron {
-            color: #918896;
+            color: #71817c;
             font-size: 15px;
         }
 
@@ -179,15 +179,15 @@
             right: 0;
             width: 230px;
             overflow: hidden;
-            border: 1px solid #e5dfe8;
+            border: 1px solid #e5f2ed;
             border-radius: 12px;
             background: #ffffff;
-            box-shadow: 0 14px 28px rgba(48, 35, 62, 0.13);
+            box-shadow: 0 14px 28px rgba(24, 52, 47, 0.13);
         }
 
         .account-identity {
             padding: 14px;
-            border-bottom: 1px solid #eee9ee;
+            border-bottom: 1px solid #e5f2ed;
         }
 
         .account-identity strong {
@@ -209,7 +209,7 @@
             padding: 12px 14px;
             border: 0;
             background: #ffffff;
-            color: #51465a;
+            color: #18342f;
             font: inherit;
             font-size: 13px;
             font-weight: bold;
@@ -220,12 +220,12 @@
 
 
         .account-action:hover {
-            background: #faf8ff;
+            background: #ffffff;
             color: var(--violet-dark);
         }
 
         .logout-action {
-            border-top: 1px solid #eee9ee;
+            border-top: 1px solid #e5f2ed;
             color: #a24a55;
         }
 
@@ -236,10 +236,10 @@
         .flash {
             margin-bottom: 20px;
             padding: 13px 15px;
-            border: 1px solid #d9cffb;
+            border: 1px solid #e5f2ed;
             border-radius: 9px;
-            background: #f5f1ff;
-            color: #5f3ed4;
+            background: #f4f9f6;
+            color: #147d64;
         }
 
         @media (max-width: 760px) {
@@ -260,7 +260,7 @@
     </style>
     <link
         rel="stylesheet"
-        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-17') }}"
+        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-7') }}"
     >
 </head>
 <body>
@@ -348,8 +348,7 @@
 
                 <details class="account-menu">
                     <summary>
-                        {% set name_parts = (session.get("full_name") or "User").split() %}
-                        <span class="user-avatar" aria-hidden="true">{{ (name_parts[0][:1] ~ (name_parts[-1][:1] if name_parts|length > 1 else ""))|upper }}</span>
+                        <span class="user-avatar">{{ session.get("full_name", "U")|first|upper }}</span>
                         <span class="account-name">{{ session.get("full_name", "User") }}</span>
                         <span class="account-chevron">⌄</span>
                     </summary>
@@ -386,31 +385,5 @@
         </div>
     </div>
     <script src="{{ url_for('static', filename='js/voice_entry.js') }}" defer></script>
-    <script>
-        // Close the account menu when clicking anywhere else or pressing Escape.
-        (function () {
-            function closeMenus(except) {
-                document.querySelectorAll("details.account-menu[open]").forEach(function (menu) {
-                    if (menu !== except) {
-                        menu.removeAttribute("open");
-                    }
-                });
-            }
-
-            document.addEventListener("click", function (event) {
-                closeMenus(event.target.closest("details.account-menu"));
-            });
-
-            document.addEventListener("keydown", function (event) {
-                if (event.key === "Escape") {
-                    var open = document.querySelector("details.account-menu[open]");
-                    closeMenus(null);
-                    if (open) {
-                        open.querySelector("summary").focus();
-                    }
-                }
-            });
-        })();
-    </script>
 </body>
 </html>

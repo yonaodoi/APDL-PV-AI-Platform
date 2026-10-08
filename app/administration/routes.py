@@ -23,6 +23,7 @@ def user_list():
             u.is_active,
             u.last_login_at,
             u.created_at,
+            u.is_designated_qppv,
             r.role_name
         FROM pv.users AS u
         JOIN pv.roles AS r ON r.role_id = u.role_id
@@ -158,6 +159,49 @@ def toggle_user_status(user_id):
 
     flash(action + ".", "success")
     return redirect(url_for("administration.user_list"))
+
+@bp.post("/users/<int:user_id>/toggle-qppv")
+@roles_required("System Administrator")
+def toggle_designated_qppv(user_id):
+    user = query_one(
+        """
+        SELECT user_id, username, full_name, is_designated_qppv
+        FROM pv.users
+        WHERE user_id = %s
+        """,
+        (user_id,),
+    )
+
+    if not user:
+        abort(404)
+
+    designated = not user["is_designated_qppv"]
+
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.users
+            SET is_designated_qppv = %s,
+                updated_at = NOW()
+            WHERE user_id = %s
+            """,
+            (designated, user_id),
+        )
+
+    action = (
+        "Designated as QPPV" if designated else "QPPV designation removed"
+    )
+    write_audit_log(
+        record_type="user",
+        record_id=user_id,
+        action=action,
+        details=f"Account: {user['username']} ({user['full_name']}).",
+        actor_user_id=session["user_id"],
+    )
+
+    flash(f"{user['full_name']}: {action.lower()}.", "success")
+    return redirect(url_for("administration.user_list"))
+
 
 @bp.get("/audit-log")
 @roles_required("System Administrator", "Auditor")

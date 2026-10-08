@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block title %}PSURs | APDL PV{% endblock %}
+
+{% block page_title %}PSURs{% endblock %}
+
+{% block content %}
+<style>
+    .psur-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-end;
+        margin-bottom: 24px;
+    }
+
+    .psur-header h2 {
+        margin: 0 0 7px;
+        color: #18342f;
+        font-size: 28px;
+        letter-spacing: -0.5px;
+    }
+
+    .psur-header p {
+        margin: 0;
+        color: #49685a;
+        font-size: 14px;
+    }
+
+    .new-psur-button {
+        padding: 12px 17px;
+        border-radius: 9px;
+        background: #147d64;
+        color: white;
+        font-size: 14px;
+        font-weight: bold;
+        text-decoration: none;
+        white-space: nowrap;
+        box-shadow: 0 7px 15px rgba(20, 125, 100, 0.2);
+    }
+
+    .psur-summary {
+        display: flex;
+        gap: 13px;
+        margin-bottom: 20px;
+    }
+
+    .summary-chip {
+        padding: 9px 12px;
+        border: 1px solid #e5f2ed;
+        border-radius: 9px;
+        background: white;
+        color: #49685a;
+        font-size: 12px;
+    }
+
+    .summary-chip strong {
+        margin-right: 4px;
+        color: #147d64;
+    }
+
+    .psur-register {
+        overflow: hidden;
+        border: 1px solid #e5f2ed;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(24, 52, 47, 0.035);
+    }
+
+    .register-toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid #e5f2ed;
+    }
+
+    .register-toolbar h3 {
+        margin: 0;
+        color: #18342f;
+        font-size: 15px;
+    }
+
+    .register-toolbar span {
+        color: #71817c;
+        font-size: 12px;
+    }
+
+    .psur-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .psur-table th {
+        padding: 13px 20px;
+        color: #71817c;
+        background: #ffffff;
+        font-size: 10px;
+        letter-spacing: 0.6px;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    .psur-table td {
+        padding: 16px 20px;
+        border-top: 1px solid #e5f2ed;
+        color: #49685a;
+        font-size: 13px;
+        vertical-align: top;
+    }
+
+    .psur-number,
+    .product-name {
+        color: #18342f;
+        font-weight: bold;
+    }
+
+    .period-cell {
+        min-width: 190px;
+        color: #49685a;
+    }
+
+    .status-pill {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 20px;
+        background: #f4f9f6;
+        color: #147d64;
+        font-size: 11px;
+        font-weight: bold;
+    }
+
+    .empty-state {
+        padding: 60px 25px;
+        color: #49685a;
+        text-align: center;
+    }
+
+    .empty-icon {
+        width: 42px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        margin: 0 auto 13px;
+        border-radius: 12px;
+        background: #f4f9f6;
+        color: #147d64;
+        font-size: 22px;
+        font-weight: bold;
+    }
+
+    .empty-state h3 {
+        margin: 0 0 7px;
+        color: #18342f;
+        font-size: 16px;
+    }
+
+    .empty-state p {
+        margin: 0;
+        font-size: 13px;
+    }
+    .psur-filter {
+        margin-bottom:20px;
+        padding:17px;
+        border:1px solid #e5f2ed;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(24, 52, 47,.025);
+    }
+
+    .filter-grid {
+        display:grid;
+        grid-template-columns:1.6fr 1.2fr 1fr 1fr auto;
+        gap:12px;
+        align-items:end;
+    }
+
+    .filter-field label {
+        display:block;
+        margin-bottom:6px;
+        color:#18342f;
+        font-size:11px;
+        font-weight:bold;
+    }
+
+    .filter-input {
+        width:100%;
+        box-sizing:border-box;
+        padding:10px;
+        border:1px solid #cfe1d6;
+        border-radius:8px;
+        background:#ffffff;
+        color:#18342f;
+        font:inherit;
+        font-size:13px;
+    }
+
+    .filter-button {
+        padding:11px 15px;
+        border:0;
+        border-radius:8px;
+        background:#147d64;
+        color:white;
+        font-size:13px;
+        font-weight:bold;
+        cursor:pointer;
+    }
+
+    @media (max-width:1000px) {
+        .filter-grid {
+            grid-template-columns:repeat(2, minmax(0, 1fr));
+        }
+    }
+    @media (max-width: 900px) {
+        .psur-table th:nth-child(4),
+        .psur-table td:nth-child(4) {
+            display: none;
+        }
+    }
+
+    @media (max-width: 650px) {
+        .psur-header {
+            display: block;
+        }
+
+        .new-psur-button {
+            display: inline-block;
+            margin-top: 17px;
+        }
+
+        .psur-summary {
+            flex-wrap: wrap;
+        }
+
+        .psur-table th:nth-child(5),
+        .psur-table td:nth-child(5) {
+            display: none;
+        }
+    }
+</style>
+
+<section class="psur-workspace-page">
+<header class="psur-header">
+    <div>
+        <h2>PSUR register</h2>
+        <p>Manage periodic safety reports, data lock points and reporting periods.</p>
+    </div>
+
+    <a class="new-psur-button" href="{{ url_for('psur.create_psur') }}">
+        + Create PSUR record
+    </a>
+</header>
+
+<section class="psur-summary" aria-label="Filtered PSUR totals">
+    <div class="summary-chip"><strong>{{ reports|length }}</strong><span>Matching reports</span></div>
+    <div class="summary-chip"><strong>{{ reports|selectattr("status", "equalto", "Draft")|list|length }}</strong><span>Draft reports</span></div>
+    <div class="summary-chip"><strong>{{ reports|selectattr("status", "equalto", "Finalised")|list|length }}</strong><span>Finalised reports</span></div>
+</section>
+<section class="psur-filter">
+    <form method="get" class="filter-grid">
+        <div class="filter-field">
+            <label for="product">Product</label>
+            <select class="filter-input" id="product" name="product">
+                <option value="">All products</option>
+                {% for product in products %}
+                    <option value="{{ product.product_name }}" {% if selected_product == product.product_name %}selected{% endif %}>
+                        {{ product.product_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="status">Status</label>
+            <select class="filter-input" id="status" name="status">
+                <option value="">All statuses</option>
+                {% for status in statuses %}
+                    <option value="{{ status.status }}" {% if selected_status == status.status %}selected{% endif %}>
+                        {{ status.status }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="start_date">Period from</label>
+            <input class="filter-input" id="start_date" name="start_date" type="date" value="{{ start_date }}">
+        </div>
+
+        <div class="filter-field">
+            <label for="end_date">Period to</label>
+            <input class="filter-input" id="end_date" name="end_date" type="date" value="{{ end_date }}">
+        </div>
+
+        <div class="filter-actions">
+            <button class="filter-button" type="submit">Apply filters</button>
+            <a class="clear-filters" href="{{ url_for('psur.psur_list') }}">Clear filters</a>
+        </div>
+    </form>
+</section>
+
+<section class="psur-register">
+    <div class="register-toolbar">
+        <h3>All PSUR records</h3>
+        <span>{{ reports|length }} shown · latest reporting periods first</span>
+    </div>
+
+    {% if reports %}
+        <div class="psur-table-wrap" role="region" aria-label="Periodic safety reports" tabindex="0">
+        <table class="psur-table">
+            <thead>
+                <tr>
+                    <th scope="col">PSUR ID</th>
+                    <th scope="col">Product</th>
+                    <th scope="col">Reporting period</th>
+                    <th scope="col">Data lock point</th>
+                    <th scope="col">Prepared by</th>
+                    <th scope="col">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for report in reports %}
+                    <tr>
+                        <td class="psur-number">
+                            <a href="{{ url_for('psur.psur_detail', psur_id=report.psur_id) }}">
+                                {{ report.report_number }}
+                            </a>
+                        </td>
+                        <td class="product-name">{{ report.product_name }}</td>
+                        <td class="period-cell">
+                            {{ report.reporting_period_start.strftime("%d %b %Y") }}
+                            to
+                            {{ report.reporting_period_end.strftime("%d %b %Y") }}
+                        </td>
+                        <td>{{ report.data_lock_point.strftime("%d %b %Y") }}</td>
+                        <td>{{ report.prepared_by or "Not recorded" }}</td>
+                        <td><span class="status-pill status-{{ report.status|lower|replace(' ', '-') }}">{{ report.status }}</span></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-icon" aria-hidden="true">+</div>
+            {% if selected_product or selected_status or start_date or end_date %}
+                <h3>No matching PSUR records</h3>
+                <p>Try changing or clearing one or more filters.</p>
+                <a class="empty-clear-link" href="{{ url_for('psur.psur_list') }}">Clear all filters</a>
+            {% else %}
+                <h3>No PSUR records yet</h3>
+                <p>Create the first PSUR record to start period and report management.</p>
+            {% endif %}
+        </div>
+    {% endif %}
+</section>
+</section>
+{% endblock %}

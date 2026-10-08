@@ -1,0 +1,402 @@
+/* APDL remaining pages refresh: start */
+@media screen {
+.content .summary-header h1 {color: #18342f;}
+.content .summary-header p {color: #71817c;}
+.content .back-link {color: #0d6652;}
+.content .summary-card {border: 1px solid #dce8e2;}
+.content .summary-card-header {border-bottom: 1px solid #e8efea;}
+.content .summary-card-header a {color: #147d64;}
+.content .status-row {border-bottom: 1px solid #e8efea;}
+.content .status-total {background: #e5f2ed;color: #0d6652;}
+.content .back-link {color: #147d64;}
+.content .eyebrow {color: #147d64;}
+.content .reporting-header h2 {color: #18342f;}
+.content .reporting-header p {color: #71817c;}
+.content .export-button.word {background: #0d6652;}
+.content .export-button.csv {background: #147d64;}
+.content .filter-card, .content .table-card {border: 1px solid #dce8e2;}
+.content .input {border: 1px solid #cfe1d6;}
+.content .input:focus {border-color: #70ad94;box-shadow: 0 0 0 3px #e5f2ed;}
+.content .button {background: #147d64;}
+.content .record-count {color: #147d64;}
+.content .records-table td {border-top: 1px solid #e8efea;}
+.content .status-pill {background: #e5f2ed;color: #0d6652;}
+.content .attachment-header h1 {color: #18342f;}
+.content .attachment-header p {color: #71817c;}
+.content .upload-button {background: #147d64;}
+.content .attachment-heading {border-bottom: 1px solid #e8efea;}
+.content .attachment-row {border-bottom: 1px solid #e8efea;}
+.content .download-link {color: #0d6652;}
+.content .password-card {border: 1px solid #dce8e2;}
+.content .password-heading {border-bottom: 1px solid #e8efea;}
+.content .password-heading h1 {color: #18342f;}
+.content .password-heading p {color: #71817c;}
+.content .field input {border: 1px solid #cfe1d6;}
+.content .field input:focus {border-color: #70ad94;box-shadow: 0 0 0 3px #e5f2ed;}
+.content .save-button {background: #147d64;box-shadow: 0 7px 15px rgba(20, 125, 100, 0.2);}
+.content .signal-kicker {color: #147d64;}
+.content .signal-header h1 {color: #18342f;}
+.content .signal-header p {color: #71817c;}
+.content .section-number {background: #e5f2ed;}
+.content .field input:focus, .content .field select:focus, .content .field textarea:focus {box-shadow: 0 0 0 3px rgba(20, 125, 100, 0.12);}
+.content .save-button {background: #147d64;box-shadow: 0 8px 16px rgba(20, 125, 100, 0.22);}
+.content .guide-title {background: #f4f9f6;}
+.content .notification-panel {border:1px solid #dce8e2;}
+.content .notification-header {border-bottom:1px solid #e8efea;}
+.content .notification-header h2 {color:#18342f;}
+.content .notification-header p {color:#71817c;}
+.content .notification-item {border-top:1px solid #e8efea;}
+.content .signals-header h2 {color:#18342f;}
+.content .signals-header p {color:#71817c;}
+.content .new-signal-button {background:#147d64;box-shadow:0 7px 15px rgba(20, 125, 100,.2);}
+.content .signal-filter {border:1px solid #dce8e2;}
+.content .filter-input {border:1px solid #cfe1d6;}
+.content .filter-button {background:#147d64;}
+.content .summary-chip strong {color:#0d6652;}
+.content .signal-register {border:1px solid #dce8e2;}
+.content .register-toolbar {border-bottom:1px solid #e8efea;}
+.content .signal-table td {border-top:1px solid #e8efea;}
+.content .status-pill {background:#e5f2ed;color:#0d6652;}
+.content .empty-icon {background:#e5f2ed;color:#147d64;}
+.content .signal-header p {color:#71817c;}
+.content .card-heading {border-bottom:1px solid #e8efea;}
+.content .back-link, .content .secondary-link {color:#0d6652;}
+.content .home-header h2 {color:#18342f;}
+.content .home-header p {color:#71817c;}
+.content .summary-chip {background:#f4f9f6;}
+.content .start-button {background:#147d64;box-shadow:0 7px 15px rgba(20, 125, 100,.2);}
+.content .preview-button {background:#0d6652;}
+.content .category-button {color:#0d6652;}
+.content .category-button.active {border-color:#147d64;background:#e5f2ed;color:#244a3d;}
+.content .section-group-heading {border-bottom:1px solid #e8efea;}
+.content .section-group-heading p {color:#71817c;}
+.content .section-row {border-bottom:1px solid #e8efea;}
+.content .section-row:hover {background:#f4f9f6;}
+.content .open-label {color:#0d6652;}
+.content .page-header h2 {color:#18342f;}
+.content .page-header p {color:#71817c;}
+.content .psur-label {background:#e5f2ed;color:#237354;}
+.content .progress-item {color:#0d6652;background:#f0f7f3;}
+.content .progress-item span {background:#147d64;}
+.content .section {border:1px solid #dce8e2;}
+.content .section-number {background:#e5f2ed;color:#237354;}
+.content .section-title h3 {color:#18342f;}
+.content .input {border:1px solid #cfe1d6;}
+.content .input:focus {border-color:#70ad94;box-shadow:0 0 0 3px #e5f2ed;}
+.content .primary {background:#147d64;box-shadow:0 7px 15px rgba(20, 125, 100,.2);}
+.content .guide {border:1px solid #dce8e2;}
+.content .guide-heading {background:#f4f9f6;color:#244a3d;}
+.content .guide-item {border-bottom:1px solid #e8efea;}
+.content .dot {background:#147d64;}
+.content .back-link {color:#147d64;}
+.content .psur-detail-header h2 {color:#18342f;}
+.content .psur-detail-header p {color:#71817c;}
+.content .detail-card {border:1px solid #dce8e2;}
+.content .detail-card-heading {border-bottom:1px solid #e8efea;}
+.content .detail-card-heading span {background:#e5f2ed;color:#237354;}
+.content .review-card {border:1px solid #dce8e2;}
+.content .review-heading {background:#f4f9f6;color:#244a3d;}
+.content .save-button {background:#147d64;box-shadow:0 7px 15px rgba(20, 125, 100,.2);}
+.content .psur-header h2 {color: #18342f;}
+.content .psur-header p {color: #71817c;}
+.content .new-psur-button {background: #147d64;box-shadow: 0 7px 15px rgba(20, 125, 100, 0.2);}
+.content .summary-chip strong {color: #0d6652;}
+.content .psur-register {border: 1px solid #dce8e2;}
+.content .register-toolbar {border-bottom: 1px solid #e8efea;}
+.content .psur-table td {border-top: 1px solid #e8efea;}
+.content .empty-icon {background: #e5f2ed;color: #147d64;}
+.content .psur-filter {border:1px solid #dce8e2;}
+.content .filter-button {background:#0d6652;}
+.content .sections-header h2 {color:#18342f;}
+.content .sections-header p {color:#71817c;}
+.content .section-card {border:1px solid #dce8e2;}
+.content .saved-section {border-bottom:1px solid #e8efea;}
+.content .close-link, .content .previous-link {color:#0d6652;}
+.content .authoring-header h2 {color:#18342f;}
+.content .authoring-header p {color:#71817c;}
+.content .progress-card {border:1px solid #d3e8d9;background:#f4f9f6;}
+.content .progress-track span {background:#147d64;}
+.content .section-prompt {border-bottom:1px solid #e8efea;background:#f0f7f3;}
+.content .section-number {color:#147d64;}
+.content .narrative-input:focus {border-color:#70ad94;box-shadow:0 0 0 3px #e5f2ed;}
+.content .continue-button {background:#147d64;box-shadow:0 7px 15px rgba(20, 125, 100,.2);}
+.content .ai-assistant {background:#f4f9f6;}
+.content .ai-assistant h4 {color:#244a3d;}
+.content .ai-button {background:#0d6652;}
+.content .proposal-card h4 {color:#244a3d;}
+.content .complaint-kicker {color: #147d64;}
+.content .complaint-header h1 {color: #18342f;}
+.content .complaint-header p {color: #71817c;}
+.content .detail-header h1 {color: #18342f;}
+.content .detail-header p {color: #71817c;}
+.content .status-pill {background: #e5f2ed;}
+.content .review-heading, .content .status-heading {background: #f4f9f6;}
+.content .complaints-header h2 {color:#18342f;}
+.content .complaints-header p {color:#71817c;}
+.content .new-complaint-button {background:#147d64;box-shadow:0 7px 15px rgba(20, 125, 100,.2);}
+.content .complaint-filter {border:1px solid #dce8e2;}
+.content .complaint-register {border:1px solid #dce8e2;}
+.content .complaint-table td {border-top:1px solid #e8efea;}
+.content .back-link {color:#0d6652;}
+.content .assessment-header h2 {color:#18342f;}
+.content .assessment-header p {color:#71817c;}
+.content .generate-button {background:#147d64;box-shadow:0 7px 15px rgba(20, 125, 100,.2);}
+.content .report-card {border:1px solid #dce8e2;}
+.content .report-heading {border-bottom:1px solid #e8efea;}
+.content .report-status {background:#e5f2ed;color:#0d6652;}
+.content .report-meta {border-bottom:1px solid #e8efea;color:#71817c;}
+.content .empty-report {color:#71817c;}
+.content .generation-icon {background: #e5f2ed;color: #237354;}
+.content .stage-box {background: #f4f9f6;}
+.content .progress-track {background: #e5f2ed;}
+.content .progress-track span {background: #147d64;}
+.content .case-top h2 {color: #18342f;}
+.content .badge-status {background: #e5f2ed;color: #0d6652;}
+.content .detail-section {border: 1px solid #dce8e2;}
+.content .section-title {border-bottom: 1px solid #e8efea;}
+.content .section-icon {background: #e5f2ed;}
+.content .product-card {border: 1px solid #dce8e2;}
+.content .side-panel {border: 1px solid #dce8e2;}
+.content .side-heading {background: #f4f9f6;color: #244a3d;}
+.content .timeline-item::before {background: #147d64;box-shadow: 0 0 0 4px #e5f2ed;}
+.content .case-meta {border-top: 1px solid #e8efea;}
+.content .cases-header h2 {color: #18342f;}
+.content .cases-header p {color: #71817c;}
+.content .new-case-button {background: #147d64;box-shadow: 0 7px 15px rgba(20, 125, 100, 0.2);}
+.content .case-filter {border: 1px solid #dce8e2;}
+.content .filter-input {border: 1px solid #cfe1d6;}
+.content .filter-button {background: #147d64;}
+.content .case-register {border: 1px solid #dce8e2;}
+.content .case-table td {border-top: 1px solid #e8efea;}
+.content .detail-header h2 {color: #18342f;}
+.content .record-count {border: 1px solid #d3e8d9;background: #f4f9f6;color: #0d6652;}
+.content .filter-input:focus {border-color: #70ad94;box-shadow: 0 0 0 3px #e5f2ed;}
+.content .register-card {border: 1px solid #dce8e2;}
+.content .register-heading {border-bottom: 1px solid #e8efea;}
+.content .record-link:hover {color: #147d64;}
+.content .empty-state {color: #71817c;}
+.content .rsi-kicker {color: #147d64;}
+.content .rsi-header h1 {color: #18342f;}
+.content .rsi-header p {color: #71817c;}
+.content .close-rsi-button {color:#0d6652;}
+.content .new-rsi-button {background: #147d64;box-shadow: 0 7px 15px rgba(20, 125, 100, 0.2);}
+.content .rsi-note {border: 1px solid #d3e8d9;background: #f4f9f6;}
+.content .rsi-register {border: 1px solid #dce8e2;}
+.content .rsi-register-heading {border-bottom: 1px solid #e8efea;}
+.content .rsi-table td {border-top: 1px solid #e8efea;}
+.content .document-link, .content .source-link {color: #0d6652;}
+.content .rsi-form-header h1 {color: #18342f;}
+.content .rsi-form-header p {color: #71817c;}
+.content .back-link, .content .cancel-link {color: #0d6652;}
+.content .rsi-form-card, .content .guide-card {border: 1px solid #dce8e2;}
+.content .form-heading {border-bottom: 1px solid #e8efea;}
+.content .form-heading span {background: #e5f2ed;color: #237354;}
+.content .field input, .content .field select {border: 1px solid #cfe1d6;}
+.content .field input:focus, .content .field select:focus {border-color: #70ad94;box-shadow: 0 0 0 3px #e5f2ed;}
+.content .guide-card h2 {background: #f4f9f6;color: #244a3d;}
+.content .guide-item {border-bottom: 1px solid #e8efea;}
+.content .reaction-header h1 {color: #18342f;}
+.content .reaction-header p {color: #71817c;}
+.content .reaction-register {border: 1px solid #dce8e2;}
+.content .reaction-register-heading {border-bottom: 1px solid #e8efea;}
+.content .reaction-table td {border-top: 1px solid #e8efea;}
+.content .assessment-kicker {color: #147d64;}
+.content .assessment-header h1 {color: #18342f;}
+.content .assessment-header p {color: #71817c;}
+.content .assessment-card, .content .guide-card {border: 1px solid #dce8e2;}
+.content .case-context {border: 1px solid #d3e8d9;background: #f4f9f6;}
+.content .field input, .content .field select, .content .field textarea {border: 1px solid #cfe1d6;}
+.content .field input:focus, .content .field select:focus, .content .field textarea:focus {border-color: #70ad94;box-shadow: 0 0 0 3px #e5f2ed;}
+.content .user-form-header h1 {color: #18342f;}
+.content .user-form-header p {color: #71817c;}
+.content .user-form-card, .content .access-guide {border: 1px solid #dce8e2;}
+.content .access-guide h2 {background: #f4f9f6;color: #244a3d;}
+.content .admin-kicker {color: #147d64;}
+.content .admin-header h1 {color: #18342f;}
+.content .admin-header p {color: #71817c;}
+.content .new-user-button {background: #147d64;box-shadow: 0 7px 15px rgba(20, 125, 100, 0.2);}
+.content .summary-chip {border: 1px solid #d3e8d9;}
+.content .user-register {border: 1px solid #dce8e2;}
+.content .user-table td {border-top: 1px solid #e8efea;}
+.content .audit-header h1 {color: #18342f;}
+.content .audit-header p {color: #71817c;}
+.content .audit-register {border: 1px solid #dce8e2;}
+.content .audit-register-header {border-bottom: 1px solid #e8efea;}
+.content .audit-table td {border-top: 1px solid #e8efea;}
+.content .record-tag {background: #e5f2ed;color: #0d6652;}
+
+.content :is(.admin-header, .audit-header, .user-form-header, .attachment-header,
+.password-heading, .rsi-header, .rsi-form-header, .reaction-header,
+.assessment-header, .psur-detail-header, .sections-header, .home-header,
+.authoring-header, .preview-header, .summary-header, .reporting-header,
+.detail-header) {
+    padding: 24px;
+    border: 1px solid #22584c;
+    border-radius: 16px;
+    background: linear-gradient(116deg, #123b35, #1d5b4c 70%, #286d58);
+    box-shadow: 0 10px 24px rgba(20, 65, 53, .12);
+    color: #fff;
+    gap: 18px;
+    flex-wrap: wrap;
+}
+.content :is(.admin-header, .audit-header, .user-form-header, .attachment-header,
+.password-heading, .rsi-header, .rsi-form-header, .reaction-header,
+.assessment-header, .psur-detail-header, .sections-header, .home-header,
+.authoring-header, .preview-header, .summary-header, .reporting-header,
+.detail-header) :is(h1, h2) {
+    color: #fff;
+    font-size: clamp(23px, 3vw, 30px);
+    letter-spacing: -.5px;
+    line-height: 1.25;
+}
+.content :is(.admin-header, .audit-header, .user-form-header, .attachment-header,
+.password-heading, .rsi-header, .rsi-form-header, .reaction-header,
+.assessment-header, .psur-detail-header, .sections-header, .home-header,
+.authoring-header, .preview-header, .summary-header, .reporting-header,
+.detail-header) :is(p, .back-link, .close-link, .eyebrow, .admin-kicker, .rsi-kicker) {
+    color: #d3e6dd;
+}
+.content :is(.new-user-button, .new-rsi-button, .save-button, .submit-button,
+.upload-button, .generate-button, .continue-button, .ai-button, .accept-button, .download-button, .download-action,
+.filter-button, .primary-button, .button.primary, .export-button.word) {
+    background: #147d64;
+    color: #fff;
+    border: 1px solid #147d64;
+    border-radius: 9px;
+    box-shadow: 0 5px 12px rgba(20, 125, 100, .14);
+    font-weight: 750;
+    text-decoration: none;
+    transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+.content :is(.new-user-button, .new-rsi-button, .save-button, .submit-button,
+.upload-button, .generate-button, .continue-button, .ai-button, .accept-button, .download-button, .download-action,
+.filter-button, .primary-button, .button.primary, .export-button.word):hover {
+    background: #0d6652;
+    box-shadow: 0 7px 16px rgba(20, 125, 100, .2);
+}
+.content :is(.back-link, .close-link, .record-link, .edit-link, .download-link,
+.close-rsi-button, .category-button, .edit-action, .export-button.csv) {
+    color: #0d6652;
+}
+.content :is(.close-rsi-button, .category-button, .edit-action, .export-button.csv) {
+    border-color: #cfe1d6;
+    background: #f4f9f6;
+    border-radius: 9px;
+}
+.content .category-button.active {
+    background: #147d64;
+    border-color: #147d64;
+    color: #fff;
+}
+.content :is(.detail-card, .review-card, .section-card, .overview-card,
+.progress-card, .report-card, .generation-card, .assessment-card,
+.user-form-card, .rsi-form-card, .upload-card, .attachment-card,
+.summary-card, .preview-section, .control-card, .password-card,
+.filter-card, .case-context) {
+    border-color: #dce8e2;
+    border-radius: 16px;
+    background-color: #fff;
+    box-shadow: 0 7px 20px rgba(29, 61, 49, .04);
+}
+.content :is(.user-register, .audit-register, .rsi-register, .reaction-register,
+.register-card, .notification-panel) {
+    border-color: #dce8e2;
+    border-radius: 16px;
+    background-color: #fff;
+    box-shadow: 0 7px 20px rgba(29, 61, 49, .04);
+    overflow-x: auto;
+}
+.content :is(.detail-card-heading, .review-heading, .form-heading,
+.register-heading, .register-header, .audit-register-header,
+.rsi-register-heading, .reaction-register-heading, .attachment-heading,
+.summary-card-header, .report-heading, .card-heading, .preview-section-heading) {
+    color: #244a3d;
+    background-color: #f4f9f6;
+    border-color: #dce8e2;
+}
+.content :is(.detail-card-heading, .form-heading, .card-heading,
+.register-heading, .rsi-register-heading, .report-heading) :is(h2, h3) {
+    color: #244a3d;
+}
+.content :is(.detail-card-heading, .form-heading) > span {
+    background: #e5f2ed;
+    color: #237354;
+}
+.content :is(.input, .filter-input, .file-input, .password-input),
+.content :is(.authoring-page, .rsi-form-page, .user-form-page,
+.assessment-page, .password-page) :is(input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=submit]), select, textarea) {
+    border-color: #cfe1d6;
+    background-color: #fff;
+    color: #18342f;
+    border-radius: 9px;
+    font-family: inherit;
+}
+.content :is(input, select, textarea):focus-visible {
+    outline: 2px solid #147d64;
+    outline-offset: 2px;
+    border-color: #147d64;
+    box-shadow: 0 0 0 3px rgba(20, 125, 100, .1);
+}
+.content :is(a, button):focus-visible {
+    outline: 3px solid #65b796;
+    outline-offset: 3px;
+}
+.content :is(.status-pill, .role-label, .report-status, .record-count,
+.summary-chip, .record-tag, .verified-tag, .section-number, .psur-label) {
+    border-color: #d3e8d9;
+    background: #e5f2ed;
+    color: #237354;
+}
+.content .summary-chip strong { color: #0d6652; }
+.content :is(.summary-row, .progress-summary, .preview-summary) {
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.content :is(.rsi-note, .review-note, .section-prompt, .note-box, .stage-box) {
+    border-color: #d3e8d9;
+    background-color: #f0f7f3;
+    color: #49685a;
+    border-radius: 11px;
+}
+.content :is(.user-table, .audit-table, .rsi-table, .reaction-table, .records-table) th {
+    background: #f4f9f6;
+    color: #60796d;
+    border-color: #dce8e2;
+}
+.content :is(.user-table, .audit-table, .rsi-table, .reaction-table, .records-table) td {
+    color: #355447;
+    border-color: #e8efea;
+}
+.content :is(.user-table, .audit-table, .rsi-table, .reaction-table, .records-table) tbody tr:hover {
+    background: #f8fbf9;
+}
+.content :is(.user-name, .product-name, .reaction-term, .detail-item strong) {
+    color: #244a3d;
+}
+@media (max-width: 700px) {
+    .content :is(.admin-header, .audit-header, .user-form-header, .attachment-header,
+    .rsi-header, .rsi-form-header, .reaction-header, .assessment-header,
+    .psur-detail-header, .sections-header, .home-header, .authoring-header,
+    .preview-header, .summary-header, .reporting-header, .detail-header) {
+        padding: 20px;
+    }
+    .content :is(.rsi-header-actions, .preview-actions, .export-actions) {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .content :is(.detail-page, .rsi-page, .admin-page) .filter-card {
+        grid-template-columns: 1fr;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .content :is(a, button) { transition: none; }
+}
+
+.content .progress-item { background: #f0f7f3; color: #237354; }
+.content .progress-item span,
+.content .progress-track > div { background: #147d64; color: #fff; }
+.content .guide-heading { background: #f4f9f6; color: #244a3d; }
+.content .dot { background: #147d64; }
+.content .section-title { border-color: #dce8e2; background: #f4f9f6; }
+}
+/* APDL remaining pages refresh: end */

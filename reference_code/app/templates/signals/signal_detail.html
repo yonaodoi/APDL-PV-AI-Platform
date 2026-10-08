@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+
+{% block title %}{{ signal.signal_number }} | APDL PV{% endblock %}
+{% block page_title %}Safety Signal{% endblock %}
+
+{% block content %}
+<section class="signal-detail-page">
+<style>
+    .signal-header {
+        display:flex;
+        justify-content:space-between;
+        gap:20px;
+        align-items:flex-start;
+        margin-bottom:24px;
+    }
+
+    .back-link {
+        display:inline-block;
+        margin-bottom:10px;
+        color:#34765e;
+        font-size:13px;
+        font-weight:bold;
+        text-decoration:none;
+    }
+
+    .signal-header h2 {
+        margin:0 0 7px;
+        color:#183d34;
+        font-size:28px;
+    }
+
+    .signal-header p {
+        margin:0;
+        color:#49685a;
+        font-size:14px;
+    }
+
+    .signal-badges {
+        display:flex;
+        gap:8px;
+        flex-wrap:wrap;
+    }
+
+    .status-pill,
+    .priority-pill {
+        display:inline-block;
+        padding:7px 11px;
+        border-radius:20px;
+        font-size:12px;
+        font-weight:bold;
+        white-space:nowrap;
+    }
+
+    .status-pill {
+        background:#e5f2e9;
+        color:#28664f;
+    }
+
+    .priority-pill {
+        background:#e5f2ed;
+        color:#49685a;
+    }
+
+    .priority-high {
+        background:#fff0e8;
+        color:#a44d38;
+    }
+
+    .signal-layout {
+        display:grid;
+        grid-template-columns:minmax(0, 1fr) 310px;
+        gap:22px;
+        align-items:start;
+    }
+
+    .signal-card {
+        margin-bottom:20px;
+        overflow:hidden;
+        border:1px solid #dce8e1;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(24, 52, 47,.025);
+    }
+
+    .card-heading {
+        display:flex;
+        gap:12px;
+        align-items:center;
+        padding:16px 19px;
+        border-bottom:1px solid #e5f2ed;
+    }
+
+    .card-heading span {
+        width:27px;
+        height:27px;
+        display:grid;
+        place-items:center;
+        border-radius:8px;
+        background:#e5f2e9;
+        color:#237354;
+        font-size:12px;
+        font-weight:bold;
+    }
+
+    .card-heading h3 {
+        margin:0;
+        color:#18342f;
+        font-size:15px;
+    }
+
+    .detail-grid {
+        display:grid;
+        grid-template-columns:repeat(3, minmax(0, 1fr));
+        gap:20px;
+        padding:20px;
+    }
+
+    .detail-item span,
+    .note-label {
+        display:block;
+        margin-bottom:6px;
+        color:#71817c;
+        font-size:10px;
+        font-weight:bold;
+        letter-spacing:.6px;
+    }
+
+    .detail-item strong {
+        color:#18342f;
+        font-size:13px;
+        line-height:1.4;
+    }
+
+    .note-box {
+        margin:0 20px 20px;
+        padding:15px;
+        border-radius:10px;
+        background:#f4f8f4;
+        color:#49685a;
+        font-size:13px;
+        line-height:1.55;
+        white-space:pre-wrap;
+    }
+
+    .evaluation-card {
+        overflow:hidden;
+        border:1px solid #dce8e1;
+        border-radius:14px;
+        background:white;
+        box-shadow:0 5px 12px rgba(24, 52, 47,.025);
+    }
+
+    .evaluation-heading {
+        padding:17px 18px;
+        background:#eef6f0;
+        color:#244a3d;
+        font-size:14px;
+        font-weight:bold;
+    }
+
+    .evaluation-form {
+        padding:18px;
+    }
+
+    .field {
+        margin-bottom:16px;
+    }
+
+    .field label {
+        display:block;
+        margin-bottom:7px;
+        color:#18342f;
+        font-size:12px;
+        font-weight:bold;
+    }
+
+    .input {
+        width:100%;
+        box-sizing:border-box;
+        padding:10px 11px;
+        border:1px solid #d5e2d9;
+        border-radius:8px;
+        background:#ffffff;
+        color:#18342f;
+        font:inherit;
+        font-size:14px;
+    }
+
+    textarea.input {
+        min-height:105px;
+        resize:vertical;
+    }
+
+    .input:focus {
+        outline:none;
+        border-color:#4b9978;
+        box-shadow:0 0 0 3px rgba(20,125,100,.12);
+    }
+
+    .save-button {
+        width:100%;
+        padding:12px;
+        border:0;
+        border-radius:9px;
+        background:#147d64;
+        color:white;
+        font-size:14px;
+        font-weight:bold;
+        cursor:pointer;
+        box-shadow:0 7px 15px rgba(20,125,100,.16);
+    }
+
+    .signal-guide {
+        margin-top:18px;
+        padding:15px;
+        border-radius:10px;
+        background:#fcf7ee;
+        color:#876940;
+        font-size:12px;
+        line-height:1.5;
+    }
+
+    @media (max-width:1050px) {
+        .signal-detail-page .signal-layout { grid-template-columns:1fr; }
+    }
+
+    @media (max-width:700px) {
+        .signal-detail-page .signal-header { display:block; }
+        .signal-detail-page .signal-badges { margin-top:14px; }
+        .signal-detail-page .detail-grid { grid-template-columns:1fr; }
+    }
+</style>
+
+<header class="signal-header">
+    <div>
+        <a class="back-link" href="{{ url_for('signals.signal_list') }}">Back to safety signals</a>
+        <h2>{{ signal.signal_number }}</h2>
+        <p>Detected {{ signal.date_detected.strftime("%d %B %Y") }} for {{ signal.product_name }}.</p>
+    </div>
+
+    <div class="signal-badges">
+        <span class="status-pill">{{ signal.status }}</span>
+        <span class="priority-pill {% if signal.priority in ('High', 'Critical') %}priority-high{% endif %}">
+            {{ signal.priority }}
+        </span>
+    </div>
+</header>
+
+<div class="signal-layout">
+    <div>
+        <section class="signal-card">
+            <div class="card-heading">
+                <span>1</span>
+                <h3>Signal identification</h3>
+            </div>
+
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span>DATE DETECTED</span>
+                    <strong>{{ signal.date_detected.strftime("%d %b %Y") }}</strong>
+                </div>
+
+                <div class="detail-item">
+                    <span>PRODUCT</span>
+                    <strong>{{ signal.product_name }}</strong>
+                </div>
+
+                <div class="detail-item">
+                    <span>SAFETY CONCERN</span>
+                    <strong>{{ signal.event_term }}</strong>
+                </div>
+
+                <div class="detail-item">
+                    <span>SOURCE</span>
+                    <strong>{{ signal.signal_source }}</strong>
+                </div>
+
+                <div class="detail-item">
+                    <span>SIGNAL OWNER</span>
+                    <strong>{{ signal.owner_name or "Not assigned" }}</strong>
+                </div>
+
+                <div class="detail-item">
+                    <span>CREATED BY</span>
+                    <strong>{{ signal.created_by_name or "System user" }}</strong>
+                </div>
+            </div>
+
+            <div class="note-box">
+                <span class="note-label">SIGNAL DESCRIPTION</span>
+                {{ signal.signal_description }}
+            </div>
+        </section>
+
+        <section class="signal-card">
+            <div class="card-heading">
+                <span>2</span>
+                <h3>Signal assessment and decision</h3>
+            </div>
+
+            <div class="note-box">
+                <span class="note-label">ASSESSMENT SUMMARY</span>
+                {{ signal.assessment_summary or "Assessment has not been recorded." }}
+            </div>
+
+            <div class="note-box">
+                <span class="note-label">DECISION AND ACTION</span>
+                {{ signal.decision_summary or "No decision or action has been recorded." }}
+            </div>
+        </section>
+    </div>
+
+    <aside>
+        <section class="evaluation-card">
+            <div class="evaluation-heading">Signal evaluation</div>
+
+            <form method="post" action="{{ url_for('signals.draft_signal_assessment', signal_id=signal.signal_id) }}" class="evaluation-form ai-draft-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <p class="ai-draft-guidance">
+                    Generate a local AI draft from the signal record and linked cases. It will not be saved or decide signal validity, priority, causality, or action.
+                </p>
+                <button type="submit" class="save-button ai-draft-button">Generate AI review draft</button>
+            </form>
+
+            {% if ai_assistance %}
+                <section style="margin:0 18px 18px; padding:14px; border:1px solid #ead6a8; border-radius:9px; background:#fff9ed; color:#76521c;">
+                    <strong style="font-size:12px;">AI-generated draft — verify before use</strong>
+                    <p style="margin:6px 0 10px; font-size:12px; line-height:1.5;">This is a suggested factual summary, not an assessment or decision. Copy and edit it only if supported by the evidence.</p>
+                    <textarea readonly aria-label="AI-generated draft assessment" class="input" rows="7">{{ ai_assistance.draft_assessment }}</textarea>
+                    {% if ai_assistance.evidence_gaps %}
+                        <p style="margin:10px 0 5px; font-size:12px;"><strong>Possible evidence gaps to verify:</strong></p>
+                        <ul style="margin:0; padding-left:20px; font-size:12px; line-height:1.5;">
+                            {% for gap in ai_assistance.evidence_gaps %}
+                                <li>{{ gap }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </section>
+            {% endif %}
+
+            <form method="post" action="{{ url_for('signals.evaluate_signal', signal_id=signal.signal_id) }}" class="evaluation-form">
+                {{ evaluation_form.hidden_tag() }}
+
+                <div class="field">
+                    {{ evaluation_form.status.label }}
+                    {{ evaluation_form.status(class_="input") }}
+                </div>
+
+                <div class="field">
+                    {{ evaluation_form.owner_name.label }}
+                    {{ evaluation_form.owner_name(class_="input", placeholder="Person responsible") }}
+                </div>
+
+                <div class="field">
+                    {{ evaluation_form.assessment_summary.label }}
+                    {{ evaluation_form.assessment_summary(class_="input", rows="6", placeholder="Record the medical and data assessment.") }}
+                </div>
+
+                <div class="field">
+                    {{ evaluation_form.decision_summary.label }}
+                    {{ evaluation_form.decision_summary(class_="input", rows="6", placeholder="Record the decision, action or monitoring plan.") }}
+                </div>
+
+                {{ evaluation_form.submit(class_="save-button") }}
+            </form>
+        </section>
+
+        <div class="signal-guide" role="note">
+            Record decisions using verified safety evidence. Any validated signal should be assessed for regulatory, labelling and risk-minimisation action.
+        </div>
+    </aside>
+</div>
+
+{% if supporting_cases %}
+<section class="supporting-cases-card" aria-labelledby="supporting-cases-title">
+    <div class="supporting-cases-heading">
+        <h3 id="supporting-cases-title">Supporting ADR cases</h3>
+        <p>
+            ADR cases linked by the automated signal-screening rule. Review before validating this potential signal.
+        </p>
+    </div>
+
+    <div class="supporting-cases-table-wrap" role="region" aria-label="Supporting ADR cases" tabindex="0">
+    <table class="supporting-cases-table">
+        <thead>
+            <tr>
+                <th scope="col">Case number</th>
+                <th scope="col">Country</th>
+                <th scope="col">Received</th>
+                <th scope="col">Event</th>
+                <th scope="col">Priority</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for supporting_case in supporting_cases %}
+            <tr>
+                <td>
+                    <a class="supporting-case-link" href="{{ url_for('cases.case_detail', case_id=supporting_case.case_id) }}">
+                        {{ supporting_case.case_number }}
+                    </a>
+                </td>
+                <td>
+                    {{ supporting_case.country_name or "Not recorded" }}
+                </td>
+                <td>
+                    {{ supporting_case.received_date.strftime("%d %b %Y") }}
+                </td>
+                <td>
+                    {{ supporting_case.event_description }}
+                </td>
+                <td>
+                    {% if supporting_case.seriousness %}
+                        <span class="supporting-case-serious">Serious</span>
+                    {% else %}
+                        Routine
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</section>
+{% endif %}
+</section>
+{% endblock %}

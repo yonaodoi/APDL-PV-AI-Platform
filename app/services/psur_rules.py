@@ -9,11 +9,14 @@ def is_locked(report):
     return (report or {}).get("status") == LOCKED_STATUS
 
 
-def can_approve(role):
-    return role in APPROVER_ROLES
+def can_approve(role, designated_qppv=False):
+    """QPPV / Deputy QPPV roles, or the user designated as QPPV."""
+    return bool(designated_qppv) or role in APPROVER_ROLES
 
 
-def validate_status_change(report, new_status, role, has_uncoded_terms=False):
+def validate_status_change(
+    report, new_status, role, has_uncoded_terms=False, designated_qppv=False
+):
     """Return error messages for a requested PSUR status change."""
     current = report.get("status")
     errors = []
@@ -25,12 +28,12 @@ def validate_status_change(report, new_status, role, has_uncoded_terms=False):
         )
         return errors
 
-    if current == LOCKED_STATUS and not can_approve(role):
-        errors.append("Only a QPPV or Deputy QPPV can reopen a finalised PSUR.")
+    if current == LOCKED_STATUS and not can_approve(role, designated_qppv):
+        errors.append("Only the QPPV or Deputy QPPV can reopen a finalised PSUR.")
 
-    if new_status in APPROVED_STATUSES and not can_approve(role):
+    if new_status in APPROVED_STATUSES and not can_approve(role, designated_qppv):
         errors.append(
-            "Only a QPPV or Deputy QPPV can approve or finalise a PSUR."
+            "Only the QPPV or Deputy QPPV can approve or finalise a PSUR."
         )
 
     if new_status == LOCKED_STATUS and current not in APPROVED_STATUSES:

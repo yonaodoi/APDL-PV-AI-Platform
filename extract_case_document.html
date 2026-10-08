@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Create ICSR from Document | APDL PV{% endblock %}
+{% block page_title %}ICSR document entry{% endblock %}
+{% block content %}
+<section class="quality-document-page">
+    <a class="quality-document-back" href="{{ url_for('cases.case_list') }}">
+        <span aria-hidden="true">←</span> Back to safety cases
+    </a>
+    <div class="quality-document-layout">
+        <section class="quality-document-main">
+            <p class="quality-document-eyebrow">SAFETY CASE / DOCUMENT ENTRY</p>
+            <h2>Create an ICSR from a document</h2>
+            <p class="quality-document-intro">
+                Upload a safety report to prepare an editable case draft.
+                Review the extracted details before saving the case.
+            </p>
+            <form method="post" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="quality-dropzone">
+                    <span class="quality-upload-icon" aria-hidden="true">↑</span>
+                    <label for="case_document">Choose a safety report</label>
+                    <input class="quality-file-input" id="case_document"
+                        name="case_document" type="file" accept=".pdf,.docx,.txt"
+                        aria-describedby="case-file-help" required>
+                    <p class="quality-file-help" id="case-file-help">
+                        PDF, DOCX or TXT · Up to 20 MB · Text-based documents only
+                    </p>
+                </div>
+                <button class="quality-extract-button" type="submit">
+                    Extract draft fields <span aria-hidden="true">→</span>
+                </button>
+            </form>
+            <div class="quality-document-note">
+                <span aria-hidden="true">i</span>
+                <div>
+                    <strong>Review before saving</strong>
+                    Check each suggested value against the original report.
+                    Complete missing details and correct uncertain information.
+                    Extraction does not save a case or replace its assessment.
+                </div>
+            </div>
+        </section>
+        <aside class="quality-document-aside">
+            <div>
+                <h3>What happens next</h3>
+                <div class="quality-document-step">
+                    <span>01</span>
+                    <div><strong>Upload the report</strong><p>Select a document containing the reported case information.</p></div>
+                </div>
+                <div class="quality-document-step">
+                    <span>02</span>
+                    <div><strong>Prepare a draft</strong><p>The local AI extracts stated facts into the case entry form.</p></div>
+                </div>
+                <div class="quality-document-step">
+                    <span>03</span>
+                    <div><strong>Review and save</strong><p>Verify the draft, complete missing fields and save the case.</p></div>
+                </div>
+            </div>
+            <div class="quality-document-privacy">
+                The document is processed locally and is not retained by this
+                extraction step. Scanned or image-only PDFs are not supported.
+            </div>
+        </aside>
+    </div>
+</section>
+{% endblock %}

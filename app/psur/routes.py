@@ -32,6 +32,14 @@ from app.services.psur_rules import (
 bp = Blueprint("psur", __name__, url_prefix="/psur")
 
 
+def _current_user_is_designated_qppv():
+    user = query_one(
+        "SELECT is_designated_qppv FROM pv.users WHERE user_id = %s",
+        (session.get("user_id"),),
+    )
+    return bool(user and user.get("is_designated_qppv"))
+
+
 def populate_psur_form(form, report):
     form.report_number.data = report["report_number"]
     form.serial_number.data = report["serial_number"]
@@ -483,7 +491,9 @@ def psur_detail(psur_id):
         tabulation=tabulation,
         history=history,
         locked=is_locked(report),
-        can_approve=can_approve(session.get("role")),
+        can_approve=can_approve(
+            session.get("role"), _current_user_is_designated_qppv()
+        ),
         submission=submission_status(report),
     )
 
@@ -569,7 +579,11 @@ def review_psur(psur_id):
             )
 
     errors = validate_status_change(
-        report, new_status, session.get("role"), has_uncoded
+        report,
+        new_status,
+        session.get("role"),
+        has_uncoded,
+        designated_qppv=_current_user_is_designated_qppv(),
     )
     if errors:
         for error in errors:

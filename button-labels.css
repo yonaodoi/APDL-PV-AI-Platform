@@ -1,0 +1,185 @@
+/* APDL WHITE GREEN BUTTON LABELS v1 */
+.app-shell :is(.accept-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.accept-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.action-button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button)) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.action-button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button)) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.ai-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.ai-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.analytics-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.analytics-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button)) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button)) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.case-detail-page .case-action-link.primary) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.case-detail-page .case-action-link.primary) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.case-detail-page .case-action-link.primary:hover) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.case-detail-page .case-action-link.primary:hover) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.case-list-page .filter-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.case-list-page .filter-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.case-list-page .filter-button:hover) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.case-list-page .filter-button:hover) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.case-list-page .new-case-button:not(.secondary-case-button)) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.case-list-page .new-case-button:not(.secondary-case-button)) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.case-list-page .new-case-button:not(.secondary-case-button):hover) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.case-list-page .new-case-button:not(.secondary-case-button):hover) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.case-list-page .report-actions a) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.case-list-page .report-actions a) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.case-list-page .report-actions a:hover) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.case-list-page .report-actions a:hover) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.case-pathway-navigation .pathway-next) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.case-pathway-navigation .pathway-next) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.case-pathway-step[aria-current=step]) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.case-pathway-step[aria-current=step]) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .ai-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .ai-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .btn-primary) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .btn-primary) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button)) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button)) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button).primary) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button).primary) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .case-action-link.primary) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .case-action-link.primary) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .case-pathway-step[aria-current="step"]) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .case-pathway-step[aria-current="step"]) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .category-button.active) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .category-button.active) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .continue-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .continue-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .export-button.csv) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .export-button.csv) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .export-button.word) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .export-button.word) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .filter-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .filter-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .generate-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .generate-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .new-case-button:not(.secondary-case-button)) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .new-case-button:not(.secondary-case-button)) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .new-complaint-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .new-complaint-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .new-psur-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .new-psur-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .new-rsi-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .new-rsi-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .new-signal-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .new-signal-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .new-user-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .new-user-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .pathway-next) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .pathway-next) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .preview-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .preview-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .primary-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .primary-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .save-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .save-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .start-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .start-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content .upload-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content .upload-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content :is(.admin-header, .audit-header, .user-form-header, .attachment-header,
+.password-heading, .rsi-header, .rsi-form-header, .reaction-header,
+.assessment-header, .psur-detail-header, .sections-header, .home-header,
+.authoring-header, .preview-header, .summary-header, .reporting-header,
+.detail-header)) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content :is(.admin-header, .audit-header, .user-form-header, .attachment-header,
+.password-heading, .rsi-header, .rsi-form-header, .reaction-header,
+.assessment-header, .psur-detail-header, .sections-header, .home-header,
+.authoring-header, .preview-header, .summary-header, .reporting-header,
+.detail-header)) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content :is(.new-user-button, .new-rsi-button, .save-button, .submit-button,
+.upload-button, .generate-button, .continue-button, .ai-button, .accept-button, .download-button, .download-action,
+.filter-button, .primary-button, .button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button).primary, .export-button.word)) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content :is(.new-user-button, .new-rsi-button, .save-button, .submit-button,
+.upload-button, .generate-button, .continue-button, .ai-button, .accept-button, .download-button, .download-action,
+.filter-button, .primary-button, .button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button).primary, .export-button.word)) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.content :is(.new-user-button, .new-rsi-button, .save-button, .submit-button,
+.upload-button, .generate-button, .continue-button, .ai-button, .accept-button, .download-button, .download-action,
+.filter-button, .primary-button, .button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button).primary, .export-button.word):hover) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.content :is(.new-user-button, .new-rsi-button, .save-button, .submit-button,
+.upload-button, .generate-button, .continue-button, .ai-button, .accept-button, .download-button, .download-action,
+.filter-button, .primary-button, .button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button).primary, .export-button.word):hover) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.continue-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.continue-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.download-action) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.download-action) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.download-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.download-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.edit-action) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.edit-action) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.export-button.csv) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.export-button.csv) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.export-button.word) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.export-button.word) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.filter-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.filter-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.generate-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.generate-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.intake-page .button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button).primary) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.intake-page .button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button).primary) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.new-case-button:not(.secondary-case-button)) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.new-case-button:not(.secondary-case-button)) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.new-complaint-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.new-complaint-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.new-psur-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.new-psur-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.new-rsi-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.new-rsi-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.new-signal-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.new-signal-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.new-user-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.new-user-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.preview-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.preview-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.product-quality-entry .save-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.product-quality-entry .save-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.product-quality-entry .save-button:hover) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.product-quality-entry .save-button:hover) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.psur-workspace-page .filter-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.psur-workspace-page .filter-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.psur-workspace-page .filter-button:hover) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.psur-workspace-page .filter-button:hover) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.psur-workspace-page .new-psur-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.psur-workspace-page .new-psur-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.psur-workspace-page .new-psur-button:hover) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.psur-workspace-page .new-psur-button:hover) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.quality-complaint-page .filter-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.quality-complaint-page .filter-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.quality-complaint-page .filter-button:hover) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.quality-complaint-page .filter-button:hover) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.quality-complaint-page .new-complaint-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.quality-complaint-page .new-complaint-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.quality-extract-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.quality-extract-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.quality-extract-button:hover) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.quality-extract-button:hover) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.quality-report-actions a:first-child) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.quality-report-actions a:first-child) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.reminder-ack-form button:hover) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.reminder-ack-form button:hover) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.review-queue-page .review-queue-actions a.primary) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.review-queue-page .review-queue-actions a.primary) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.safety-case-form-page .button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button).primary) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.safety-case-form-page .button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button).primary) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.safety-case-form-page .button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button).primary:hover) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.safety-case-form-page .button:not(.secondary):not(.light):not(.outline):not(.secondary-case-button).primary:hover) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.save-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.save-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.signal-detail-page .save-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.signal-detail-page .save-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.signal-detail-page .save-button:hover) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.signal-detail-page .save-button:hover) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.signal-workspace-page .filter-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.signal-workspace-page .filter-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.signal-workspace-page .filter-button:hover) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.signal-workspace-page .filter-button:hover) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.signal-workspace-page .new-signal-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.signal-workspace-page .new-signal-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.signal-workspace-page .new-signal-button:hover) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.signal-workspace-page .new-signal-button:hover) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.signal-workspace-page .signal-report-actions a:first-child) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.signal-workspace-page .signal-report-actions a:first-child) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.start-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.start-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+.app-shell :is(.upload-button) { color: #fff !important; -webkit-text-fill-color: #fff !important; text-decoration: none !important; }
+.app-shell :is(.upload-button) :is(span,strong,small,em,i,b,svg) { color: #fff !important; -webkit-text-fill-color: #fff !important; }

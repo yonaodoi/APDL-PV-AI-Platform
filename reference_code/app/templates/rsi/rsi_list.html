@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+
+{% block title %}Reference Safety Information | APDL PV{% endblock %}
+
+{% block page_title %}Reference Safety Information{% endblock %}
+
+{% block content %}
+<style>
+    .rsi-page {
+        max-width: 1150px;
+        margin: 0 auto;
+    }
+
+    .rsi-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-end;
+        margin-bottom: 24px;
+    }
+
+    .rsi-kicker {
+        margin: 0 0 8px;
+        color: #147d64;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 1px;
+    }
+
+    .rsi-header h1 {
+        margin: 0 0 7px;
+        color: #18342f;
+        font-size: 28px;
+    }
+
+    .rsi-header p {
+        margin: 0;
+        color: #49685a;
+        font-size: 14px;
+    }
+    .rsi-header-actions {
+        display:flex;
+        gap:10px;
+        align-items:center;
+    }
+
+    .close-rsi-button {
+        padding:12px 15px;
+        border:1px solid #cfe1d6;
+        border-radius:9px;
+        background:white;
+        color:#147d64;
+        font-size:13px;
+        font-weight:bold;
+        text-decoration:none;
+        white-space:nowrap;
+    }
+
+    .new-rsi-button {
+        padding: 12px 17px;
+        border-radius: 9px;
+        background: #147d64;
+        color: white;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+        white-space: nowrap;
+        box-shadow: 0 7px 15px rgba(20, 125, 100, 0.2);
+    }
+
+    .rsi-note {
+        margin-bottom: 20px;
+        padding: 14px 16px;
+        border: 1px solid #e5f2ed;
+        border-radius: 10px;
+        background: #ffffff;
+        color: #49685a;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .rsi-register {
+        overflow: hidden;
+        border: 1px solid #e5f2ed;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(24, 52, 47, 0.035);
+    }
+
+    .rsi-register-heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        padding: 17px 20px;
+        border-bottom: 1px solid #e5f2ed;
+    }
+
+    .rsi-register-heading h2 {
+        margin: 0;
+        color: #18342f;
+        font-size: 15px;
+    }
+
+    .rsi-register-heading span {
+        color: #71817c;
+        font-size: 12px;
+    }
+
+    .rsi-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .rsi-table th {
+        padding: 13px 20px;
+        background: #ffffff;
+        color: #71817c;
+        font-size: 10px;
+        letter-spacing: 0.6px;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    .rsi-table td {
+        padding: 15px 20px;
+        border-top: 1px solid #e5f2ed;
+        color: #49685a;
+        font-size: 13px;
+        vertical-align: middle;
+    }
+
+    .product-name {
+        color: #18342f;
+        font-weight: bold;
+    }
+
+    .reference-name {
+        display: block;
+        margin-top: 4px;
+        color: #49685a;
+        font-size: 12px;
+    }
+
+    .current-tag,
+    .historic-tag {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: bold;
+    }
+
+    .current-tag {
+        background: #e7f6ef;
+        color: #28805f;
+    }
+
+    .historic-tag {
+        background: #e5f2ed;
+        color: #49685a;
+    }
+
+    .document-link,
+    .source-link {
+        color: #147d64;
+        font-size: 12px;
+        font-weight: bold;
+        text-decoration: none;
+    }
+
+    .empty-state {
+        padding: 52px 20px;
+        color: #49685a;
+        text-align: center;
+    }
+
+    @media (max-width: 850px) {
+        .rsi-table th:nth-child(3),
+        .rsi-table td:nth-child(3),
+        .rsi-table th:nth-child(5),
+        .rsi-table td:nth-child(5) {
+            display: none;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .rsi-header {
+            display: block;
+        }
+
+        .new-rsi-button {
+            display: inline-block;
+            margin-top: 16px;
+        }
+    }
+</style>
+
+<section class="rsi-page">
+    <header class="rsi-header">
+        <div>
+            <p class="rsi-kicker">MEDICAL AND SAFETY REFERENCE</p>
+            <h1>Reference safety information</h1>
+            <p>Maintain the approved innovator and reference-product safety information used for listedness review.</p>
+        </div>
+
+        <div class="rsi-header-actions">
+            <a class="close-rsi-button" href="{{ request.args.get('return_to') or url_for('core.dashboard') }}">
+                Close
+            </a>
+
+            <a class="new-rsi-button" href="{{ url_for('rsi.create_rsi') }}">
+                + Add reference document
+            </a>
+        </div>
+    </header>
+
+    <div class="rsi-note">
+        Use only an approved, current document or official regulator/innovator source. Listedness and expectedness conclusions remain the responsibility of the authorised reviewer.
+    </div>
+
+    <section class="rsi-register">
+        <div class="rsi-register-heading">
+            <h2>Available reference documents</h2>
+            <span>{{ documents|length }} document(s)</span>
+        </div>
+
+        {% if documents %}
+            <table class="rsi-table">
+                <thead>
+                    <tr>
+                        <th>APDL product</th>
+                        <th>Reference information</th>
+                        <th>Market</th>
+                        <th>Version</th>
+                        <th>Status</th>
+                        <th>Source</th>
+                        <th>Terms</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for document in documents %}
+                        <tr>
+                            <td>
+                                <span class="product-name">{{ document.product_name }}</span>
+                                {% if document.active_substance %}
+                                    <span class="reference-name">{{ document.active_substance }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ document.reference_product_name or "Reference product not recorded" }}
+                                <span class="reference-name">{{ document.document_type }}</span>
+                            </td>
+                            <td>{{ document.market or "Not recorded" }}</td>
+                            <td>
+                                {{ document.document_version or "Not recorded" }}
+                                {% if document.effective_date %}
+                                    <span class="reference-name">{{ document.effective_date.strftime("%d %b %Y") }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if document.is_current %}
+                                    <span class="current-tag">Current</span>
+                                {% else %}
+                                    <span class="historic-tag">Historic</span>
+                                {% endif %}
+                            </td>
+
+
+                            <td>
+                                {% if document.stored_filename %}
+                                    <form method="post" action="{{ url_for('rsi.extract_reactions', rsi_id=document.rsi_id) }}" style="display:inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" style="padding:7px 10px; border:1px solid #cfe1d6; border-radius:8px; background:#ffffff; color:#147d64; font-size:12px; font-weight:bold; cursor:pointer;">Extract terms</button>
+                                    </form>
+                                {% endif %}
+
+                                <a class="source-link" style="display:block; margin-top:8px;" href="{{ url_for('rsi.review_reactions', rsi_id=document.rsi_id) }}">Verify terms</a>
+                            </td>
+
+                            <td>
+                                {% if document.stored_filename %}
+                                    <form method="post" action="{{ url_for('rsi.extract_reactions', rsi_id=document.rsi_id) }}" style="display:inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" style="padding:7px 10px; border:1px solid #cfe1d6; border-radius:8px; background:#ffffff; color:#147d64; font-size:12px; font-weight:bold; cursor:pointer;">
+                                            Extract terms
+                                        </button>
+                                    </form>
+
+                                    <form method="post" action="{{ url_for('rsi.extract_rsi_text', rsi_id=document.rsi_id) }}" style="display:inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" style="margin-top:8px; padding:7px 10px; border:1px solid #cfe1d6; border-radius:8px; background:#ffffff; color:#147d64; font-size:12px; font-weight:bold; cursor:pointer;">
+                                            Extract SmPC text
+                                        </button>
+                                    </form>
+
+                                    <span style="display:block; margin-top:8px; color:#49685a; font-size:11px;">
+                                        {{ document.extraction_status }}
+                                    </span>
+                                {% endif %}
+
+                                <a class="source-link" style="display:block; margin-top:8px;" href="{{ url_for('rsi.review_reactions', rsi_id=document.rsi_id) }}">
+                                    Verify terms
+                                </a>
+                            </td>
+                        </tr>
+
+
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">
+                No reference safety information has been added. Add an approved document before performing listedness review.
+            </div>
+        {% endif %}
+    </section>
+</section>
+{% endblock %}

@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | Analytics | APDL PV{% endblock %}
+{% block page_title %}Analytics{% endblock %}
+
+{% block content %}
+<style>
+    .detail-page {
+        max-width: 1180px;
+        margin: 0 auto;
+    }
+
+    .detail-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-start;
+        margin-bottom: 24px;
+    }
+
+    .back-link {
+        display: inline-block;
+        margin-bottom: 11px;
+        color: #147d64;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+    }
+
+    .detail-header h2 {
+        margin: 0 0 8px;
+        color: #18342f;
+        font-size: 28px;
+    }
+
+    .detail-header p {
+        max-width: 680px;
+        margin: 0;
+        color: #49685a;
+        font-size: 14px;
+        line-height: 1.55;
+    }
+
+    .record-count {
+        flex: none;
+        padding: 10px 13px;
+        border: 1px solid #e5f2ed;
+        border-radius: 9px;
+        background: #ffffff;
+        color: #147d64;
+        font-size: 13px;
+        font-weight: bold;
+        white-space: nowrap;
+    }
+
+    .filter-card {
+        display: grid;
+        grid-template-columns: 1.3fr 1fr 1fr 1fr auto;
+        gap: 14px;
+        align-items: end;
+        margin-bottom: 20px;
+        padding: 17px 19px;
+        border: 1px solid #e5f2ed;
+        border-radius: 13px;
+        background: white;
+        box-shadow: 0 4px 10px rgba(24, 52, 47, .025);
+    }
+
+    .filter-field label {
+        display: block;
+        margin-bottom: 6px;
+        color: #49685a;
+        font-size: 11px;
+        font-weight: bold;
+    }
+
+    .filter-input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px;
+        border: 1px solid #cfe1d6;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #18342f;
+        font: inherit;
+        font-size: 13px;
+    }
+
+    .filter-input:focus {
+        outline: none;
+        border-color: #147d64;
+        box-shadow: 0 0 0 3px #f4f9f6;
+    }
+
+    .filter-button {
+        padding: 10px 14px;
+        border: 0;
+        border-radius: 8px;
+        background: #147d64;
+        color: white;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .register-card {
+        overflow: hidden;
+        border: 1px solid #e5f2ed;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 5px 12px rgba(24, 52, 47, .035);
+    }
+
+    .register-heading {
+        padding: 18px 20px;
+        border-bottom: 1px solid #e5f2ed;
+        color: #18342f;
+        font-size: 14px;
+        font-weight: bold;
+    }
+
+    .records-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .records-table th {
+        padding: 13px 20px;
+        background: #ffffff;
+        color: #71817c;
+        font-size: 10px;
+        letter-spacing: .6px;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    .records-table td {
+        padding: 15px 20px;
+        border-top: 1px solid #e5f2ed;
+        color: #49685a;
+        font-size: 13px;
+        vertical-align: top;
+    }
+
+    .record-link {
+        color: #18342f;
+        font-weight: bold;
+        text-decoration: none;
+    }
+
+    .record-link:hover {
+        color: #147d64;
+    }
+
+    .record-detail {
+        max-width: 410px;
+        color: #49685a;
+        line-height: 1.45;
+    }
+
+    .status-pill {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 20px;
+        background: #f4f9f6;
+        color: #147d64;
+        font-size: 11px;
+        font-weight: bold;
+    }
+
+    .empty-state {
+        padding: 58px 24px;
+        color: #49685a;
+        text-align: center;
+        font-size: 14px;
+        line-height: 1.55;
+    }
+
+    @media (max-width: 780px) {
+        .detail-header {
+            display: block;
+        }
+        .filter-card { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+        .record-count {
+            display: inline-block;
+            margin-top: 15px;
+        }
+
+        .records-table th:nth-child(3),
+        .records-table td:nth-child(3) {
+            display: none;
+        }
+    }
+
+    @media (max-width: 540px) {
+        .records-table th:nth-child(5),
+        .records-table td:nth-child(5) {
+            display: none;
+        }
+    }
+</style>
+
+<section class="detail-page">
+    <header class="detail-header">
+        <div>
+            <a
+                class="back-link"
+                href="{{ url_for('core.analytics_home') }}"
+            >
+                ← Back to Analytics Centre
+            </a>
+
+            <h2>{{ title }}</h2>
+            <p>{{ description }}</p>
+        </div>
+
+        <span class="record-count">{{ records|length }} record(s)</span>
+    </header>
+
+    <form method="get" class="filter-card">
+        <div class="filter-field">
+            <label for="product">Product</label>
+            <select class="filter-input" id="product" name="product">
+                <option value="">All products</option>
+                {% for product in products %}
+                    <option
+                        value="{{ product.product_name }}"
+                        {% if selected_product == product.product_name %}selected{% endif %}
+                    >
+                        {{ product.product_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="status">Status</label>
+            <select class="filter-input" id="status" name="status">
+                <option value="">All statuses</option>
+                {% for status in statuses %}
+                    <option
+                        value="{{ status.status }}"
+                        {% if selected_status == status.status %}selected{% endif %}
+                    >
+                        {{ status.status }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="start_date">Date from</label>
+            <input
+                class="filter-input"
+                id="start_date"
+                name="start_date"
+                type="date"
+                value="{{ start_date }}"
+            >
+        </div>
+
+        <div class="filter-field">
+            <label for="end_date">Date to</label>
+            <input
+                class="filter-input"
+                id="end_date"
+                name="end_date"
+                type="date"
+                value="{{ end_date }}"
+            >
+        <div style="display:flex; gap:9px; align-items:center;">
+            <button class="filter-button" type="submit">
+                Apply filters
+            </button>
+
+            <a
+                href="{{ request.path }}"
+                style="color:#147d64; font-size:12px; font-weight:bold; text-decoration:none; white-space:nowrap;"
+            >
+                Clear
+            </a>
+        </div>
+
+    </form>
+
+    <section class="register-card">
+        <div class="register-heading">{{ title }} register</div>
+
+        {% if records %}
+            <table class="records-table">
+                <thead>
+                    <tr>
+                        <th>Reference</th>
+                        <th>Product</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Information</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                        <tr>
+                            <td>
+                                <a
+                                    class="record-link"
+                                    href="{{ record.record_url }}"
+                                >
+                                    {{ record.record_number }}
+                                </a>
+                            </td>
+                            <td>{{ record.product_name }}</td>
+                            <td>
+                                {% if record.record_date %}
+                                    {{ record.record_date.strftime("%d %b %Y") }}
+                                {% else %}
+                                    Not recorded
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="status-pill">{{ record.status }}</span>
+                            </td>
+                            <td class="record-detail">
+                                {{ record.detail or "No additional information recorded." }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">
+                No records currently matched this measure.
+            </div>
+        {% endif %}
+    </section>
+</section>
+{% endblock %}
