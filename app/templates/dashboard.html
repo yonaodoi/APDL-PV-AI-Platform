@@ -100,6 +100,34 @@
         </a>
     {% endif %}
 
+    <section class="action-panel" aria-label="Needs attention">
+        <div class="action-panel-heading">
+            <h3>Needs attention</h3>
+            <p>{% if action_items %}Work waiting across cases, complaints, signals and documents.{% else %}Nothing is waiting for action right now.{% endif %}</p>
+        </div>
+        {% if action_items %}
+            <ul class="action-list">
+                {% for item in action_items %}
+                    <li class="action-item{% if item.urgent %} is-urgent{% endif %}">
+                        <span class="action-count">{{ item.count }}</span>
+                        <div class="action-body">
+                            <strong>{{ item.title }}</strong>
+                            <span class="action-hint">{{ item.hint }}</span>
+                            <span class="action-links">
+                                {% for record in item.records %}
+                                    <a href="{{ record.url }}">{{ record.label }}</a>
+                                {% endfor %}
+                                {% if item.more %}
+                                    {% if item.list_url %}<a class="action-more" href="{{ item.list_url }}">and {{ item.more }} more →</a>{% else %}<span class="action-more">and {{ item.more }} more</span>{% endif %}
+                                {% endif %}
+                            </span>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </section>
+
     <h3 class="workspace-heading">Workspaces</h3>
     <p class="workspace-intro">
         Select a module to record, assess, review or report safety information.

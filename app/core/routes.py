@@ -38,6 +38,7 @@ def dashboard():
                 "success",
             )
         return redirect(url_for("case_review.follow_up_tasks"))
+    from app.services.action_summary import get_action_items
     from app.services.case_follow_up_reminders import ensure_overdue_reminders
     from app.services.psur_rules import get_psur_alerts
     from app.services.reporting_clock import get_reporting_alerts
@@ -48,6 +49,7 @@ def dashboard():
         "dashboard.html",
         reporting_alerts=get_reporting_alerts(),
         psur_alerts=get_psur_alerts(),
+        action_items=get_action_items(),
     )
 
 @bp.get("/health")

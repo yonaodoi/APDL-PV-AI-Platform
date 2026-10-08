@@ -23,6 +23,10 @@ def test_dashboard_renders_workspace_cards_and_reminder_notice(monkeypatch):
         lambda: 0,
     )
     monkeypatch.setattr(
+        "app.services.action_summary.get_action_items",
+        lambda: [],
+    )
+    monkeypatch.setattr(
         "app.services.psur_rules.get_psur_alerts",
         lambda: [],
     )
@@ -78,6 +82,10 @@ def test_dashboard_shows_overdue_reporting_alert(monkeypatch):
     monkeypatch.setattr(
         "app.services.case_follow_up_reminders.ensure_overdue_reminders",
         lambda: 0,
+    )
+    monkeypatch.setattr(
+        "app.services.action_summary.get_action_items",
+        lambda: [],
     )
     monkeypatch.setattr(
         "app.services.psur_rules.get_psur_alerts",
