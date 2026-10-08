@@ -420,6 +420,7 @@ def case_detail(case_id):
         dictionary_terms=get_active_terms(),
         safety_assessment=_load_safety_assessment(case_id),
         workflow=_workflow_panel(case, completeness_checks),
+        approval=_approval_panel(case),
         today_iso=date.today().isoformat(),
         document_types=DOCUMENT_TYPES,
         document_type_label=document_type_label,
@@ -489,6 +490,27 @@ def _last_review(case_id):
         current_app.logger.exception("Could not load last review for case %s", case_id)
         _rollback_quietly()
         return None
+
+
+def _approval_panel(case):
+    """Sign-off stage, history and what the signed-in user may do."""
+    from app.services.case_approval import approval_history, can_approve, can_review
+    from app.services.case_workflow import is_designated_qppv
+
+    try:
+        history = approval_history(case["case_id"])
+    except Exception:
+        current_app.logger.warning("Could not load sign-off history", exc_info=True)
+        _rollback_quietly()
+        return None
+    role = session.get("role")
+    return {
+        "stage": case.get("approval_stage"),
+        "history": history,
+        "can_review": can_review(role, is_designated_qppv(session.get("user_id"))),
+        "can_approve": can_approve(role),
+        "user_id": session.get("user_id"),
+    }
 
 
 def _workflow_panel(case, completeness_checks):
@@ -1528,6 +1550,21 @@ def edit_case(case_id):
                 "Automated signal screening could not run for this case.",
                 "warning",
             )
+        # A case changed after review or approval must be reviewed again.
+        try:
+            from app.services.case_approval import reset_after_edit
+
+            with transaction() as cursor:
+                if reset_after_edit(cursor, case_id, session["user_id"]):
+                    flash(
+                        "The case was changed after review, so it has gone back "
+                        "for review before approval.",
+                        "warning",
+                    )
+        except Exception:
+            current_app.logger.exception("Could not reset sign-off for case %s", case_id)
+            _rollback_quietly()
+
         # Re-check completeness now, so follow-up items answered by this
         # edit close straight away (not only when the case page is opened).
         try:

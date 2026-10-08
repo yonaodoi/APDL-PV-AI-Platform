@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}Sign-off Settings | APDL PV<script>
+    (function () {
+        var form = document.getElementById("sign-off-form");
+        if (!form) return;
+        form.addEventListener("submit", function () {
+            var button = form.querySelector(".save-settings");
+            setTimeout(function () { button.disabled = true; button.textContent = "Saving…"; }, 0);
+        });
+    })();
+</script>
+{% endblock %}
+{% block page_title %}Sign-off Settings<script>
+    (function () {
+        var form = document.getElementById("sign-off-form");
+        if (!form) return;
+        form.addEventListener("submit", function () {
+            var button = form.querySelector(".save-settings");
+            setTimeout(function () { button.disabled = true; button.textContent = "Saving…"; }, 0);
+        });
+    })();
+</script>
+{% endblock %}
+
+{% block content %}
+<style>
+    .signoff-settings { max-width: 980px; margin: 0 auto; }
+    .signoff-settings .back-link { color: #147d64; font-size: 13px; font-weight: 800; text-decoration: none; }
+    .signoff-settings h1 { margin: 10px 0 6px; color: #183d34; font-size: 26px; }
+    .signoff-settings .intro { margin: 0 0 18px; color: #5c6b66; font-size: 13.5px; }
+    .settings-card {
+        margin-bottom: 16px;
+        padding: 18px 20px;
+        border: 1px solid #dce8e1;
+        border-radius: 14px;
+        background: #ffffff;
+    }
+    .settings-card h2 { margin: 0 0 4px; color: #244a3d; font-size: 16px; }
+    .settings-card > p { margin: 0 0 12px; color: #71817a; font-size: 12.5px; }
+    .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px 20px; }
+    .settings-field label.title { display: block; margin-bottom: 6px; color: #526a5f; font-size: 11.5px; font-weight: 800; }
+    .settings-field input[type=text],
+    .settings-field input[type=number],
+    .settings-field textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 7px 10px;
+        border: 1px solid #d5e2d9;
+        border-radius: 8px;
+        font: inherit;
+        font-size: 13px;
+    }
+    .settings-field .hint { margin-top: 4px; color: #71817a; font-size: 11.5px; }
+    .role-options { display: grid; gap: 4px; }
+    .role-options label { font-size: 13px; color: #27483b; }
+    .people { margin: 8px 0 0; padding: 0; list-style: none; font-size: 12.5px; color: #3f544d; }
+    .people li { padding: 3px 0; }
+    .people .missing { color: #a3392b; font-weight: 700; }
+    .people .person { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; padding: 6px 0; border-bottom: 1px dashed #e4ede8; }
+    .people .person:last-child { border-bottom: 0; }
+    .people .person input { width: 100%; box-sizing: border-box; padding: 6px 9px; border: 1px solid #d5e2d9; border-radius: 7px; font: inherit; font-size: 12.5px; }
+    .people .person input.empty { border-color: #e2a79e; background: #fff7f5; }
+    .people .empty-note { padding: 8px 10px; border-radius: 8px; background: #fff5ec; color: #8a4b12; font-weight: 600; }
+    .people .empty-note a { color: #147d64; }
+    .check-line { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: #27483b; }
+    .form-actions { display: flex; gap: 12px; align-items: center; margin-bottom: 30px; }
+    .cancel-link { color: #526a5f; font-size: 13px; font-weight: 700; text-decoration: none; }
+    .save-settings {
+        padding: 10px 18px;
+        border: 0;
+        border-radius: 9px;
+        background: #147d64;
+        color: #ffffff;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+</style>
+
+<section class="signoff-settings">
+    <a class="back-link" href="{{ url_for('administration.user_list') }}">← Back to administration</a>
+    <h1>Case sign-off settings</h1>
+    <p class="intro">A case goes PV Officer → <strong>{{ settings.review_title }}</strong> → <strong>{{ settings.approval_title }}</strong> → submission. Choose who does each step and who gets the emails. You can add or correct anyone's email right here; saving takes you back to Administration with a confirmation.</p>
+
+    <form method="post" id="sign-off-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <section class="settings-card">
+            <h2>PV Officers (who prepare and send cases)</h2>
+            <p>They are emailed when a case is returned with a comment or approved.</p>
+            <div class="settings-grid">
+                <div class="settings-field">
+                    <span class="title" style="display:block;margin-bottom:6px;color:#526a5f;font-size:11.5px;font-weight:800;">Roles listed as PV officers</span>
+                    <div class="role-options">
+                        {% for role in role_names %}
+                            <label><input type="checkbox" name="officer_roles" value="{{ role }}" {% if role in settings.officer_roles %}checked{% endif %}> {{ role }}</label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="settings-field">
+                    <label class="check-line"><input type="checkbox" name="notify_officer" {% if settings.notify_officer %}checked{% endif %}> Email the PV officer who sent the case when it is returned or approved</label>
+                    <label class="title" for="officer_extra_emails" style="margin-top:12px;">Also email these addresses</label>
+                    <textarea id="officer_extra_emails" name="officer_extra_emails" rows="2" placeholder="pv.officer@example.com">{{ settings.officer_extra_emails|join(", ") }}</textarea>
+                    <div class="hint">For example a shared PV mailbox. They get every “returned” and “approved” notice.</div>
+                </div>
+                <div class="settings-field">
+                    <span class="title" style="display:block;margin-bottom:6px;color:#526a5f;font-size:11.5px;font-weight:800;">PV officers and their emails (type to add or change)</span>
+                    <ul class="people">
+                        {% for p in officers %}
+                            <li class="person">
+                                <label for="email_{{ p.user_id }}">{{ p.full_name }} ({{ p.role_name }})</label>
+                                <input type="email" id="email_{{ p.user_id }}" name="email_{{ p.user_id }}" value="{{ p.email or '' }}" placeholder="Add email address" class="{% if not p.email %}empty{% endif %}">
+                                {% if not p.email %}<span class="missing">no email – add one so they get notices</span>{% endif %}
+                            </li>
+                        {% else %}
+                            <li class="empty-note">No user has a PV officer role yet. Add them under <a href="{{ url_for('administration.user_list') }}">Users</a>, or put their address in “Also email these addresses”.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="settings-card">
+            <h2>Step 1: Review</h2>
+            <p>The first sign-off after the PV Officer sends a case.</p>
+            <div class="settings-grid">
+                <div class="settings-field">
+                    <label class="title" for="review_title">Title shown in the tool and emails</label>
+                    <input type="text" id="review_title" name="review_title" value="{{ settings.review_title }}" maxlength="60" required>
+                </div>
+                <div class="settings-field">
+                    <span class="title" style="display:block;margin-bottom:6px;color:#526a5f;font-size:11.5px;font-weight:800;">Roles that can review</span>
+                    <div class="role-options">
+                        {% for role in role_names %}
+                            <label><input type="checkbox" name="reviewer_roles" value="{{ role }}" {% if role in settings.reviewer_roles %}checked{% endif %}> {{ role }}</label>
+                        {% endfor %}
+                    </div>
+                    <div class="hint">The designated QPPV can always review.</div>
+                </div>
+                <div class="settings-field">
+                    <label class="title" for="review_extra_emails">Also email these addresses</label>
+                    <textarea id="review_extra_emails" name="review_extra_emails" rows="2" placeholder="name@example.com, another@example.com">{{ settings.review_extra_emails|join(", ") }}</textarea>
+                    <div class="hint">For colleagues who should be told but have no reviewer account.</div>
+                </div>
+                <div class="settings-field">
+                    <span class="title" style="display:block;margin-bottom:6px;color:#526a5f;font-size:11.5px;font-weight:800;">Who gets the review emails (type to add or change an email)</span>
+                    <ul class="people">
+                        {% for p in reviewers %}
+                            <li class="person">
+                                <label for="email_{{ p.user_id }}">{{ p.full_name }} ({{ p.role_name }})</label>
+                                <input type="email" id="email_{{ p.user_id }}" name="email_{{ p.user_id }}" value="{{ p.email or '' }}" placeholder="Add email address" class="{% if not p.email %}empty{% endif %}">
+                                {% if not p.email %}<span class="missing">no email – add one so they get notices</span>{% endif %}
+                            </li>
+                        {% else %}
+                            <li class="empty-note">Nobody has a reviewer role yet. Open the person under <a href="{{ url_for('administration.user_list') }}">Users</a> and set their role to one ticked above.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="settings-card">
+            <h2>Step 2: Approval</h2>
+            <p>The final sign-off. Only an approved case can be marked as submitted.</p>
+            <div class="settings-grid">
+                <div class="settings-field">
+                    <label class="title" for="approval_title">Title shown in the tool and emails</label>
+                    <input type="text" id="approval_title" name="approval_title" value="{{ settings.approval_title }}" maxlength="60" required>
+                </div>
+                <div class="settings-field">
+                    <span class="title" style="display:block;margin-bottom:6px;color:#526a5f;font-size:11.5px;font-weight:800;">Roles that can approve</span>
+                    <div class="role-options">
+                        {% for role in role_names %}
+                            <label><input type="checkbox" name="approver_roles" value="{{ role }}" {% if role in settings.approver_roles %}checked{% endif %}> {{ role }}</label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="settings-field">
+                    <label class="title" for="approval_extra_emails">Also email these addresses</label>
+                    <textarea id="approval_extra_emails" name="approval_extra_emails" rows="2" placeholder="name@example.com">{{ settings.approval_extra_emails|join(", ") }}</textarea>
+                </div>
+                <div class="settings-field">
+                    <span class="title" style="display:block;margin-bottom:6px;color:#526a5f;font-size:11.5px;font-weight:800;">Who gets the approval emails (type to add or change an email)</span>
+                    <ul class="people">
+                        {% for p in approvers %}
+                            <li class="person">
+                                <label for="email_{{ p.user_id }}">{{ p.full_name }} ({{ p.role_name }})</label>
+                                <input type="email" id="email_{{ p.user_id }}" name="email_{{ p.user_id }}" value="{{ p.email or '' }}" placeholder="Add email address" class="{% if not p.email %}empty{% endif %}">
+                                {% if not p.email %}<span class="missing">no email – add one so they get notices</span>{% endif %}
+                            </li>
+                        {% else %}
+                            <li class="empty-note">Nobody can approve yet: no user has a role ticked under “Roles that can approve”. Open the Group Head under <a href="{{ url_for('administration.user_list') }}">Users</a> and set his role to {{ settings.approver_roles|join(" or ") }}. Until then, cases sent for approval will wait with nobody to approve them.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="settings-card">
+            <h2>Email timing</h2>
+            <div class="settings-grid">
+                <div class="settings-field">
+                    <label class="title" for="digest_hour">Daily summary sent after (hour, 0–23)</label>
+                    <input type="number" id="digest_hour" name="digest_hour" min="0" max="23" value="{{ settings.digest_hour }}">
+                    <div class="hint">One email a day per person, only when something is waiting.</div>
+                </div>
+                <div class="settings-field">
+                    <label class="title" for="urgent_days">Urgent email when a serious case is due within (days)</label>
+                    <input type="number" id="urgent_days" name="urgent_days" min="0" max="30" value="{{ settings.urgent_days }}">
+                    <div class="hint">Sent at once, one time per case and step.</div>
+                </div>
+            </div>
+        </section>
+
+        <div class="form-actions">
+            <button class="save-settings" type="submit">Save sign-off settings</button>
+            <a class="cancel-link" href="{{ url_for('administration.user_list') }}">Cancel</a>
+        </div>
+    </form>
+</section>
+<script>
+    (function () {
+        var form = document.getElementById("sign-off-form");
+        if (!form) return;
+        form.addEventListener("submit", function () {
+            var button = form.querySelector(".save-settings");
+            setTimeout(function () { button.disabled = true; button.textContent = "Saving…"; }, 0);
+        });
+    })();
+</script>
+{% endblock %}

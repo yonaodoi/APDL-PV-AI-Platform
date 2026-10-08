@@ -31,14 +31,15 @@ def send_follow_up_email(app, recipient, subject, body, attachment, filename):
     )
     message["To"] = recipient
     message.set_content(body)
-    message.add_attachment(
-        attachment.getvalue(),
-        maintype="application",
-        subtype=(
-            "vnd.openxmlformats-officedocument.wordprocessingml.document"
-        ),
-        filename=filename,
-    )
+    if attachment is not None:
+        message.add_attachment(
+            attachment.getvalue(),
+            maintype="application",
+            subtype=(
+                "vnd.openxmlformats-officedocument.wordprocessingml.document"
+            ),
+            filename=filename,
+        )
 
     try:
         if app.config["SMTP_USE_SSL"]:
@@ -69,3 +70,8 @@ def send_follow_up_email(app, recipient, subject, body, attachment, filename):
         raise FollowUpEmailError(
             f"Email delivery failed: {exc}"
         ) from exc
+
+
+def send_notification_email(app, recipient, subject, body):
+    """Plain email without an attachment (approval notices)."""
+    send_follow_up_email(app, recipient, subject, body, None, None)

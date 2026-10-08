@@ -565,3 +565,195 @@ def audit_log():
         "administration/audit_log.html",
         entries=entries,
     )
+
+
+@bp.post("/users/<int:user_id>/contact")
+@roles_required("System Administrator")
+def update_user_contact(user_id):
+    """Change a user's display name and email (used for notifications)."""
+    user = _load_user_or_404(user_id)
+    back = url_for("administration.manage_user", user_id=user_id)
+    full_name = " ".join((request.form.get("full_name") or "").split())
+    email = (request.form.get("email") or "").strip().lower()
+    if not full_name or len(full_name) > 200:
+        flash("Enter the user's full name.", "error")
+        return redirect(back)
+    if "@" not in email or " " in email or len(email) > 255:
+        flash("Enter a valid email address.", "error")
+        return redirect(back)
+    clash = query_one(
+        "SELECT user_id FROM pv.users WHERE LOWER(email) = %s AND user_id <> %s",
+        (email, user_id),
+    )
+    if clash:
+        flash("Another account already uses that email address.", "error")
+        return redirect(back)
+    if full_name == user["full_name"] and email == (user["email"] or "").lower():
+        flash("Nothing was changed.", "info")
+        return redirect(back)
+
+    with transaction() as cursor:
+        cursor.execute(
+            "UPDATE pv.users SET full_name = %s, email = %s, updated_at = NOW() WHERE user_id = %s",
+            (full_name, email, user_id),
+        )
+    write_audit_log(
+        record_type="user",
+        record_id=user_id,
+        action="Contact details changed",
+        details=(
+            f"Account: {user['username']}. Name: {user['full_name']} -> {full_name}. "
+            f"Email: {user['email']} -> {email}."
+        ),
+        actor_user_id=session["user_id"],
+    )
+    flash("Contact details saved.", "success")
+    return redirect(back)
+
+
+SIGN_OFF_FIELDS = {
+    "review_title": "Review title",
+    "approval_title": "Approval title",
+    "reviewer_roles": "Reviewer roles",
+    "approver_roles": "Approver roles",
+    "officer_roles": "PV officer roles",
+    "review_extra_emails": "Extra review emails",
+    "approval_extra_emails": "Extra approval emails",
+    "officer_extra_emails": "Extra PV officer emails",
+    "notify_officer": "Email the PV officer",
+    "digest_hour": "Daily summary hour",
+    "urgent_days": "Urgent email days",
+}
+
+
+def _sign_off_people():
+    return query_all(
+        """
+        SELECT u.user_id, u.full_name, u.email, r.role_name, u.is_designated_qppv
+        FROM pv.users AS u JOIN pv.roles AS r ON r.role_id = u.role_id
+        WHERE u.is_active
+        ORDER BY r.role_name, u.full_name
+        """
+    )
+
+
+def _email_changes(people):
+    """Emails typed next to people on the settings page.
+
+    Returns (changes, error). Each change is (person, new_email)."""
+    changes, seen = [], {}
+    for person in people:
+        field = f"email_{person['user_id']}"
+        if field not in request.form:
+            continue
+        current = (person.get("email") or "").strip().lower()
+        # A person can be listed twice (e.g. reviewer and PV officer); use
+        # whichever box was changed.
+        typed = [(v or "").strip().lower() for v in request.form.getlist(field)]
+        email = next((v for v in typed if v != current), current)
+        if email == current:
+            continue
+        if not email:
+            return [], f"Enter an email address for {person['full_name']} (it cannot be left empty)."
+        if "@" not in email or " " in email or len(email) > 255:
+            return [], f"The email for {person['full_name']} is not a valid address."
+        if email in seen:
+            return [], f"{seen[email]} and {person['full_name']} cannot share the same email."
+        seen[email] = person["full_name"]
+        clash = query_one(
+            "SELECT full_name FROM pv.users WHERE LOWER(email) = %s AND user_id <> %s",
+            (email, person["user_id"]),
+        )
+        if clash:
+            return [], f"{clash['full_name']} already uses {email}."
+        changes.append((person, email))
+    return changes, None
+
+
+@bp.route("/sign-off-settings", methods=["GET", "POST"])
+@roles_required("System Administrator")
+def sign_off_settings():
+    """Who prepares, reviews and approves safety cases, stage titles and emails."""
+    from app.services.approval_settings import load_settings, save_settings
+
+    roles = query_all("SELECT role_name FROM pv.roles ORDER BY role_name")
+    role_names = [r["role_name"] for r in roles]
+
+    if request.method == "POST":
+        here = url_for("administration.sign_off_settings")
+        before = load_settings()
+        values = {
+            "review_title": request.form.get("review_title", ""),
+            "approval_title": request.form.get("approval_title", ""),
+            "reviewer_roles": [r for r in request.form.getlist("reviewer_roles") if r in role_names],
+            "approver_roles": [r for r in request.form.getlist("approver_roles") if r in role_names],
+            "officer_roles": [r for r in request.form.getlist("officer_roles") if r in role_names],
+            "review_extra_emails": request.form.get("review_extra_emails", ""),
+            "approval_extra_emails": request.form.get("approval_extra_emails", ""),
+            "officer_extra_emails": request.form.get("officer_extra_emails", ""),
+            "notify_officer": request.form.get("notify_officer") == "on",
+            "digest_hour": request.form.get("digest_hour", ""),
+            "urgent_days": request.form.get("urgent_days", ""),
+        }
+        if not values["reviewer_roles"] or not values["approver_roles"]:
+            flash("Nothing was saved. Choose at least one role for review and one for approval.", "error")
+            return redirect(here)
+        if set(values["reviewer_roles"]) & set(values["approver_roles"]):
+            flash(
+                "Nothing was saved. A role cannot both review and approve; the two "
+                "sign-offs must come from different people.",
+                "error",
+            )
+            return redirect(here)
+
+        email_changes, error = _email_changes(_sign_off_people())
+        if error:
+            flash(f"Nothing was saved. {error}", "error")
+            return redirect(here)
+
+        after = save_settings(values, session["user_id"])
+        changes = [
+            f"{SIGN_OFF_FIELDS.get(key, key)}: {before.get(key)} -> {after[key]}"
+            for key in after
+            if before.get(key) != after[key]
+        ]
+        if email_changes:
+            with transaction() as cursor:
+                for person, email in email_changes:
+                    cursor.execute(
+                        "UPDATE pv.users SET email = %s, updated_at = NOW() WHERE user_id = %s",
+                        (email, person["user_id"]),
+                    )
+            for person, email in email_changes:
+                write_audit_log(
+                    record_type="user",
+                    record_id=person["user_id"],
+                    action="Contact details changed",
+                    details=f"Email for {person['full_name']}: {person.get('email') or 'none'} -> {email} (from sign-off settings).",
+                    actor_user_id=session["user_id"],
+                )
+                changes.append(f"Email for {person['full_name']} -> {email}")
+        write_audit_log(
+            record_type="settings",
+            record_id=0,
+            action="Sign-off settings changed",
+            details="; ".join(changes) or "Saved with no changes.",
+            actor_user_id=session["user_id"],
+        )
+        if changes:
+            count = len(changes)
+            flash(f"Sign-off settings saved ({count} change{'s' if count != 1 else ''}).", "success")
+        else:
+            flash("Sign-off settings saved. Nothing had changed.", "success")
+        return redirect(url_for("administration.user_list"))
+
+    settings = load_settings()
+    people = _sign_off_people()
+    return render_template(
+        "administration/sign_off_settings.html",
+        settings=settings,
+        role_names=role_names,
+        reviewers=[p for p in people if p["role_name"] in settings["reviewer_roles"] or p["is_designated_qppv"]],
+        approvers=[p for p in people if p["role_name"] in settings["approver_roles"]],
+        officers=[p for p in people if p["role_name"] in settings["officer_roles"]],
+    )

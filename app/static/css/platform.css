@@ -5271,3 +5271,119 @@ details.register-fold:not([open]) > summary { border-bottom: 0; }
 .safety-case-form-page .field textarea.input {
     min-height: 72px;
 }
+
+/* Case approvals page */
+.approvals-page { max-width: 1180px; margin: 0 auto; }
+.app-shell .approvals-page .approvals-header {
+    margin-bottom: 18px;
+    padding: 26px clamp(22px, 4vw, 40px);
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(198, 221, 93, 0.14), transparent 18rem),
+        linear-gradient(120deg, var(--forest, #0b3d2c) 0%, #0f4a36 60%, var(--forest-mid, #145a40) 100%);
+    color: #ffffff;
+}
+.approvals-page .approvals-header h2 { margin: 0 0 6px; color: #ffffff; font-size: clamp(22px, 3vw, 28px); }
+.approvals-page .approvals-header p { margin: 0; color: #c9ded2; font-size: 13.5px; }
+.approval-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.approval-tabs a {
+    padding: 8px 12px;
+    border: 1px solid #d3e3d8;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #28664f;
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+}
+.approval-tabs a span {
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: #e5f2e9;
+}
+.approval-tabs a.active { border-color: #147d64; background: #147d64; color: #ffffff; }
+.approval-tabs a.active span { background: rgba(255, 255, 255, 0.2); }
+.approval-panel {
+    padding: 18px 20px;
+    border: 1px solid #dce8e1;
+    border-radius: 15px;
+    background: #ffffff;
+}
+.approval-panel h3 { margin: 0 0 10px; color: #244a3d; font-size: 15px; }
+.approval-note { margin: 0 0 10px; color: #7a6a3c; font-size: 12px; }
+.approval-empty { margin: 8px 0; color: #71817a; font-size: 13px; }
+.approval-list { margin: 0; padding: 0; list-style: none; }
+.approval-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 18px;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-top: 1px solid #edf2ee;
+}
+.approval-main { flex: 1 1 280px; min-width: 0; }
+.approval-case { color: #0d6652; font-size: 14px; font-weight: 850; text-decoration: none; }
+.approval-tag {
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #edf3ee;
+    color: #5d7666;
+    font-size: 10.5px;
+    font-weight: 800;
+}
+.approval-tag.is-serious { background: #fdebe7; color: #a3392b; }
+.approval-meta { margin-top: 4px; color: #71817a; font-size: 12px; }
+.approval-comment { margin-top: 6px; color: #5c4a22; font-size: 12px; font-style: italic; }
+.approval-actions { display: grid; flex: 1 1 300px; gap: 8px; max-width: 420px; }
+.approval-actions textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 9px;
+    border: 1px solid #d5e2d9;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 12px;
+}
+.approval-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.approval-buttons button {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.approval-buttons .approve { border: 1px solid #126b56; background: #147d64; color: #ffffff; }
+.approval-buttons .return { border: 1px solid #e3c9a0; background: #fffaf0; color: #7a4a1e; }
+.approval-buttons button[disabled] { opacity: 0.6; cursor: progress; }
+
+/* Sign-off box on the case page */
+.signoff-box {
+    margin: 12px 18px 0;
+    padding: 12px 14px;
+    border: 1px solid #c9dcf5;
+    border-radius: 10px;
+    background: #f5f9ff;
+    color: #23466f;
+    font-size: 12px;
+    line-height: 1.5;
+}
+.signoff-box.is-approved { border-color: #c7eadb; background: #f0f9f4; color: #176247; }
+.signoff-box.is-returned { border-color: #f1d5a6; background: #fffaf0; color: #5c4a22; }
+.signoff-title { margin-bottom: 4px; font-weight: 800; }
+.signoff-steps { margin: 6px 0; padding: 0; list-style: none; }
+.signoff-steps li { padding: 3px 0; border-top: 1px dashed rgba(35, 70, 111, 0.15); }
+.signoff-steps li span { display: block; color: #6b7a8c; font-size: 11px; }
+.signoff-box textarea {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 6px 0;
+    padding: 7px 9px;
+    border: 1px solid #c9d6e8;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 12px;
+}
+.signoff-box .approval-buttons button { width: 100%; }

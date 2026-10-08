@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Approvals | APDL PV{% endblock %}
+{% block page_title %}Approvals{% endblock %}
+
+{% macro case_rows(cases, kind) %}
+    {% if cases %}
+        <ul class="approval-list">
+            {% for item in cases %}
+                <li class="approval-row">
+                    <div class="approval-main">
+                        <a class="approval-case" href="{{ url_for('cases.case_detail', case_id=item.case_id) }}#approval">{{ item.case_number }}</a>
+                        <span class="approval-tag {% if item.seriousness %}is-serious{% endif %}">{{ "Serious" if item.seriousness else "Non-serious" }}</span>
+                        <div class="approval-meta">
+                            {{ item.product_name or "Product not recorded" }}{% if item.country_name %} · {{ item.country_name }}{% endif %}
+                            {% if kind in ("review", "approval", "returned") and item.approval_updated_at %} · since {{ item.approval_updated_at|when }}{% endif %}
+                            {% if kind in ("reviewed", "approved") and item.decided_at %} · {{ item.decided_at|when }}{% if item.decided_by_name %} by {{ item.decided_by_name }}{% endif %}{% endif %}
+                            {% if kind in ("review", "approval", "returned") and item.last_by %} · last step by {{ item.last_by }}{% endif %}
+                        </div>
+                        {% if item.last_comment and kind in ("returned", "approval") %}
+                            <div class="approval-comment">“{{ item.last_comment }}”</div>
+                        {% elif item.comment %}
+                            <div class="approval-comment">“{{ item.comment }}”</div>
+                        {% endif %}
+                        {% if kind == "reviewed" or kind == "approved" %}
+                            <div class="approval-meta">Now: {{ item.approval_stage or "—" }}{% if item.regulatory_submitted_date %} · submitted {{ item.regulatory_submitted_date.strftime("%d %b %Y") }}{% endif %}</div>
+                        {% endif %}
+                    </div>
+
+                    {% if (kind == "review" and reviewer) or (kind == "approval" and approver) %}
+                        <form class="approval-actions" method="post" action="{{ url_for('case_review.case_sign_off', case_id=item.case_id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="next" value="{{ url_for('case_review.approvals', tab=kind) }}">
+                            <textarea name="comment" rows="2" placeholder="Comment (required to return)"></textarea>
+                            <div class="approval-buttons">
+                                {% if kind == "review" %}
+                                    <button class="approve" type="submit" name="action" value="review">Reviewed – send for {{ signoff.approval_title }}</button>
+                                    <button class="return" type="submit" name="action" value="return_review">Return to PV officer</button>
+                                {% else %}
+                                    <button class="approve" type="submit" name="action" value="approve">Approve</button>
+                                    <button class="return" type="submit" name="action" value="return_approval">Return to PV officer</button>
+                                {% endif %}
+                            </div>
+                        </form>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="approval-empty">Nothing here.</p>
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+<section class="approvals-page">
+    <header class="approvals-header">
+        <div>
+            <h2>Case approvals</h2>
+            <p>PV Officer prepares → {{ signoff.review_title }} → {{ signoff.approval_title }} → the case can be submitted.</p>
+        </div>
+    </header>
+
+    <nav class="approval-tabs" aria-label="Approval lists">
+        <a class="{% if tab == 'review' %}active{% endif %}" href="{{ url_for('case_review.approvals', tab='review') }}">To review <span>{{ pending_review|length }}</span></a>
+        <a class="{% if tab == 'reviewed' %}active{% endif %}" href="{{ url_for('case_review.approvals', tab='reviewed') }}">Reviewed <span>{{ reviewed|length }}</span></a>
+        <a class="{% if tab == 'approval' %}active{% endif %}" href="{{ url_for('case_review.approvals', tab='approval') }}">To approve <span>{{ pending_approval|length }}</span></a>
+        <a class="{% if tab == 'approved' %}active{% endif %}" href="{{ url_for('case_review.approvals', tab='approved') }}">Approved <span>{{ approved|length }}</span></a>
+        <a class="{% if tab == 'returned' %}active{% endif %}" href="{{ url_for('case_review.approvals', tab='returned') }}">Returned <span>{{ returned|length }}</span></a>
+    </nav>
+
+    <section class="approval-panel">
+        {% if tab == "review" %}
+            <h3>Waiting for {{ signoff.review_title }}</h3>
+            {% if not reviewer %}<p class="approval-note">Only {{ signoff.reviewer_roles|join(" or ") }} can do the {{ signoff.review_title }}. You can open each case to see it.</p>{% endif %}
+            {{ case_rows(pending_review, "review") }}
+        {% elif tab == "reviewed" %}
+            <h3>Reviewed in the last 90 days</h3>
+            {{ case_rows(reviewed, "reviewed") }}
+        {% elif tab == "approval" %}
+            <h3>Waiting for {{ signoff.approval_title }}</h3>
+            {% if not approver %}<p class="approval-note">Only {{ signoff.approver_roles|join(" or ") }} can give the {{ signoff.approval_title }}. You can open each case to see it.</p>{% endif %}
+            {{ case_rows(pending_approval, "approval") }}
+        {% elif tab == "approved" %}
+            <h3>Approved in the last 90 days</h3>
+            {{ case_rows(approved, "approved") }}
+        {% else %}
+            <h3>Returned to the PV officer</h3>
+            <p class="approval-note">Make the changes on the case, then send it for review again from the case page.</p>
+            {{ case_rows(returned, "returned") }}
+        {% endif %}
+    </section>
+</section>
+
+<script>
+    document.querySelectorAll(".approval-actions").forEach(function (form) {
+        form.addEventListener("submit", function (event) {
+            var action = event.submitter ? event.submitter.value : "";
+            var comment = form.querySelector("textarea").value.trim();
+            if (action.indexOf("return") === 0 && !comment) {
+                event.preventDefault();
+                form.querySelector("textarea").focus();
+                form.querySelector("textarea").placeholder = "Please say what needs to change";
+                return;
+            }
+            setTimeout(function () {
+                form.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
+            }, 0);
+        });
+    });
+</script>
+{% endblock %}

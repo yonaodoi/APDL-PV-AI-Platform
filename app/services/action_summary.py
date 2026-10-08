@@ -287,10 +287,43 @@ def _follow_up_items():
     return items
 
 
+def _approval_items():
+    rows = _safe_rows(
+        """
+        SELECT case_id, case_number, approval_stage
+        FROM pv.safety_cases
+        WHERE approval_stage IN ('Pending review', 'Pending approval', 'Returned')
+          AND regulatory_submitted_date IS NULL
+        ORDER BY approval_updated_at
+        """
+    )
+    if not rows:
+        return []
+    labels = {
+        "Pending review": ("approvals-review", "Case(s) waiting for QPPV review",
+                           "The QPPV or Deputy QPPV reviews, then sends to the Group Head.", "review"),
+        "Pending approval": ("approvals-approve", "Case(s) waiting for Group Head approval",
+                             "Approved cases can then be submitted to the regulator.", "approval"),
+        "Returned": ("approvals-returned", "Case(s) returned to the PV officer",
+                     "Make the requested changes and send for review again.", "returned"),
+    }
+    items = []
+    for stage, (key, title, hint, tab) in labels.items():
+        records = [
+            {"label": r["case_number"],
+             "url": url_for("cases.case_detail", case_id=r["case_id"]) + "#approval"}
+            for r in rows if r["approval_stage"] == stage
+        ]
+        if records:
+            items.append(_item(key, title, hint, records,
+                               url_for("case_review.approvals", tab=tab)))
+    return items
+
+
 def get_action_items():
     """All dashboard action items, urgent ones first."""
     items = []
-    for builder in (_complaint_items, _follow_up_items, _case_items, _signal_items, _document_items):
+    for builder in (_complaint_items, _approval_items, _follow_up_items, _case_items, _signal_items, _document_items):
         try:
             items.extend(builder())
         except Exception:

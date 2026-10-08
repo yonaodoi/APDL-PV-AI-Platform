@@ -242,6 +242,20 @@
             color: #5f3ed4;
         }
 
+        .flash-success {
+            border-color: #b9dfc9;
+            background: #ecf8f0;
+            color: #1d6b45;
+            font-weight: 700;
+        }
+
+        .flash-error {
+            border-color: #efc2ba;
+            background: #fff3f1;
+            color: #a3392b;
+            font-weight: 700;
+        }
+
         @media (max-width: 760px) {
             .sidebar {
                 display: none;
@@ -260,7 +274,7 @@
     </style>
     <link
         rel="stylesheet"
-        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-29') }}"
+        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-30') }}"
     >
 </head>
 <body>
@@ -293,6 +307,11 @@
                         href="{{ url_for('case_review.follow_up_tasks') }}"
                         {% if request.endpoint in ('case_review.review_queue', 'case_review.follow_up_tasks', 'case_review.complete_follow_up_task', 'case_review.download_follow_up_request', 'case_review.send_follow_up_request') %}aria-current="page"{% endif %}
                     >Follow-up Tasks</a>
+                    <a
+                        class="nav-link {% if request.endpoint == 'case_review.approvals' %}active{% endif %}"
+                        href="{{ url_for('case_review.approvals') }}"
+                        {% if request.endpoint == 'case_review.approvals' %}aria-current="page"{% endif %}
+                    >Approvals{% if approvals_pending_count %} <span class="nav-count" title="Cases waiting for your sign-off">{{ approvals_pending_count }}</span>{% endif %}</a>
                     <a
                         class="nav-link {% if request.endpoint in ('case_review.follow_up_reminders', 'case_review.acknowledge_follow_up_reminder') %}active{% endif %}"
                         href="{{ url_for('case_review.follow_up_reminders') }}"
@@ -384,7 +403,7 @@
             <main class="content" id="main-content" tabindex="-1">
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% for category, message in messages %}
-                        <div class="flash">{{ message }}</div>
+                        <div class="flash flash-{{ category }}" role="status">{{ message }}</div>
                     {% endfor %}
                 {% endwith %}
 

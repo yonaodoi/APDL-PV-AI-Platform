@@ -301,6 +301,7 @@ def _patch_submit(monkeypatch, status="Ready for submission"):
             "received_date": date(2026, 9, 8),
             "workflow_status": status,
             "regulatory_submitted_date": None,
+            "approval_stage": "Approved",
         },
     )
 

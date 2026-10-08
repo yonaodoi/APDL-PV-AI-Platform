@@ -89,12 +89,13 @@ def send_gmail_message(app, recipient, subject, body, attachment, filename):
     message["From"] = app.config["SMTP_SENDER_EMAIL"]
     message["To"] = recipient
     message.set_content(body)
-    message.add_attachment(
-        attachment.getvalue(),
-        maintype="application",
-        subtype="vnd.openxmlformats-officedocument.wordprocessingml.document",
-        filename=filename,
-    )
+    if attachment is not None:
+        message.add_attachment(
+            attachment.getvalue(),
+            maintype="application",
+            subtype="vnd.openxmlformats-officedocument.wordprocessingml.document",
+            filename=filename,
+        )
     encoded_message = base64.urlsafe_b64encode(
         message.as_bytes()
     ).decode("utf-8")

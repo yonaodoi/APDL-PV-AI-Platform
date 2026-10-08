@@ -115,6 +115,9 @@ class Config:
     SMTP_USE_SSL = os.environ.get("SMTP_USE_SSL", "true").lower() == "true"
     SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "false").lower() == "true"
 
+    # Address of the tool, used for links in notification emails.
+    APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5000")
+
     # Pharmacovigilance telephone number printed on follow-up emails and forms.
     PV_CONTACT_PHONE = os.environ.get("PV_CONTACT_PHONE", "+256786557530")
 

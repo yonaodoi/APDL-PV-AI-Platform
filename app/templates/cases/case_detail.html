@@ -1229,7 +1229,60 @@
             </div>
         {% endif %}
 
-        {% if case.workflow_status == "Ready for submission" and not case.regulatory_submitted_date %}
+        {% if approval and not case.regulatory_submitted_date %}
+            {% set stage = approval.stage %}
+            <div class="signoff-box {% if stage == 'Approved' %}is-approved{% elif stage == 'Returned' %}is-returned{% endif %}" id="approval">
+                <div class="signoff-title">
+                    Sign-off:
+                    {% if stage == "Pending review" %}waiting for {{ signoff.review_title }}
+                    {% elif stage == "Pending approval" %}waiting for {{ signoff.approval_title }}
+                    {% elif stage == "Approved" %}approved for submission
+                    {% elif stage == "Returned" %}returned to the PV officer
+                    {% else %}not started{% endif %}
+                </div>
+                {% if approval.history %}
+                    <ul class="signoff-steps">
+                        {% for step in approval.history[-4:] %}
+                            <li>{{ step.step }}{% if step.full_name %} by {{ step.full_name }}{% endif %}
+                                <span>{{ step.decided_at|when }}{% if step.comment %} · “{{ step.comment }}”{% endif %}</span></li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+
+                {% if stage in (None, "", "Returned") %}
+                    {% if case.workflow_status == "Ready for submission" %}
+                        <form method="post" action="{{ url_for('case_review.case_sign_off', case_id=case.case_id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="send">
+                            <textarea name="comment" rows="2" placeholder="Note for the reviewer (optional)"></textarea>
+                            <div class="approval-buttons"><button class="approve" type="submit">Send for {{ signoff.review_title }}</button></div>
+                        </form>
+                    {% else %}
+                        <p>When the case is Ready for submission, send it for {{ signoff.review_title }}.</p>
+                    {% endif %}
+                {% elif stage == "Pending review" and approval.can_review %}
+                    <form method="post" action="{{ url_for('case_review.case_sign_off', case_id=case.case_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <textarea name="comment" rows="2" placeholder="Comment (required to return)"></textarea>
+                        <div class="approval-buttons">
+                            <button class="approve" type="submit" name="action" value="review">Reviewed – send for {{ signoff.approval_title }}</button>
+                            <button class="return" type="submit" name="action" value="return_review">Return to PV officer</button>
+                        </div>
+                    </form>
+                {% elif stage == "Pending approval" and approval.can_approve %}
+                    <form method="post" action="{{ url_for('case_review.case_sign_off', case_id=case.case_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <textarea name="comment" rows="2" placeholder="Comment (required to return)"></textarea>
+                        <div class="approval-buttons">
+                            <button class="approve" type="submit" name="action" value="approve">Approve</button>
+                            <button class="return" type="submit" name="action" value="return_approval">Return to PV officer</button>
+                        </div>
+                    </form>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        {% if case.workflow_status == "Ready for submission" and not case.regulatory_submitted_date and (not approval or approval.stage == "Approved") %}
             <form class="mark-submitted" method="post" action="{{ url_for('case_review.mark_submitted', case_id=case.case_id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mark-submitted-title">Sent to the regulator?</div>

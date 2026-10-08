@@ -96,7 +96,7 @@ def review_case(case_id):
     case = query_one(
         """
         SELECT case_id, case_number, received_date, regulatory_submitted_date,
-               workflow_status
+               workflow_status, approval_stage
         FROM pv.safety_cases
         WHERE case_id = %s
         """,
@@ -131,6 +131,18 @@ def review_case(case_id):
     except ValueError:
         flash("Regulatory submission date is not valid.", "error")
         return redirect(url_for("cases.case_detail", case_id=case_id))
+
+    if (
+        workflow_status == "Submitted"
+        and case.get("workflow_status") != "Submitted"
+        and case.get("approval_stage") != "Approved"
+    ):
+        flash(
+            "This case needs both sign-offs (review and approval) before it "
+            "is marked as submitted. See the Sign-off box on the case.",
+            "error",
+        )
+        return redirect(url_for("cases.case_detail", case_id=case_id) + "#approval")
 
     if workflow_status == "Submitted" and submitted_date is None:
         submitted_date = date.today()
@@ -279,7 +291,7 @@ def mark_submitted(case_id):
     case = query_one(
         """
         SELECT case_id, case_number, received_date, workflow_status,
-               regulatory_submitted_date
+               regulatory_submitted_date, approval_stage
         FROM pv.safety_cases
         WHERE case_id = %s
         """,
@@ -305,6 +317,13 @@ def mark_submitted(case_id):
     if case["workflow_status"] != "Ready for submission":
         flash(
             "Only a case that is Ready for submission can be marked as submitted.",
+            "error",
+        )
+        return redirect(back)
+    if case.get("approval_stage") != "Approved":
+        flash(
+            "This case needs both sign-offs (review and approval) before it "
+            "is marked as submitted. See the Sign-off box on the case.",
             "error",
         )
         return redirect(back)
@@ -697,3 +716,101 @@ def send_follow_up_request(case_id):
     if result["moved"]:
         flash("The case status moved to Follow-up requested.", "info")
     return redirect(back)
+
+
+# --------------------------------------------------------------------------
+# Sign-off: PV Officer -> QPPV / Deputy QPPV review -> Group Head approval
+# --------------------------------------------------------------------------
+
+@bp.post("/<int:case_id>/sign-off")
+@login_required
+def case_sign_off(case_id):
+    from app.services.case_approval import ApprovalError, notify_officer, take_step
+    from app.services.case_workflow import is_designated_qppv
+    from app.security import safe_next_path
+
+    back = safe_next_path(request.form.get("next")) or (
+        url_for("cases.case_detail", case_id=case_id) + "#approval"
+    )
+    action = request.form.get("action", "")
+    comment = request.form.get("comment", "")
+    try:
+        stage = take_step(
+            case_id,
+            action,
+            session["user_id"],
+            session.get("role"),
+            is_designated_qppv(session["user_id"]),
+            comment,
+        )
+    except ApprovalError as error:
+        flash(str(error), "error")
+        return redirect(back)
+
+    from app.services.approval_settings import load_settings
+
+    titles = load_settings()
+    messages = {
+        "Pending review": f"Sent for {titles['review_title']}.",
+        "Pending approval": f"Reviewed. Sent for {titles['approval_title']}.",
+        "Approved": "Approved. The case can now be submitted to the regulator.",
+        "Returned": "Returned to the PV officer with your comment.",
+    }
+    flash(messages.get(stage, "Saved."), "success")
+    if stage in ("Returned", "Approved"):
+        notify_officer(
+            current_app._get_current_object(), case_id, stage, comment.strip(),
+            session.get("full_name") or "A reviewer",
+        )
+    return redirect(back)
+
+
+@bp.get("/approvals")
+@login_required
+def approvals():
+    from app.services.case_approval import (
+        APPROVED,
+        PENDING_APPROVAL,
+        PENDING_REVIEW,
+        RETURNED,
+        can_approve,
+        can_review,
+        cases_at_stage,
+        recently_decided,
+    )
+    from app.services.case_workflow import is_designated_qppv
+
+    role = session.get("role")
+    reviewer = can_review(role, is_designated_qppv(session["user_id"]))
+    approver = can_approve(role)
+    try:
+        data = {
+            "pending_review": cases_at_stage(PENDING_REVIEW),
+            "reviewed": recently_decided("Reviewed"),
+            "pending_approval": cases_at_stage(PENDING_APPROVAL),
+            "approved": recently_decided("Approved"),
+            "returned": cases_at_stage(RETURNED),
+        }
+    except Exception:
+        current_app.logger.exception("Could not load approvals")
+        try:
+            from app.db import get_db
+
+            get_db().rollback()
+        except Exception:
+            pass
+        flash(
+            "Approvals could not be loaded. Run the database update "
+            "(python scripts\\migrate.py).",
+            "error",
+        )
+        data = {k: [] for k in ("pending_review", "reviewed", "pending_approval", "approved", "returned")}
+    default_tab = "approval" if approver else "review"
+    return render_template(
+        "cases/approvals.html",
+        reviewer=reviewer,
+        approver=approver,
+        tab=request.args.get("tab") or default_tab,
+        **data,
+    )
+

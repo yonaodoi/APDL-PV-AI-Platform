@@ -421,12 +421,20 @@ def _loop(app):
                     app.logger.info("Automatic follow-up: %s", summary)
             except Exception:
                 app.logger.exception("Automatic follow-up run failed")
+            try:
+                from app.services.case_approval import send_approval_notifications
+
+                notices = send_approval_notifications(app)
+                if any(notices.values()):
+                    app.logger.info("Approval notifications: %s", notices)
+            except Exception:
+                app.logger.exception("Approval notifications failed")
         sleep(max(5, app.config.get("FOLLOW_UP_CHECK_MINUTES", 60)) * 60)
 
 
 def start_follow_up_scheduler(app):
     """Start the background check, once per server process."""
-    if app.config.get("TESTING") or not app.config.get("FOLLOW_UP_AUTO_SEND"):
+    if app.config.get("TESTING"):
         return False
     # Under the debug reloader only the child process serves requests.
     debug = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true")

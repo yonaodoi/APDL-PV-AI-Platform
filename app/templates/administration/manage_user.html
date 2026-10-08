@@ -357,6 +357,32 @@
 
         <section class="user-form-card">
             <div class="form-heading">
+                <span>✉</span>
+                <div>
+                    <h2>Name and email</h2>
+                    <p>The email receives sign-off notices (for review or approval) and follow-up updates.</p>
+                </div>
+            </div>
+            <div class="form-content">
+                <form method="post" action="{{ url_for('administration.update_user_contact', user_id=user.user_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="field">
+                        <label for="full_name">Full name</label>
+                        <input id="full_name" name="full_name" value="{{ user.full_name }}" maxlength="200" required>
+                    </div>
+                    <div class="field">
+                        <label for="email">Email address</label>
+                        <input id="email" name="email" type="email" value="{{ user.email }}" maxlength="255" required>
+                    </div>
+                    <div class="form-actions">
+                        <button class="save-button" type="submit">Save name and email</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section class="user-form-card">
+            <div class="form-heading">
                 <span>3</span>
                 <div>
                     <h2>Reset password</h2>

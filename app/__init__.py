@@ -109,7 +109,18 @@ def create_app(config_class=Config):
             get_open_reminder_count,
         )
 
-        return {"open_follow_up_reminder_count": get_open_reminder_count()}
+        from app.services.approval_settings import load_settings
+        from app.services.case_approval import pending_count_for
+        from app.services.case_workflow import is_designated_qppv
+
+        signoff = load_settings()
+        return {
+            "open_follow_up_reminder_count": get_open_reminder_count(),
+            "approvals_pending_count": pending_count_for(
+                session.get("role"), is_designated_qppv(session.get("user_id")), signoff
+            ),
+            "signoff": signoff,
+        }
 
     from app.services.follow_up_automation import start_follow_up_scheduler
 
