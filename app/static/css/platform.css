@@ -4627,6 +4627,29 @@ summary:focus-visible {
     font-weight: bold;
     cursor: pointer;
 }
+.record-attachment-upload select {
+    max-width: 100%;
+    padding: 7px 9px;
+    border: 1px solid #ded4e2;
+    border-radius: 8px;
+    background: white;
+    color: #342b3b;
+    font: inherit;
+    font-size: 12.5px;
+}
+.record-attachment-status {
+    flex-basis: 100%;
+    padding: 7px 10px;
+    border-radius: 8px;
+    background: #f3f0f8;
+    color: #5d5168;
+    font-size: 12px;
+    line-height: 1.45;
+}
+.record-attachment-status a { margin-left: 4px; }
+.record-attachment-status.status-suggestions-ready { background: #fff6ee; color: #7a4a1e; }
+.record-attachment-status.status-could-not-be-read { background: #fdecec; color: #8f2525; }
+.record-attachment-status.status-updates-applied { background: #e7f6ef; color: #176247; }
 
 /* Foldable record sections with an Edit button in the heading. */
 details.fold-card > summary {

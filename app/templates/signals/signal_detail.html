@@ -225,6 +225,72 @@
         .signal-detail-page .signal-layout { grid-template-columns:1fr; }
     }
 
+    .eval-saved,
+    .eval-suggestion,
+    .eval-checks,
+    .eval-draft {
+        margin:14px 18px 0;
+        padding:12px 14px;
+        border-radius:10px;
+        font-size:12px;
+        line-height:1.5;
+    }
+    .eval-saved { border:1px solid #c7eadb; background:#e7f6ef; color:#176247; }
+    .eval-suggestion { border:1px solid #c9dcf5; background:#f2f7fe; color:#23466f; }
+    .eval-suggestion.is-current { border-color:#c7eadb; background:#f0f9f4; color:#176247; }
+    .eval-checks,
+    .eval-draft { border:1px solid #eee3d0; background:#fffcf6; color:#5d5168; }
+    .eval-title { margin-bottom:4px; font-weight:bold; }
+    .eval-suggestion ul { margin:0; padding-left:16px; }
+    .eval-checks ul { margin:0; padding:0; list-style:none; }
+    .eval-checks li { display:flex; gap:8px; margin-bottom:5px; }
+    .check-mark { flex:0 0 14px; font-weight:bold; }
+    .check-ok .check-mark { color:#176247; }
+    .check-missing .check-mark { color:#a8711a; }
+    .eval-rule { margin:6px 0 0; color:#776e7d; font-size:11px; }
+    .eval-status-buttons { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+    .eval-status-buttons button {
+        padding:7px 12px;
+        border:0;
+        border-radius:8px;
+        background:#2d6cb5;
+        color:white;
+        font:inherit;
+        font-size:12px;
+        font-weight:bold;
+        cursor:pointer;
+    }
+    .eval-draft p { margin:0 0 8px; color:#776e7d; font-size:11px; }
+    .eval-draft textarea {
+        width:100%;
+        box-sizing:border-box;
+        margin-bottom:8px;
+        padding:8px;
+        border:1px solid #e6dccb;
+        border-radius:8px;
+        background:white;
+        color:#4b4252;
+        font:inherit;
+        font-size:12px;
+        resize:vertical;
+    }
+    .eval-draft button {
+        width:100%;
+        padding:9px;
+        border:1px solid #ded6e5;
+        border-radius:8px;
+        background:white;
+        color:#34765e;
+        font:inherit;
+        font-size:12px;
+        font-weight:bold;
+        cursor:pointer;
+    }
+    .evaluation-card button[disabled],
+    .evaluation-card input[type="submit"][disabled] { opacity:0.6; cursor:progress; }
+    .signal-history { margin-top:18px; }
+    .signal-history-list { padding:6px 18px 14px; }
+
     @media (max-width:700px) {
         .signal-detail-page .signal-header { display:block; }
         .signal-detail-page .signal-badges { margin-top:14px; }
@@ -316,8 +382,61 @@
     </div>
 
     <aside>
-        <section class="evaluation-card">
+        <section class="evaluation-card" id="evaluation-panel">
             <div class="evaluation-heading">Signal evaluation</div>
+
+            {% if request.args.get("saved") == "status" %}
+                <div class="eval-saved" role="status">✓ Status changed to <strong>{{ signal.status }}</strong>.</div>
+            {% elif request.args.get("saved") == "evaluation" %}
+                <div class="eval-saved" role="status">✓ Evaluation saved. Status: <strong>{{ signal.status }}</strong>.</div>
+            {% endif %}
+
+            {% if suggestion %}
+                <div class="eval-suggestion {% if suggestion.same %}is-current{% endif %}">
+                    <div class="eval-title">
+                        {% if suggestion.choices %}Ready for a decision
+                        {% elif suggestion.same %}Stay at {{ suggestion.status }}
+                        {% else %}Suggested next status: {{ suggestion.status }}{% endif %}
+                    </div>
+                    <ul>
+                        {% for reason in suggestion.reasons %}<li>{{ reason }}</li>{% endfor %}
+                    </ul>
+                    {% set offered = suggestion.choices or ([suggestion.status] if not suggestion.same else []) %}
+                    {% if offered %}
+                        <div class="eval-status-buttons">
+                            {% for choice in offered %}
+                                <form method="post" action="{{ url_for('signals.accept_signal_status', signal_id=signal.signal_id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="status" value="{{ choice }}">
+                                    <button type="submit">Move to {{ choice }}</button>
+                                </form>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <div class="eval-checks">
+                <div class="eval-title">Evaluation record</div>
+                <ul>
+                    {% for check in evaluation_checks %}
+                        <li class="{% if check.ok %}check-ok{% else %}check-missing{% endif %}">
+                            <span class="check-mark" aria-hidden="true">{% if check.ok %}✓{% else %}•{% endif %}</span>
+                            <span><strong>{{ check.label }}</strong> {{ check.message }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+                <p class="eval-rule">Validated needs an owner and assessment. Closed also needs the decision and action.</p>
+            </div>
+
+            {% if signal.status != "Closed" %}
+                <div class="eval-draft">
+                    <div class="eval-title">Drafted assessment</div>
+                    <p>Counts and dates from the supporting cases. Add the medical assessment and conclusion where marked in brackets.</p>
+                    <textarea id="drafted-assessment-text" rows="7" readonly>{{ drafted_assessment }}</textarea>
+                    <button type="button" id="use-drafted-assessment">{% if signal.assessment_summary %}Add to assessment{% else %}Use as assessment{% endif %}</button>
+                </div>
+            {% endif %}
 
             <form method="post" action="{{ url_for('signals.draft_signal_assessment', signal_id=signal.signal_id) }}" class="evaluation-form ai-draft-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -368,6 +487,21 @@
 
                 {{ evaluation_form.submit(class_="save-button") }}
             </form>
+        </section>
+
+        <section class="evaluation-card signal-history">
+            <div class="evaluation-heading">Change history</div>
+            <div class="signal-history-list">
+                {% for entry in history %}
+                    <div class="history-entry">
+                        <strong>{{ entry.action }}</strong>
+                        {% if entry.details %}<p>{{ entry.details }}</p>{% endif %}
+                        <span>{% if entry.occurred_at %}{{ entry.occurred_at.strftime("%d %b %Y, %H:%M") }}{% endif %}{% if entry.full_name %} · {{ entry.full_name }}{% endif %}</span>
+                    </div>
+                {% else %}
+                    <p class="history-empty">No changes recorded yet.</p>
+                {% endfor %}
+            </div>
         </section>
 
         <div class="signal-guide" role="note">
@@ -428,4 +562,42 @@
 </section>
 {% endif %}
 </section>
+
+<script>
+    (function () {
+        var button = document.getElementById("use-drafted-assessment");
+        var summary = document.getElementById("assessment_summary");
+        var draft = document.getElementById("drafted-assessment-text");
+        if (!button || !summary || !draft) {
+            return;
+        }
+        button.addEventListener("click", function () {
+            var current = summary.value.trim();
+            summary.value = current ? current + "\n\n" + draft.value : draft.value;
+            summary.focus();
+            var marker = summary.value.indexOf("[record the medical");
+            if (marker >= 0) {
+                summary.setSelectionRange(marker, summary.value.indexOf("]", marker) + 1);
+            }
+            button.textContent = "Added. Edit the bracketed parts, then save.";
+            button.disabled = true;
+        });
+    })();
+
+    // Prevent double submits from the evaluation panel.
+    document.querySelectorAll("#evaluation-panel form").forEach(function (form) {
+        form.addEventListener("submit", function () {
+            form.querySelectorAll("button[type=submit], input[type=submit]").forEach(function (control) {
+                setTimeout(function () {
+                    control.disabled = true;
+                    if (control.tagName === "BUTTON") {
+                        control.textContent = form.classList.contains("ai-draft-form") ? "Drafting… (about a minute)" : "Saving…";
+                    } else {
+                        control.value = "Saving…";
+                    }
+                }, 0);
+            });
+        });
+    });
+</script>
 {% endblock %}

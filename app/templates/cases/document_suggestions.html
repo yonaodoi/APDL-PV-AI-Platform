@@ -139,10 +139,10 @@
 <section class="suggest-page">
     <header class="suggest-header">
         <div>
-            <h1>Suggested updates for {{ case.case_number }}</h1>
+            <h1>Suggested updates for {{ record_number }}</h1>
             <p>From {{ attachment.original_filename }} ({{ document_type_label(attachment.document_type) }}).</p>
         </div>
-        <a class="back-link" href="{{ url_for('cases.case_detail', case_id=case.case_id) }}#attachments">← Back to case</a>
+        <a class="back-link" href="{{ back_url }}">← Back to {{ record_noun }}</a>
     </header>
 
     <section class="suggest-card">
@@ -152,9 +152,9 @@
             <form method="post">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <p class="suggest-note">
-                    The AI read this document and found these differences from the case.
+                    The AI read this document and found these differences from the {{ record_noun }}.
                     Check each value against the document. Ticked rows are applied; the
-                    case changes only when you click <strong>Apply selected updates</strong>.
+                    {{ record_noun }} changes only when you click <strong>Apply selected updates</strong>.
                     Changes to existing values, and values marked ⚠ for checking, start unticked.
                 </p>
                 <div class="suggest-scroll">
@@ -163,7 +163,7 @@
                             <tr>
                                 <th scope="col">Apply</th>
                                 <th scope="col">Field</th>
-                                <th scope="col">In the case now</th>
+                                <th scope="col">In the {{ record_noun }} now</th>
                                 <th scope="col">From the document</th>
                             </tr>
                         </thead>

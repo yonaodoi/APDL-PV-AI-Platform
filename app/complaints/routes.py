@@ -27,8 +27,22 @@ from app.services.complaint_checks import (
     normalise_batch,
 )
 from app.services.complaint_rules import (
+    STATUS_COMPLETE,
     describe_complaint_changes,
     validate_complaint_update,
+)
+from app.services.complaint_documents import (
+    COMPLAINT_DOCUMENT_TYPES,
+    STATUS_DISMISSED,
+    apply_complaint_suggestions,
+    complaint_document_type_label,
+    describe_applied,
+    typed_complaint_value,
+)
+from app.services.complaint_workflow import (
+    closure_blockers,
+    closure_checks,
+    draft_investigation_note,
 )
 from app.db import query_all, query_one, transaction
 from app.security import login_required
@@ -528,6 +542,8 @@ def _render_complaint_detail(complaint_id, review_form=None):
             ),
         )
     _, date_warnings = complaint_date_problems(complaint)
+    attachments = list_record_attachments("complaint", complaint_id)
+    checks = closure_checks(complaint, date_warnings, same_batch)
 
     return render_template(
         "complaints/complaint_detail.html",
@@ -537,7 +553,15 @@ def _render_complaint_detail(complaint_id, review_form=None):
         history=history,
         same_batch=same_batch,
         date_warnings=date_warnings,
-        attachments=list_record_attachments("complaint", complaint_id),
+        attachments=attachments,
+        closure_checks=checks,
+        closure_blockers=closure_blockers(checks),
+        drafted_note=draft_investigation_note(
+            complaint, same_batch, date_warnings, len(attachments or [])
+        ),
+        today_iso=date.today().isoformat(),
+        is_complete=complaint.get("status") == STATUS_COMPLETE,
+        complaint_document_types=COMPLAINT_DOCUMENT_TYPES,
     )
 
 
@@ -719,7 +743,9 @@ def review_complaint(complaint_id):
             status,
             investigation_summary,
             corrective_action,
-            closure_date
+            closure_date,
+            complaint_category,
+            linked_case_id
         FROM pv.product_complaints
         WHERE complaint_id = %s
         """,
@@ -785,9 +811,96 @@ def review_complaint(complaint_id):
         describe_complaint_changes(complaint, after),
     )
 
-    flash("Complaint investigation update saved.", "success")
     return redirect(
+        url_for(
+            "complaints.complaint_detail",
+            complaint_id=complaint_id,
+            saved="investigation",
+        )
+        + "#investigation-panel"
+    )
+
+
+@bp.post("/<int:complaint_id>/close")
+@login_required
+def close_complaint(complaint_id):
+    """Mark the investigation complete from the "Ready to close?" panel."""
+    complaint = query_one(
+        """
+        SELECT
+            complaint_id,
+            date_received,
+            severity,
+            status,
+            investigation_summary,
+            corrective_action,
+            closure_date,
+            complaint_category,
+            linked_case_id
+        FROM pv.product_complaints
+        WHERE complaint_id = %s
+        """,
+        (complaint_id,),
+    )
+    if not complaint:
+        abort(404)
+
+    panel_url = (
         url_for("complaints.complaint_detail", complaint_id=complaint_id)
+        + "#investigation-panel"
+    )
+    if complaint["status"] == STATUS_COMPLETE:
+        flash("This investigation is already complete.", "info")
+        return redirect(panel_url)
+
+    try:
+        closure_date = date.fromisoformat(request.form.get("closure_date", ""))
+    except ValueError:
+        flash("Enter a valid closure date.", "error")
+        return redirect(panel_url)
+
+    errors = validate_complaint_update(
+        complaint,
+        STATUS_COMPLETE,
+        complaint["investigation_summary"],
+        complaint["corrective_action"],
+        closure_date,
+    )
+    if errors:
+        for error in errors:
+            flash(error, "error")
+        return redirect(panel_url)
+
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.product_complaints
+            SET status = %s,
+                closure_date = %s,
+                updated_at = NOW()
+            WHERE complaint_id = %s
+              AND status <> %s
+            """,
+            (STATUS_COMPLETE, closure_date, complaint_id, STATUS_COMPLETE),
+        )
+
+    write_audit_log(
+        "complaint",
+        complaint_id,
+        "Investigation closed",
+        session["user_id"],
+        describe_complaint_changes(
+            complaint,
+            {**complaint, "status": STATUS_COMPLETE, "closure_date": closure_date},
+        ),
+    )
+    return redirect(
+        url_for(
+            "complaints.complaint_detail",
+            complaint_id=complaint_id,
+            saved="closed",
+        )
+        + "#investigation-panel"
     )
 
 def _get_filtered_complaints():
@@ -974,3 +1087,142 @@ def save_product_complaint_reporting_draft():
         draft_id=draft["draft_id"],
         updated_at=draft["updated_at"].isoformat(),
     )
+
+
+def _complaint_attachment_or_404(complaint_id, attachment_id):
+    attachment = query_one(
+        """
+        SELECT *
+        FROM pv.record_attachments
+        WHERE attachment_id = %s
+          AND record_type = 'complaint'
+          AND record_id = %s
+        """,
+        (attachment_id, complaint_id),
+    )
+    if not attachment:
+        abort(404)
+    return attachment
+
+
+@bp.get("/<int:complaint_id>/attachments/<int:attachment_id>/suggestions")
+@login_required
+def review_document_suggestions(complaint_id, attachment_id):
+    complaint = query_one(
+        "SELECT complaint_id, complaint_number FROM pv.product_complaints WHERE complaint_id = %s",
+        (complaint_id,),
+    )
+    if not complaint:
+        abort(404)
+    attachment = _complaint_attachment_or_404(complaint_id, attachment_id)
+    return render_template(
+        "cases/document_suggestions.html",
+        record_number=complaint["complaint_number"],
+        record_noun="complaint",
+        back_url=url_for("complaints.complaint_detail", complaint_id=complaint_id)
+        + "#attachments",
+        attachment=attachment,
+        suggestions=attachment.get("suggested_updates") or [],
+        document_type_label=complaint_document_type_label,
+    )
+
+
+@bp.post("/<int:complaint_id>/attachments/<int:attachment_id>/suggestions")
+@login_required
+def apply_document_suggestions(complaint_id, attachment_id):
+    attachment = _complaint_attachment_or_404(complaint_id, attachment_id)
+    back = (
+        url_for("complaints.complaint_detail", complaint_id=complaint_id)
+        + "#attachments"
+    )
+    review_url = url_for(
+        "complaints.review_document_suggestions",
+        complaint_id=complaint_id,
+        attachment_id=attachment_id,
+    )
+
+    if request.form.get("action") == "dismiss":
+        with transaction() as cursor:
+            cursor.execute(
+                """
+                UPDATE pv.record_attachments
+                SET processing_status = %s,
+                    processing_note = 'Remaining suggested updates were dismissed.',
+                    suggested_updates = '[]'::jsonb
+                WHERE attachment_id = %s
+                """,
+                (STATUS_DISMISSED, attachment_id),
+            )
+        write_audit_log(
+            "complaint",
+            complaint_id,
+            "Document suggestions dismissed",
+            session["user_id"],
+            f"No updates applied from {attachment['original_filename']}.",
+        )
+        flash("Suggested updates dismissed. The complaint was not changed.", "info")
+        return redirect(back)
+
+    selected = set(request.form.getlist("field"))
+    if not selected:
+        flash("Tick at least one update to apply, or dismiss the suggestions.", "error")
+        return redirect(review_url)
+
+    # Check the dates still make sense with the chosen values applied.
+    complaint = query_one(
+        "SELECT * FROM pv.product_complaints WHERE complaint_id = %s",
+        (complaint_id,),
+    )
+    if not complaint:
+        abort(404)
+    merged = dict(complaint)
+    try:
+        for item in attachment.get("suggested_updates") or []:
+            if item["field"] in selected:
+                merged[item["field"]] = typed_complaint_value(
+                    item["field"], item["new_value"]
+                )
+    except ValueError as error:
+        flash(f"A value was not accepted: {error}. Untick that row and try again.", "error")
+        return redirect(review_url)
+    date_errors, _ = complaint_date_problems(merged)
+    if date_errors:
+        for error in date_errors:
+            flash(error, "error")
+        flash("No updates were applied. Untick the date that does not fit.", "error")
+        return redirect(review_url)
+
+    try:
+        applied = apply_complaint_suggestions(complaint_id, attachment, selected)
+    except Exception as error:
+        current_app.logger.exception(
+            "Applying document suggestions failed for complaint %s", complaint_id
+        )
+        flash(
+            "The updates could not be applied, so the complaint was not changed. "
+            f"A value was not accepted: {error}. Untick that row and try again.",
+            "error",
+        )
+        return redirect(review_url)
+
+    if applied:
+        write_audit_log(
+            "complaint",
+            complaint_id,
+            "Complaint updated from attached document",
+            session["user_id"],
+            f"From {attachment['original_filename']}: {describe_applied(applied)}"[:4000],
+        )
+        labels = ", ".join(s["label"] for s in applied)
+        flash(f"{len(applied)} update(s) applied: {labels}.", "success")
+        if (
+            merged.get("complaint_category") == ADVERSE_EVENT_CATEGORY
+            and not complaint.get("linked_case_id")
+        ):
+            flash(
+                "This complaint now reports an adverse event. Create a safety "
+                "case from it so it is assessed and reported on time.",
+                "warning",
+            )
+    return redirect(back)
+

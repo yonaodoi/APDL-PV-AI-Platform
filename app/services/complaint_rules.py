@@ -2,6 +2,11 @@
 
 from datetime import date
 
+from app.services.complaint_workflow import (
+    ADVERSE_EVENT_CATEGORY,
+    has_draft_placeholders,
+)
+
 
 STATUS_OPEN = "Under investigation"
 STATUS_COMPLETE = "Investigation complete"
@@ -34,6 +39,11 @@ def validate_complaint_update(
                 "Record the investigation summary before marking the "
                 "investigation complete."
             )
+        elif has_draft_placeholders(investigation_summary):
+            errors.append(
+                "Replace the bracketed parts of the drafted investigation "
+                "note with the actual findings and conclusion."
+            )
         if not closure_date:
             errors.append(
                 "Enter the closure date before marking the investigation "
@@ -45,6 +55,11 @@ def validate_complaint_update(
             errors.append(
                 "Serious complaints need a corrective action / CAPA entry "
                 "before closure. If no action is needed, record why."
+            )
+        if complaint.get("complaint_category") == ADVERSE_EVENT_CATEGORY and not complaint.get("linked_case_id"):
+            errors.append(
+                "This complaint reports an adverse event. Create the safety "
+                "case before closing the investigation."
             )
     elif closure_date:
         errors.append(

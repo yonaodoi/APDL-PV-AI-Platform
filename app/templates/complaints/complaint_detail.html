@@ -263,6 +263,117 @@
         font-size: 12px;
     }
 
+    .close-saved {
+        margin: 14px 19px 0;
+        padding: 10px 12px;
+        border: 1px solid #c7eadb;
+        border-radius: 10px;
+        background: #e7f6ef;
+        color: #176247;
+        font-size: 12.5px;
+    }
+    .close-check,
+    .drafted-note {
+        margin: 14px 19px 0;
+        padding: 12px 14px;
+        border: 1px solid #eee3d0;
+        border-radius: 10px;
+        background: #fffcf6;
+        color: #5d5168;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+    .close-check.is-ready,
+    .close-check.is-closed {
+        border-color: #c7eadb;
+        background: #f0f9f4;
+    }
+    .close-check-title,
+    .drafted-note-title {
+        margin-bottom: 6px;
+        color: #3a2d45;
+        font-weight: bold;
+    }
+    .close-check ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+    .close-check li {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+    .close-check li a {
+        color: #6242d7;
+        font-weight: bold;
+        text-decoration: none;
+    }
+    .check-mark {
+        flex: 0 0 16px;
+        font-weight: bold;
+    }
+    .check-ok .check-mark { color: #176247; }
+    .check-missing .check-mark { color: #b23a3a; }
+    .check-note .check-mark { color: #a8711a; }
+    .close-form label {
+        display: block;
+        margin: 8px 0 4px;
+        font-size: 11px;
+        font-weight: bold;
+    }
+    .close-form input[type="date"] {
+        width: 100%;
+        box-sizing: border-box;
+        margin-bottom: 8px;
+        padding: 8px;
+        border: 1px solid #c7dccf;
+        border-radius: 8px;
+        background: white;
+        font: inherit;
+    }
+    .close-form button,
+    .drafted-note button {
+        width: 100%;
+        padding: 9px;
+        border: 0;
+        border-radius: 8px;
+        background: #176247;
+        color: white;
+        font: inherit;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .drafted-note p {
+        margin: 0 0 8px;
+        color: #776e7d;
+        font-size: 11px;
+    }
+    .drafted-note textarea {
+        width: 100%;
+        box-sizing: border-box;
+        margin-bottom: 8px;
+        padding: 8px;
+        border: 1px solid #e6dccb;
+        border-radius: 8px;
+        background: white;
+        color: #4b4252;
+        font: inherit;
+        font-size: 12px;
+        resize: vertical;
+    }
+    .drafted-note button {
+        border: 1px solid #ded6e5;
+        background: white;
+        color: #6242d7;
+    }
+    .review-card button[disabled],
+    .review-card input[type="submit"][disabled] {
+        opacity: 0.6;
+        cursor: progress;
+    }
+
     @media (max-width: 900px) {
         .detail-layout {
             grid-template-columns: 1fr;
@@ -465,12 +576,54 @@
                 </div>
             </details>
 
-            {{ attachments_section('complaint', complaint.complaint_id, attachments, url_for('complaints.complaint_detail', complaint_id=complaint.complaint_id)) }}
+            {{ attachments_section('complaint', complaint.complaint_id, attachments, url_for('complaints.complaint_detail', complaint_id=complaint.complaint_id), document_types=complaint_document_types) }}
         </main>
 
         <aside class="detail-side">
-            <section class="review-card">
+            <section class="review-card" id="investigation-panel">
                 <h2 class="review-heading">Investigation update</h2>
+
+                {% if request.args.get("saved") == "closed" %}
+                    <div class="close-saved" role="status">✓ Investigation marked complete{% if complaint.closure_date %} on {{ complaint.closure_date.strftime("%d %b %Y") }}{% endif %}.</div>
+                {% elif request.args.get("saved") == "investigation" %}
+                    <div class="close-saved" role="status">✓ Investigation update saved. Status: <strong>{{ complaint.status }}</strong>.</div>
+                {% endif %}
+
+                <div class="close-check {% if is_complete %}is-closed{% elif not closure_blockers %}is-ready{% endif %}">
+                    <div class="close-check-title">
+                        {% if is_complete %}Investigation complete{% elif closure_blockers %}Ready to close? Not yet{% else %}Ready to close{% endif %}
+                    </div>
+                    <ul>
+                        {% for check in closure_checks %}
+                            <li class="{% if check.ok %}check-ok{% elif check.required %}check-missing{% else %}check-note{% endif %}">
+                                <span class="check-mark" aria-hidden="true">{% if check.ok %}✓{% elif check.required %}✕{% else %}!{% endif %}</span>
+                                <span><strong>{{ check.label }}</strong> {{ check.message }}
+                                    {% if check.code == "safety_case" and not check.ok %}
+                                        <a href="{{ url_for('cases.create_case', from_complaint=complaint.complaint_id) }}">Create safety case</a>
+                                    {% endif %}
+                                </span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+
+                    {% if not is_complete and not closure_blockers %}
+                        <form method="post" action="{{ url_for('complaints.close_complaint', complaint_id=complaint.complaint_id) }}" class="close-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <label for="close-date">Closure date</label>
+                            <input type="date" id="close-date" name="closure_date" value="{{ today_iso }}" max="{{ today_iso }}" min="{{ complaint.date_received.isoformat() }}" required>
+                            <button type="submit">Mark investigation complete</button>
+                        </form>
+                    {% endif %}
+                </div>
+
+                {% if not is_complete %}
+                    <div class="drafted-note">
+                        <div class="drafted-note-title">Drafted investigation note</div>
+                        <p>Built from the record. Add the findings and conclusion where marked in brackets.</p>
+                        <textarea id="drafted-note-text" rows="6" readonly>{{ drafted_note }}</textarea>
+                        <button type="button" id="use-drafted-note">{% if complaint.investigation_summary %}Add to summary{% else %}Use as summary{% endif %}</button>
+                    </div>
+                {% endif %}
 
                 <form method="post" action="{{ url_for('complaints.review_complaint', complaint_id=complaint.complaint_id) }}" class="review-form">
                     {{ review_form.hidden_tag() }}
@@ -533,4 +686,41 @@
         </aside>
     </div>
 </section>
+<script>
+    (function () {
+        var button = document.getElementById("use-drafted-note");
+        var summary = document.getElementById("investigation_summary");
+        var draft = document.getElementById("drafted-note-text");
+        if (!button || !summary || !draft) {
+            return;
+        }
+        button.addEventListener("click", function () {
+            var current = summary.value.trim();
+            summary.value = current ? current + "\n\n" + draft.value : draft.value;
+            summary.focus();
+            var marker = summary.value.indexOf("[record what");
+            if (marker >= 0) {
+                summary.setSelectionRange(marker, summary.value.indexOf("]", marker) + 1);
+            }
+            button.textContent = "Added. Edit the bracketed parts, then save.";
+            button.disabled = true;
+        });
+    })();
+
+    // Prevent double submits from the investigation panel.
+    document.querySelectorAll("#investigation-panel form").forEach(function (form) {
+        form.addEventListener("submit", function () {
+            form.querySelectorAll("button[type=submit], input[type=submit]").forEach(function (control) {
+                setTimeout(function () {
+                    control.disabled = true;
+                    if (control.tagName === "BUTTON") {
+                        control.textContent = "Saving…";
+                    } else {
+                        control.value = "Saving…";
+                    }
+                }, 0);
+            });
+        });
+    });
+</script>
 {% endblock %}

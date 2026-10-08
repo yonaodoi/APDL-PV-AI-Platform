@@ -24,6 +24,12 @@ from app.services.safety_signal_reporting_docx import (
     build_safety_signal_reporting_docx,
 )
 from app.signals.forms import SafetySignalForm, SignalEvaluationForm
+from app.services.signal_workflow import (
+    draft_signal_assessment_note,
+    evaluation_checks,
+    suggest_signal_status,
+    validate_signal_evaluation,
+)
 from app.services.signal_detection import (
     run_signal_detection_for_all_cases,
 )
@@ -437,12 +443,16 @@ def _get_signal_and_supporting_cases(signal_id):
             safety_cases.received_date,
             safety_cases.seriousness,
             safety_cases.event_description,
-            countries.country_name
+            safety_cases.event_outcome,
+            countries.country_name,
+            assessments.listedness_status
         FROM pv.safety_signal_cases AS safety_signal_cases
         INNER JOIN pv.safety_cases AS safety_cases
             ON safety_cases.case_id = safety_signal_cases.case_id
         LEFT JOIN pv.countries AS countries
             ON countries.country_id = safety_cases.country_id
+        LEFT JOIN pv.case_safety_assessments AS assessments
+            ON assessments.case_id = safety_cases.case_id
         WHERE safety_signal_cases.signal_id = %s
         ORDER BY
             safety_cases.received_date DESC,
@@ -457,12 +467,35 @@ def _render_signal_detail(
     signal,
     supporting_cases,
     ai_assistance=None,
+    evaluation_values=None,
 ):
     evaluation_form = SignalEvaluationForm()
     evaluation_form.status.data = signal["status"]
     evaluation_form.assessment_summary.data = signal["assessment_summary"]
     evaluation_form.decision_summary.data = signal["decision_summary"]
     evaluation_form.owner_name.data = signal["owner_name"]
+    if evaluation_values:
+        evaluation_form.status.data = evaluation_values["status"]
+        evaluation_form.assessment_summary.data = evaluation_values["assessment_summary"]
+        evaluation_form.decision_summary.data = evaluation_values["decision_summary"]
+        evaluation_form.owner_name.data = evaluation_values["owner_name"]
+    history = query_all(
+        """
+        SELECT
+            audit_log.action,
+            audit_log.details,
+            audit_log.occurred_at,
+            users.full_name
+        FROM pv.audit_log AS audit_log
+        LEFT JOIN pv.users AS users
+            ON users.user_id = audit_log.actor_user_id
+        WHERE audit_log.record_type = 'signal'
+          AND audit_log.record_id = %s
+        ORDER BY audit_log.occurred_at DESC
+        LIMIT 20
+        """,
+        (signal["signal_id"],),
+    )
     return render_template(
         "signals/signal_detail.html",
         signal=signal,
@@ -470,6 +503,10 @@ def _render_signal_detail(
         supporting_cases=supporting_cases,
         ai_assistance=ai_assistance,
         attachments=list_record_attachments("signal", signal["signal_id"]),
+        evaluation_checks=evaluation_checks(signal, supporting_cases),
+        suggestion=suggest_signal_status(signal, supporting_cases),
+        drafted_assessment=draft_signal_assessment_note(signal, supporting_cases),
+        history=history,
     )
 
 
@@ -514,7 +551,7 @@ def draft_signal_assessment(signal_id):
 def evaluate_signal(signal_id):
     signal = query_one(
         """
-        SELECT signal_id
+        SELECT signal_id, status, assessment_summary, decision_summary, owner_name
         FROM pv.safety_signals
         WHERE signal_id = %s
         """,
@@ -524,11 +561,30 @@ def evaluate_signal(signal_id):
     if not signal:
         abort(404)
 
+    panel_url = url_for("signals.signal_detail", signal_id=signal_id) + "#evaluation-panel"
     form = SignalEvaluationForm()
 
     if not form.validate_on_submit():
         flash("Please correct the signal evaluation form.", "error")
-        return redirect(url_for("signals.signal_detail", signal_id=signal_id))
+        return redirect(panel_url)
+
+    after = {
+        "status": form.status.data,
+        "assessment_summary": (form.assessment_summary.data or "").strip() or None,
+        "decision_summary": (form.decision_summary.data or "").strip() or None,
+        "owner_name": (form.owner_name.data or "").strip() or None,
+    }
+    if after["status"] != signal["status"]:
+        errors = validate_signal_evaluation(after["status"], after)
+    else:
+        errors = []
+    if errors:
+        for error in errors:
+            flash(error, "error")
+        full_signal, supporting_cases = _get_signal_and_supporting_cases(signal_id)
+        return _render_signal_detail(
+            full_signal, supporting_cases, evaluation_values=after
+        ), 400
 
     with transaction() as cursor:
         cursor.execute(
@@ -543,16 +599,84 @@ def evaluate_signal(signal_id):
             WHERE signal_id = %s
             """,
             (
-                form.status.data,
-                (form.assessment_summary.data or "").strip() or None,
-                (form.decision_summary.data or "").strip() or None,
-                (form.owner_name.data or "").strip() or None,
+                after["status"],
+                after["assessment_summary"],
+                after["decision_summary"],
+                after["owner_name"],
                 signal_id,
             ),
         )
 
-    flash("Signal evaluation saved successfully.", "success")
-    return redirect(url_for("signals.signal_detail", signal_id=signal_id))
+    changes = describe_changes(signal, after, SIGNAL_EVALUATION_LABELS)
+    if changes:
+        write_audit_log(
+            "signal", signal_id, "Evaluation updated", session["user_id"], changes
+        )
+    return redirect(
+        url_for("signals.signal_detail", signal_id=signal_id, saved="evaluation")
+        + "#evaluation-panel"
+    )
+
+
+@bp.post("/<int:signal_id>/status")
+@login_required
+def accept_signal_status(signal_id):
+    """Move the signal to a status offered by the evaluation panel."""
+    signal = query_one(
+        """
+        SELECT signal_id, status, assessment_summary, decision_summary, owner_name
+        FROM pv.safety_signals
+        WHERE signal_id = %s
+        """,
+        (signal_id,),
+    )
+    if not signal:
+        abort(404)
+
+    panel_url = url_for("signals.signal_detail", signal_id=signal_id) + "#evaluation-panel"
+    new_status = request.form.get("status", "")
+    if new_status not in ("Under evaluation", "Validated", "Closed"):
+        flash("Choose a valid status.", "error")
+        return redirect(panel_url)
+    if new_status == signal["status"]:
+        return redirect(panel_url)
+
+    errors = validate_signal_evaluation(new_status, signal)
+    if errors:
+        for error in errors:
+            flash(error, "error")
+        return redirect(panel_url)
+
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.safety_signals
+            SET status = %s, updated_at = NOW()
+            WHERE signal_id = %s AND status = %s
+            """,
+            (new_status, signal_id, signal["status"]),
+        )
+
+    write_audit_log(
+        "signal",
+        signal_id,
+        "Status changed",
+        session["user_id"],
+        f"Status: {signal['status']} → {new_status}",
+    )
+    return redirect(
+        url_for("signals.signal_detail", signal_id=signal_id, saved="status")
+        + "#evaluation-panel"
+    )
+
+
+SIGNAL_EVALUATION_LABELS = {
+    "status": "Status",
+    "owner_name": "Owner",
+    "assessment_summary": "Assessment summary",
+    "decision_summary": "Decision and action",
+}
+
 
 def _get_filtered_signals():
     selected_product = request.args.get("product", "").strip()

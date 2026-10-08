@@ -1,7 +1,7 @@
 {# Attachments section for a record page.
    Usage: {% from "attachments/_section.html" import attachments_section %}
           {{ attachments_section(record_type, record_id, attachments, return_to) }} #}
-{% macro attachments_section(record_type, record_id, attachments, return_to, heading_class="", locked=False) %}
+{% macro attachments_section(record_type, record_id, attachments, return_to, heading_class="", locked=False, document_types=None) %}
 <section class="record-attachments" id="attachments">
     <div class="record-attachments-title">Attachments</div>
     <div class="record-attachments-body">
@@ -11,8 +11,17 @@
                     <li>
                         <a href="{{ url_for('attachments.download_attachment', attachment_id=attachment.attachment_id) }}">{{ attachment.original_filename }}</a>
                         <span class="record-attachment-meta">
-                            {% if attachment.file_size_bytes is not none %}{% if attachment.file_size_bytes < 1024 %}under 1 KB{% elif attachment.file_size_bytes < 1048576 %}{{ (attachment.file_size_bytes / 1024)|round(0)|int }} KB{% else %}{{ (attachment.file_size_bytes / 1048576)|round(1) }} MB{% endif %} · {% endif %}{{ attachment.uploaded_at.strftime("%d %b %Y") }}{% if attachment.uploaded_by_name %} · {{ attachment.uploaded_by_name }}{% endif %}
+                            {% if document_types and attachment.document_type and attachment.document_type != "other" %}{{ dict(document_types).get(attachment.document_type, "") }} · {% endif %}{% if attachment.file_size_bytes is not none %}{% if attachment.file_size_bytes < 1024 %}under 1 KB{% elif attachment.file_size_bytes < 1048576 %}{{ (attachment.file_size_bytes / 1024)|round(0)|int }} KB{% else %}{{ (attachment.file_size_bytes / 1048576)|round(1) }} MB{% endif %} · {% endif %}{{ attachment.uploaded_at.strftime("%d %b %Y") }}{% if attachment.uploaded_by_name %} · {{ attachment.uploaded_by_name }}{% endif %}
                         </span>
+                        {% if attachment.processing_status %}
+                            <div class="record-attachment-status status-{{ attachment.processing_status|lower|replace(' ', '-') }}" {% if attachment.processing_status == "Reading document" %}data-reading="1"{% endif %}>
+                                <strong>{{ attachment.processing_status }}.</strong>
+                                {{ attachment.processing_note or "" }}
+                                {% if attachment.processing_status == "Suggestions ready" and record_type == "complaint" %}
+                                    <a href="{{ url_for('complaints.review_document_suggestions', complaint_id=record_id, attachment_id=attachment.attachment_id) }}">Review suggested updates →</a>
+                                {% endif %}
+                            </div>
+                        {% endif %}
                     </li>
                 {% endfor %}
             </ul>
@@ -23,12 +32,26 @@
             <form method="post" enctype="multipart/form-data" class="record-attachment-upload" action="{{ url_for('attachments.manage_attachments', record_type=record_type, record_id=record_id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="return_to" value="{{ return_to }}#attachments">
+                {% if document_types %}
+                    <label class="visually-hidden" for="record-document-type">Document type</label>
+                    <select id="record-document-type" name="document_type">
+                        {% for value, label in document_types %}
+                            <option value="{{ value }}" {% if value == "other" %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                {% endif %}
                 <label class="visually-hidden" for="record-attachment-file">File to attach</label>
                 <input id="record-attachment-file" type="file" name="attachment" required>
                 <button type="submit">Upload</button>
             </form>
-            <p class="record-attachment-empty">PDF, Word, Excel, CSV, text or image files.</p>
+            <p class="record-attachment-empty">PDF, Word, Excel, CSV, text or image files.{% if document_types %} Complaint reports and follow-ups are read by the AI and suggest updates for you to review.{% endif %}</p>
         {% endif %}
     </div>
 </section>
+{% if attachments and attachments|selectattr("processing_status", "equalto", "Reading document")|list %}
+<script>
+    // Refresh while an attached document is still being read.
+    setTimeout(function () { window.location.reload(); }, 10000);
+</script>
+{% endif %}
 {% endmacro %}

@@ -23,6 +23,11 @@ from app.services.case_documents import (
     document_type_label,
     process_case_attachment,
 )
+from app.services.complaint_documents import (
+    COMPLAINT_DOCUMENT_TYPE_LABELS,
+    complaint_document_type_label,
+    process_complaint_attachment,
+)
 
 
 bp = Blueprint("attachments", __name__, url_prefix="/records")
@@ -169,8 +174,19 @@ def manage_attachments(record_type, record_id):
         uploaded_file.save(output_path)
 
         document_type = request.form.get("document_type") or "other"
-        if record_type != "case" or document_type not in DOCUMENT_TYPE_LABELS:
+        if record_type == "case":
+            allowed_types = DOCUMENT_TYPE_LABELS
+        elif record_type == "complaint":
+            allowed_types = COMPLAINT_DOCUMENT_TYPE_LABELS
+        else:
+            allowed_types = {}
+        if document_type not in allowed_types:
             document_type = "other"
+        type_label = (
+            complaint_document_type_label(document_type)
+            if record_type == "complaint"
+            else document_type_label(document_type)
+        )
 
         with transaction() as cursor:
             cursor.execute(
@@ -207,7 +223,7 @@ def manage_attachments(record_type, record_id):
             action="Attachment uploaded",
             details=(
                 f"Uploaded file: {original_filename} "
-                f"({document_type_label(document_type)})"
+                f"({type_label})"
             ),
             actor_user_id=session["user_id"],
         )
@@ -225,6 +241,18 @@ def manage_attachments(record_type, record_id):
                 record_id,
                 output_path,
                 session["user_id"],
+            )
+            if outcome:
+                flash(*outcome)
+        elif record_type == "complaint" and document_type != "other":
+            outcome = process_complaint_attachment(
+                {
+                    "attachment_id": attachment_id,
+                    "original_filename": original_filename,
+                    "document_type": document_type,
+                },
+                record_id,
+                output_path,
             )
             if outcome:
                 flash(*outcome)
@@ -300,6 +328,9 @@ def list_record_attachments(record_type, record_id):
                    attachments.original_filename,
                    attachments.file_size_bytes,
                    attachments.uploaded_at,
+                   attachments.document_type,
+                   attachments.processing_status,
+                   attachments.processing_note,
                    users.full_name AS uploaded_by_name
             FROM pv.record_attachments AS attachments
             LEFT JOIN pv.users AS users ON users.user_id = attachments.uploaded_by

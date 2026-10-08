@@ -595,6 +595,9 @@ def review_document_suggestions(case_id, attachment_id):
     return render_template(
         "cases/document_suggestions.html",
         case=case,
+        record_number=case["case_number"],
+        record_noun="case",
+        back_url=url_for("cases.case_detail", case_id=case_id) + "#attachments",
         attachment=attachment,
         suggestions=attachment.get("suggested_updates") or [],
         document_type_label=document_type_label,
