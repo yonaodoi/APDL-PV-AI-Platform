@@ -17,7 +17,7 @@ from werkzeug.utils import secure_filename
 
 from app.audit import write_audit_log
 from app.db import query_all, query_one, transaction
-from app.security import login_required
+from app.security import login_required, safe_next_path
 
 
 bp = Blueprint("attachments", __name__, url_prefix="/records")
@@ -111,29 +111,23 @@ def manage_attachments(record_type, record_id):
     record_exists(config, record_id)
 
     if request.method == "POST":
+        # Uploads from a record page (e.g. a safety case) return there.
+        back_url = safe_next_path(request.form.get("return_to")) or url_for(
+            "attachments.manage_attachments",
+            record_type=record_type,
+            record_id=record_id,
+        )
         uploaded_file = request.files.get("attachment")
 
         if not uploaded_file or not uploaded_file.filename:
             flash("Choose a file before uploading.", "error")
-            return redirect(
-                url_for(
-                    "attachments.manage_attachments",
-                    record_type=record_type,
-                    record_id=record_id,
-                )
-            )
+            return redirect(back_url)
 
         original_filename = secure_filename(uploaded_file.filename)
 
         if not original_filename:
             flash("The file name is not valid.", "error")
-            return redirect(
-                url_for(
-                    "attachments.manage_attachments",
-                    record_type=record_type,
-                    record_id=record_id,
-                )
-            )
+            return redirect(back_url)
 
         extension = Path(original_filename).suffix.lower()
 
@@ -142,13 +136,7 @@ def manage_attachments(record_type, record_id):
                 "Unsupported file type. Use PDF, Word, Excel, CSV, text or image files.",
                 "error",
             )
-            return redirect(
-                url_for(
-                    "attachments.manage_attachments",
-                    record_type=record_type,
-                    record_id=record_id,
-                )
-            )
+            return redirect(back_url)
 
         stored_filename = f"{uuid4().hex}{extension}"
 
@@ -198,13 +186,7 @@ def manage_attachments(record_type, record_id):
 
         flash("Attachment uploaded successfully.", "success")
 
-        return redirect(
-            url_for(
-                "attachments.manage_attachments",
-                record_type=record_type,
-                record_id=record_id,
-            )
-        )
+        return redirect(back_url)
 
     attachments = query_all(
         """

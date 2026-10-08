@@ -297,11 +297,9 @@
         {% if reporting_clock %}
             <span class="badge clock-badge clock-{{ reporting_clock.state }}" title="Due {{ reporting_clock.due_date.strftime('%d %b %Y') }}">{{ reporting_clock.label }}</span>
         {% endif %}
-      <a class="case-action-link" href="#listedness">Listedness / Expectedness</a>
 
 <a class="case-action-link" href="{{ url_for('cases.edit_case', case_id=case.case_id) }}">Edit safety case</a>
 
-<a class="case-action-link" href="{{ url_for('attachments.manage_attachments', record_type='case', record_id=case.case_id) }}">Attachments</a>
 
 <a class="case-action-link primary" href="{{ url_for('case_ai_reports.view_ai_case_assessment', case_id=case.case_id) }}">AI assessment report</a>
 
@@ -574,6 +572,86 @@
         </div>
     </div>
 </section>
+
+<section class="detail-section case-attachments" id="attachments">
+    <div class="section-title">
+        Attachments
+    </div>
+    <div class="detail-content">
+        {% if attachments %}
+            <ul class="attachment-list">
+                {% for attachment in attachments %}
+                    <li>
+                        <a href="{{ url_for('attachments.download_attachment', attachment_id=attachment.attachment_id) }}">{{ attachment.original_filename }}</a>
+                        <span class="attachment-meta">
+                            {% if attachment.file_size_bytes is not none %}{{ (attachment.file_size_bytes / 1024)|round(0)|int }} KB · {% endif %}{{ attachment.uploaded_at.strftime("%d %b %Y") }}{% if attachment.uploaded_by_name %} · {{ attachment.uploaded_by_name }}{% endif %}
+                        </span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="listedness-meta">No files attached to this case yet.</p>
+        {% endif %}
+        <form method="post" enctype="multipart/form-data" class="attachment-upload" action="{{ url_for('attachments.manage_attachments', record_type='case', record_id=case.case_id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="return_to" value="{{ url_for('cases.case_detail', case_id=case.case_id) }}#attachments">
+            <label class="visually-hidden" for="case-attachment">File to attach</label>
+            <input id="case-attachment" type="file" name="attachment" required>
+            <button type="submit">Upload</button>
+        </form>
+        <p class="attachment-hint">PDF, Word, Excel, CSV, text or image files.</p>
+    </div>
+</section>
+<style>
+    .attachment-list {
+        margin: 0 0 12px;
+        padding: 0;
+        list-style: none;
+    }
+    .attachment-list li {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 12px;
+        align-items: baseline;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0ebee;
+    }
+    .attachment-list a {
+        color: #6242d7;
+        font-weight: bold;
+        text-decoration: none;
+        overflow-wrap: anywhere;
+    }
+    .attachment-meta,
+    .attachment-hint {
+        color: #817787;
+        font-size: 12px;
+    }
+    .attachment-upload {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+    }
+    .attachment-upload input[type="file"] {
+        max-width: 100%;
+        font-size: 13px;
+    }
+    .attachment-upload button {
+        padding: 8px 14px;
+        border: 1px solid #dcd1ee;
+        border-radius: 8px;
+        background: #faf8ff;
+        color: #6242d7;
+        font: inherit;
+        font-size: 12.5px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .attachment-hint {
+        margin: 8px 0 0;
+    }
+</style>
 
 <div class="detail-grid">
     <div>

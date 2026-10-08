@@ -411,6 +411,23 @@ def case_detail(case_id):
         event_terms=get_case_event_terms(case_id),
         dictionary_terms=get_active_terms(),
         safety_assessment=_load_safety_assessment(case_id),
+        attachments=query_all(
+            """
+            SELECT
+                attachments.attachment_id,
+                attachments.original_filename,
+                attachments.file_size_bytes,
+                attachments.uploaded_at,
+                users.full_name AS uploaded_by_name
+            FROM pv.record_attachments AS attachments
+            LEFT JOIN pv.users AS users
+                ON users.user_id = attachments.uploaded_by
+            WHERE attachments.record_type = 'case'
+              AND attachments.record_id = %s
+            ORDER BY attachments.uploaded_at DESC
+            """,
+            (case_id,),
+        ),
     )
 
 
