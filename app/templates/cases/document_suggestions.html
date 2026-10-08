@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Suggested Updates | APDL PV{% endblock %}
+
+{% block page_title %}Suggested Updates{% endblock %}
+
+{% block content %}
+<style>
+    .suggest-page {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+    .suggest-header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-end;
+        margin-bottom: 20px;
+    }
+    .suggest-header h1 {
+        margin: 0 0 6px;
+        color: #282037;
+        font-size: 24px;
+    }
+    .suggest-header p {
+        margin: 0;
+        color: #746d7d;
+        font-size: 14px;
+    }
+    .back-link {
+        padding: 10px 14px;
+        border: 1px solid #e1d9e6;
+        border-radius: 9px;
+        background: white;
+        color: #6242d7;
+        font-size: 13px;
+        font-weight: bold;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .suggest-card {
+        overflow: hidden;
+        border: 1px solid #e9e2e7;
+        border-radius: 14px;
+        background: white;
+    }
+    .suggest-note {
+        margin: 0;
+        padding: 14px 18px;
+        border-bottom: 1px solid #eee8ec;
+        background: #faf8ff;
+        color: #5d5168;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    .suggest-scroll {
+        overflow-x: auto;
+    }
+    .suggest-table {
+        width: 100%;
+        min-width: 680px;
+        border-collapse: collapse;
+    }
+    .suggest-table th {
+        padding: 11px 16px;
+        color: #918896;
+        font-size: 10px;
+        letter-spacing: 0.6px;
+        text-align: left;
+        text-transform: uppercase;
+    }
+    .suggest-table td {
+        padding: 13px 16px;
+        border-top: 1px solid #f0ebee;
+        color: #4b4252;
+        font-size: 13px;
+        vertical-align: top;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+    .suggest-table td.field-name {
+        white-space: normal;
+        font-weight: bold;
+    }
+    .kind-tag {
+        display: inline-block;
+        margin-top: 5px;
+        padding: 3px 8px;
+        border-radius: 20px;
+        font-size: 10.5px;
+        font-weight: bold;
+    }
+    .kind-fill { background: #e7f6ef; color: #28805f; }
+    .kind-add { background: #eee9ff; color: #5a3fc4; }
+    .kind-change { background: #fff3df; color: #8a5a12; }
+    .current-empty { color: #a39aa8; font-style: italic; }
+    .suggest-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 16px 18px;
+        border-top: 1px solid #eee8ec;
+    }
+    .suggest-actions button {
+        padding: 10px 16px;
+        border-radius: 9px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .apply-button {
+        border: 0;
+        background: #7656e8;
+        color: white;
+    }
+    .dismiss-button {
+        border: 1px solid #ded6e5;
+        background: white;
+        color: #6242d7;
+    }
+    .empty-state {
+        padding: 40px 20px;
+        color: #817786;
+        text-align: center;
+    }
+</style>
+
+<section class="suggest-page">
+    <header class="suggest-header">
+        <div>
+            <h1>Suggested updates for {{ case.case_number }}</h1>
+            <p>From {{ attachment.original_filename }} ({{ document_type_label(attachment.document_type) }}).</p>
+        </div>
+        <a class="back-link" href="{{ url_for('cases.case_detail', case_id=case.case_id) }}#attachments">← Back to case</a>
+    </header>
+
+    <section class="suggest-card">
+        {% if attachment.processing_status in ("Updates applied", "Suggestions dismissed") %}
+            <p class="suggest-note">{{ attachment.processing_note }}</p>
+        {% elif suggestions %}
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <p class="suggest-note">
+                    The AI read this document and found these differences from the case.
+                    Check each value against the document. Ticked rows are applied; the
+                    case changes only when you click <strong>Apply selected updates</strong>.
+                    Changes to existing values start unticked.
+                </p>
+                <div class="suggest-scroll">
+                    <table class="suggest-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Apply</th>
+                                <th scope="col">Field</th>
+                                <th scope="col">In the case now</th>
+                                <th scope="col">From the document</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in suggestions %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" name="field" value="{{ item.field }}" id="field-{{ item.field }}" {% if item.kind != "change" %}checked{% endif %}>
+                                    </td>
+                                    <td class="field-name">
+                                        <label for="field-{{ item.field }}">{{ item.label }}</label><br>
+                                        <span class="kind-tag kind-{{ item.kind }}">
+                                            {% if item.kind == "fill" %}Fills an empty field{% elif item.kind == "add" %}Adds to existing text{% else %}Changes the current value{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>{% if item.current %}{{ item.current }}{% else %}<span class="current-empty">Empty</span>{% endif %}</td>
+                                    <td>{{ item.proposed }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="suggest-actions">
+                    <button class="dismiss-button" type="submit" name="action" value="dismiss" formnovalidate>Dismiss all</button>
+                    <button class="apply-button" type="submit" name="action" value="apply">Apply selected updates</button>
+                </div>
+            </form>
+        {% else %}
+            <div class="empty-state">
+                {{ attachment.processing_note or "There are no suggested updates for this document." }}
+            </div>
+        {% endif %}
+    </section>
+</section>
+{% endblock %}

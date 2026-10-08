@@ -18,6 +18,11 @@ from werkzeug.utils import secure_filename
 from app.audit import write_audit_log
 from app.db import query_all, query_one, transaction
 from app.security import login_required, safe_next_path
+from app.services.case_documents import (
+    DOCUMENT_TYPE_LABELS,
+    document_type_label,
+    process_case_attachment,
+)
 
 
 bp = Blueprint("attachments", __name__, url_prefix="/records")
@@ -151,6 +156,10 @@ def manage_attachments(record_type, record_id):
         output_path = destination / stored_filename
         uploaded_file.save(output_path)
 
+        document_type = request.form.get("document_type") or "other"
+        if record_type != "case" or document_type not in DOCUMENT_TYPE_LABELS:
+            document_type = "other"
+
         with transaction() as cursor:
             cursor.execute(
                 """
@@ -161,9 +170,11 @@ def manage_attachments(record_type, record_id):
                     stored_filename,
                     content_type,
                     file_size_bytes,
-                    uploaded_by
+                    uploaded_by,
+                    document_type
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING attachment_id
                 """,
                 (
                     record_type,
@@ -173,18 +184,38 @@ def manage_attachments(record_type, record_id):
                     uploaded_file.content_type,
                     output_path.stat().st_size,
                     session["user_id"],
+                    document_type,
                 ),
             )
+            attachment_id = cursor.fetchone()["attachment_id"]
 
         write_audit_log(
             record_type=record_type,
             record_id=record_id,
             action="Attachment uploaded",
-            details=f"Uploaded file: {original_filename}",
+            details=(
+                f"Uploaded file: {original_filename} "
+                f"({document_type_label(document_type)})"
+            ),
             actor_user_id=session["user_id"],
         )
 
         flash("Attachment uploaded successfully.", "success")
+
+        if record_type == "case" and document_type != "other":
+            outcome = process_case_attachment(
+                {
+                    "attachment_id": attachment_id,
+                    "original_filename": original_filename,
+                    "content_type": uploaded_file.content_type,
+                    "document_type": document_type,
+                },
+                record_id,
+                output_path,
+                session["user_id"],
+            )
+            if outcome:
+                flash(*outcome)
 
         return redirect(back_url)
 

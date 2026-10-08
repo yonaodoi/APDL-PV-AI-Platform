@@ -277,6 +277,55 @@
             grid-template-columns: 1fr;
         }
     }
+
+    .checklist-toggles {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .checklist-toggle {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        padding: 8px 14px;
+        border: 1px solid #e1d9e6;
+        border-radius: 20px;
+        background: white;
+        font: inherit;
+        font-size: 12.5px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .checklist-toggle.toggle-pass { color: #176247; border-color: #c7eadb; }
+    .checklist-toggle.toggle-review { color: #966018; border-color: #f1dfae; }
+    .checklist-toggle.toggle-pass[aria-expanded="true"] { background: #e7f6ef; }
+    .checklist-toggle.toggle-review[aria-expanded="true"] { background: #fff3df; }
+    .toggle-count {
+        min-width: 20px;
+        padding: 1px 6px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.06);
+        text-align: center;
+    }
+    .checklist-group { margin-top: 10px; }
+    .checklist-empty { margin: 10px 0 0; color: #817787; font-size: 12px; }
+
+    .collapsible-section > summary {
+        cursor: pointer;
+        list-style: none;
+        border-bottom: 0;
+    }
+    .collapsible-section > summary::-webkit-details-marker { display: none; }
+    .collapsible-section > summary::after {
+        content: "▸";
+        margin-left: auto;
+        color: #958b99;
+        font-size: 13px;
+        transition: transform 0.15s ease;
+    }
+    .collapsible-section[open] > summary { border-bottom: 1px solid #eee8ec; }
+    .collapsible-section[open] > summary::after { transform: rotate(90deg); }
+    .collapsible-section > summary:hover { background: #fcfbfd; }
 </style>
 
 <section class="case-top">
@@ -582,10 +631,24 @@
             <ul class="attachment-list">
                 {% for attachment in attachments %}
                     <li>
-                        <a href="{{ url_for('attachments.download_attachment', attachment_id=attachment.attachment_id) }}">{{ attachment.original_filename }}</a>
-                        <span class="attachment-meta">
-                            {% if attachment.file_size_bytes is not none %}{{ (attachment.file_size_bytes / 1024)|round(0)|int }} KB · {% endif %}{{ attachment.uploaded_at.strftime("%d %b %Y") }}{% if attachment.uploaded_by_name %} · {{ attachment.uploaded_by_name }}{% endif %}
-                        </span>
+                        <div class="attachment-main">
+                            <a href="{{ url_for('attachments.download_attachment', attachment_id=attachment.attachment_id) }}">{{ attachment.original_filename }}</a>
+                            <span class="attachment-type">{{ document_type_label(attachment.document_type) }}</span>
+                            <span class="attachment-meta">
+                                {% if attachment.file_size_bytes is not none %}{% if attachment.file_size_bytes < 1024 %}under 1 KB{% elif attachment.file_size_bytes < 1048576 %}{{ (attachment.file_size_bytes / 1024)|round(0)|int }} KB{% else %}{{ (attachment.file_size_bytes / 1048576)|round(1) }} MB{% endif %} · {% endif %}{{ attachment.uploaded_at.strftime("%d %b %Y") }}{% if attachment.uploaded_by_name %} · {{ attachment.uploaded_by_name }}{% endif %}
+                            </span>
+                        </div>
+                        {% if attachment.processing_status %}
+                            <div class="attachment-processing status-{{ attachment.processing_status|lower|replace(' ', '-') }}" {% if attachment.processing_status == "Reading document" %}data-reading="1"{% endif %}>
+                                <strong>{{ attachment.processing_status }}.</strong>
+                                {{ attachment.processing_note or "" }}
+                                {% if attachment.processing_status == "Suggestions ready" %}
+                                    <a class="review-suggestions" href="{{ url_for('cases.review_document_suggestions', case_id=case.case_id, attachment_id=attachment.attachment_id) }}">Review suggested updates →</a>
+                                {% elif attachment.processing_status == "Added to reference library" %}
+                                    <a class="review-suggestions" href="{{ url_for('rsi.rsi_list') }}">Open reference library →</a>
+                                {% endif %}
+                            </div>
+                        {% endif %}
                     </li>
                 {% endfor %}
             </ul>
@@ -595,11 +658,22 @@
         <form method="post" enctype="multipart/form-data" class="attachment-upload" action="{{ url_for('attachments.manage_attachments', record_type='case', record_id=case.case_id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="return_to" value="{{ url_for('cases.case_detail', case_id=case.case_id) }}#attachments">
+            <label for="case-document-type">Document type</label>
+            <select id="case-document-type" name="document_type">
+                {% for value, label in document_types %}
+                    <option value="{{ value }}" {% if value == "other" %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
             <label class="visually-hidden" for="case-attachment">File to attach</label>
             <input id="case-attachment" type="file" name="attachment" required>
             <button type="submit">Upload</button>
         </form>
-        <p class="attachment-hint">PDF, Word, Excel, CSV, text or image files.</p>
+        <p class="attachment-hint">
+            RSI documents are added to the reference library for this case's
+            product and listedness is re-checked. Source reports, follow-up
+            responses and clinical records are read by the AI, which suggests
+            case updates for you to accept. PDF, Word, Excel, CSV, text or image files.
+        </p>
     </div>
 </section>
 <style>
@@ -650,6 +724,58 @@
     }
     .attachment-hint {
         margin: 8px 0 0;
+        line-height: 1.5;
+    }
+    .attachment-list li {
+        display: block;
+    }
+    .attachment-main {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 12px;
+        align-items: baseline;
+    }
+    .attachment-type {
+        padding: 2px 8px;
+        border-radius: 20px;
+        background: #eee9ff;
+        color: #5a3fc4;
+        font-size: 11px;
+        font-weight: bold;
+    }
+    .attachment-processing {
+        margin-top: 6px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: #faf9fb;
+        color: #5d5365;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+    .attachment-processing.status-suggestions-ready { background: #fff6ee; color: #7a4a1e; }
+    .attachment-processing.status-could-not-be-read { background: #fdecec; color: #8f2525; }
+    .attachment-processing.status-added-to-reference-library,
+    .attachment-processing.status-updates-applied { background: #e7f6ef; color: #176247; }
+    .review-suggestions {
+        display: inline-block;
+        margin-left: 6px;
+        color: #6242d7;
+        font-weight: bold;
+        text-decoration: none;
+    }
+    .attachment-upload label {
+        color: #554d5d;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    .attachment-upload select {
+        max-width: 100%;
+        padding: 7px 9px;
+        border: 1px solid #ddd5dc;
+        border-radius: 8px;
+        background: white;
+        font: inherit;
+        font-size: 12.5px;
     }
 </style>
 
@@ -662,24 +788,40 @@
             </div>
 
             <div class="detail-content">
-                {% for check in completeness_checks %}
-                    <div style="display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #f0ebee;">
-                        <div>
-                            <div style="color: #453c4d; font-size: 13px; font-weight: bold;">{{ check.label }}</div>
-                            <div style="margin-top: 3px; color: #776e7d; font-size: 12px;">{{ check.message }}</div>
-                        </div>
-                        <span style="padding: 4px 8px; border-radius: 20px; background: {% if check.status == 'Pass' %}#e7f6ef; color: #176247{% else %}#fff3df; color: #966018{% endif %}; font-size: 10px; font-weight: bold;">{{ check.status }}</span>
+                {% set passed = completeness_checks|selectattr("status", "equalto", "Pass")|list %}
+                {% set to_review = completeness_checks|rejectattr("status", "equalto", "Pass")|list %}
+                <div class="checklist-toggles" role="group" aria-label="Show checklist items">
+                    <button type="button" class="checklist-toggle toggle-pass" data-checklist-target="checklist-pass" aria-expanded="false" aria-controls="checklist-pass">
+                        Pass <span class="toggle-count">{{ passed|length }}</span>
+                    </button>
+                    <button type="button" class="checklist-toggle toggle-review" data-checklist-target="checklist-review" aria-expanded="false" aria-controls="checklist-review">
+                        Review <span class="toggle-count">{{ to_review|length }}</span>
+                    </button>
+                </div>
+                {% for group_id, group_checks, empty_text in (("checklist-pass", passed, "No checks have passed yet."), ("checklist-review", to_review, "Nothing needs review.")) %}
+                    <div class="checklist-group" id="{{ group_id }}" hidden>
+                        {% for check in group_checks %}
+                            <div style="display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #f0ebee;">
+                                <div>
+                                    <div style="color: #453c4d; font-size: 13px; font-weight: bold;">{{ check.label }}</div>
+                                    <div style="margin-top: 3px; color: #776e7d; font-size: 12px;">{{ check.message }}</div>
+                                </div>
+                                <span style="padding: 4px 8px; border-radius: 20px; background: {% if check.status == 'Pass' %}#e7f6ef; color: #176247{% else %}#fff3df; color: #966018{% endif %}; font-size: 10px; font-weight: bold;">{{ check.status }}</span>
+                            </div>
+                        {% else %}
+                            <p class="checklist-empty">{{ empty_text }}</p>
+                        {% endfor %}
                     </div>
                 {% endfor %}
                 <a href="{{ url_for('cases.review_queue') }}" style="display: inline-block; margin-top: 14px; color: #6242d7; font-size: 12px; font-weight: bold; text-decoration: none;">Open case review queue →</a>
             </div>
         </section>
 
-        <section class="detail-section">
-            <div class="section-title">
+        <details class="detail-section collapsible-section">
+            <summary class="section-title">
                 <span class="section-icon">1</span>
                 Case receipt and reporter
-            </div>
+            </summary>
 
             <div class="detail-content">
                 <div class="data-grid">
@@ -729,13 +871,13 @@
                     </div>
                 </div>
             </div>
-        </section>
+        </details>
 
-        <section class="detail-section">
-            <div class="section-title">
+        <details class="detail-section collapsible-section">
+            <summary class="section-title">
                 <span class="section-icon">2</span>
                 Patient information
-            </div>
+            </summary>
 
             <div class="detail-content">
                 <div class="data-grid">
@@ -782,13 +924,13 @@
                     </div>
                 </div>
             </div>
-        </section>
+        </details>
 
-        <section class="detail-section">
-            <div class="section-title">
+        <details class="detail-section collapsible-section">
+            <summary class="section-title">
                 <span class="section-icon">3</span>
                 Suspected medicinal product
-            </div>
+            </summary>
 
             <div class="detail-content">
                 {% for product in products %}
@@ -831,13 +973,13 @@
                     <div class="data-value">No suspected product has been recorded.</div>
                 {% endfor %}
             </div>
-        </section>
+        </details>
 
-        <section class="detail-section">
-            <div class="section-title">
+        <details class="detail-section collapsible-section">
+            <summary class="section-title">
                 <span class="section-icon">4</span>
                 Adverse event and assessment
-            </div>
+            </summary>
 
             <div class="detail-content">
                 <div class="data-grid">
@@ -878,7 +1020,7 @@
                     </div>
                 </div>
             </div>
-        </section>
+        </details>
     </div>
 
     <aside class="side-panel">
@@ -964,4 +1106,27 @@
     </aside>
 </div>
 </section>
+
+<script>
+    // Completeness checklist: Pass / Review buttons show or hide each group.
+    document.querySelectorAll("[data-checklist-target]").forEach(function (button) {
+        button.addEventListener("click", function () {
+            var target = document.getElementById(button.dataset.checklistTarget);
+            var opening = target.hidden;
+            document.querySelectorAll("[data-checklist-target]").forEach(function (other) {
+                document.getElementById(other.dataset.checklistTarget).hidden = true;
+                other.setAttribute("aria-expanded", "false");
+            });
+            target.hidden = !opening;
+            button.setAttribute("aria-expanded", opening ? "true" : "false");
+        });
+    });
+</script>
+
+<script>
+    // Refresh while an attached document is still being read.
+    if (document.querySelector("[data-reading]")) {
+        setTimeout(function () { window.location.reload(); }, 10000);
+    }
+</script>
 {% endblock %}

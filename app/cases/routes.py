@@ -18,6 +18,12 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from app.audit import write_audit_log
+from app.services.case_documents import (
+    DOCUMENT_TYPES,
+    STATUS_DISMISSED,
+    apply_suggestions,
+    document_type_label,
+)
 from app.services.case_listedness import (
     listedness_message,
     run_automatic_listedness,
@@ -411,13 +417,12 @@ def case_detail(case_id):
         event_terms=get_case_event_terms(case_id),
         dictionary_terms=get_active_terms(),
         safety_assessment=_load_safety_assessment(case_id),
+        document_types=DOCUMENT_TYPES,
+        document_type_label=document_type_label,
         attachments=query_all(
             """
             SELECT
-                attachments.attachment_id,
-                attachments.original_filename,
-                attachments.file_size_bytes,
-                attachments.uploaded_at,
+                attachments.*,
                 users.full_name AS uploaded_by_name
             FROM pv.record_attachments AS attachments
             LEFT JOIN pv.users AS users
@@ -470,6 +475,111 @@ def _load_safety_assessment(case_id):
         assessment = dict(assessment)
         assessment["needs_rereview"] = needs_rereview(assessment)
     return assessment
+
+
+def _case_attachment_or_404(case_id, attachment_id):
+    attachment = query_one(
+        """
+        SELECT *
+        FROM pv.record_attachments
+        WHERE attachment_id = %s
+          AND record_type = 'case'
+          AND record_id = %s
+        """,
+        (attachment_id, case_id),
+    )
+    if not attachment:
+        abort(404)
+    return attachment
+
+
+@bp.get("/<int:case_id>/attachments/<int:attachment_id>/suggestions")
+@login_required
+def review_document_suggestions(case_id, attachment_id):
+    case = query_one(
+        "SELECT case_id, case_number FROM pv.safety_cases WHERE case_id = %s",
+        (case_id,),
+    )
+    if not case:
+        abort(404)
+    attachment = _case_attachment_or_404(case_id, attachment_id)
+    return render_template(
+        "cases/document_suggestions.html",
+        case=case,
+        attachment=attachment,
+        suggestions=attachment.get("suggested_updates") or [],
+        document_type_label=document_type_label,
+    )
+
+
+@bp.post("/<int:case_id>/attachments/<int:attachment_id>/suggestions")
+@login_required
+def apply_document_suggestions(case_id, attachment_id):
+    attachment = _case_attachment_or_404(case_id, attachment_id)
+    back = url_for("cases.case_detail", case_id=case_id) + "#attachments"
+
+    if request.form.get("action") == "dismiss":
+        with transaction() as cursor:
+            cursor.execute(
+                """
+                UPDATE pv.record_attachments
+                SET processing_status = %s,
+                    processing_note = 'Suggested updates were dismissed.'
+                WHERE attachment_id = %s
+                """,
+                (STATUS_DISMISSED, attachment_id),
+            )
+            cursor.execute(
+                """
+                INSERT INTO pv.case_audit_log (case_id, action, details, performed_by)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (
+                    case_id,
+                    "Document suggestions dismissed",
+                    f"No updates applied from {attachment['original_filename']}.",
+                    session["user_id"],
+                ),
+            )
+        flash("Suggested updates dismissed. The case was not changed.", "info")
+        return redirect(back)
+
+    selected = set(request.form.getlist("field"))
+    if not selected:
+        flash("Tick at least one update to apply, or dismiss the suggestions.", "error")
+        return redirect(
+            url_for(
+                "cases.review_document_suggestions",
+                case_id=case_id,
+                attachment_id=attachment_id,
+            )
+        )
+
+    applied = apply_suggestions(case_id, attachment, selected, session["user_id"])
+    write_audit_log(
+        record_type="case",
+        record_id=case_id,
+        action="Case updated from attached document",
+        details=(
+            f"{len(applied)} field(s) updated from "
+            f"{attachment['original_filename']}: {', '.join(applied)}."
+        ),
+        actor_user_id=session["user_id"],
+    )
+    flash(f"{len(applied)} update(s) applied: {', '.join(applied)}.", "success")
+
+    listedness_flash = listedness_message(
+        run_automatic_listedness(case_id, actor_user_id=session["user_id"])
+    )
+    if listedness_flash:
+        flash(*listedness_flash)
+    detected_signals, _ = screen_case_for_signals(
+        case_id, actor_user_id=session["user_id"]
+    )
+    screening_message = summarise_screening(detected_signals)
+    if screening_message:
+        flash(screening_message, "warning")
+    return redirect(back)
 
 
 @bp.post("/<int:case_id>/listedness/recheck")
