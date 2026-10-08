@@ -297,7 +297,7 @@
         {% if reporting_clock %}
             <span class="badge clock-badge clock-{{ reporting_clock.state }}" title="Due {{ reporting_clock.due_date.strftime('%d %b %Y') }}">{{ reporting_clock.label }}</span>
         {% endif %}
-      <a class="case-action-link" href="{{ url_for('rsi.assess_case', case_id=case.case_id) }}">Listedness / Expectedness</a>
+      <a class="case-action-link" href="#listedness">Listedness / Expectedness</a>
 
 <a class="case-action-link" href="{{ url_for('cases.edit_case', case_id=case.case_id) }}">Edit safety case</a>
 
@@ -438,6 +438,142 @@
         </div>
     </section>
 {% endif %}
+
+<style>
+    .listedness-panel .listedness-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+    .listedness-pill {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    .listedness-listed { background: #e7f6ef; color: #28805f; }
+    .listedness-not-listed { background: #fdecec; color: #a33a3a; }
+    .listedness-insufficient { background: #f1edf1; color: #5f5566; }
+    .listedness-provisional { background: #fff3df; color: #8a5a12; }
+    .listedness-source-tag { background: #eee9ff; color: #5a3fc4; }
+    .listedness-meta {
+        margin: 0 0 10px;
+        color: #6d6475;
+        font-size: 13px;
+    }
+    .listedness-evidence {
+        margin: 0;
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: #faf9fb;
+        color: #4b4252;
+        font-family: inherit;
+        font-size: 12.5px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        max-height: 260px;
+        overflow: auto;
+    }
+    .listedness-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+    }
+    .listedness-actions form { margin: 0; }
+    .listedness-warning {
+        margin: 0 0 12px;
+        padding: 12px 14px;
+        border: 1px solid #f0c9a8;
+        border-radius: 10px;
+        background: #fff6ee;
+        color: #7a4a1e;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    .listedness-actions button,
+    .listedness-actions a {
+        padding: 8px 12px;
+        border: 1px solid #dcd1ee;
+        border-radius: 8px;
+        background: #faf8ff;
+        color: #6242d7;
+        font: inherit;
+        font-size: 12.5px;
+        font-weight: bold;
+        text-decoration: none;
+        cursor: pointer;
+    }
+</style>
+
+<section class="detail-section listedness-panel" id="listedness">
+    <div class="section-title">
+        Listedness and expectedness
+    </div>
+    <div class="detail-content">
+        {% if safety_assessment %}
+            {% set status = safety_assessment.listedness_status %}
+            <div class="listedness-head">
+                <span class="listedness-pill {% if status == 'Listed' %}listedness-listed{% elif status == 'Not listed' %}listedness-not-listed{% else %}listedness-insufficient{% endif %}">{{ status }}</span>
+                <span class="listedness-pill {% if status == 'Not listed' %}listedness-not-listed{% elif status == 'Listed' %}listedness-listed{% else %}listedness-insufficient{% endif %}">{{ safety_assessment.expectedness_status }}</span>
+                {% if safety_assessment.assessment_source == "automatic" %}
+                    <span class="listedness-pill listedness-source-tag">Automatic check</span>
+                    {% if safety_assessment.is_provisional %}
+                        <span class="listedness-pill listedness-provisional">Provisional — needs reviewer confirmation</span>
+                    {% else %}
+                        <span class="listedness-pill listedness-provisional">Awaiting reviewer confirmation</span>
+                    {% endif %}
+                {% else %}
+                    <span class="listedness-pill listedness-listed">Confirmed by reviewer</span>
+                {% endif %}
+            </div>
+            <p class="listedness-meta">
+                {% if safety_assessment.reference_title %}Reference: {{ safety_assessment.reference_title }}. {% endif %}
+                Events: {{ safety_assessment.event_term_assessed }}.
+                {% if safety_assessment.updated_at %}Last updated {{ safety_assessment.updated_at.strftime("%d %b %Y, %H:%M") }}{% if safety_assessment.assessed_by_name %} by {{ safety_assessment.assessed_by_name }}{% endif %}.{% endif %}
+            </p>
+            {% if safety_assessment.needs_rereview %}
+                <div class="listedness-warning" role="alert">
+                    <strong>This conclusion needs re-review.</strong>
+                    It was based on the earlier automatic check, which reported
+                    "Not listed" whenever no reaction terms had been extracted
+                    from the reference document. Replace it with the current
+                    automatic check, then review and confirm.
+                </div>
+            {% endif %}
+            {% if safety_assessment.rsi_evidence %}
+                <pre class="listedness-evidence">{{ safety_assessment.rsi_evidence }}</pre>
+            {% endif %}
+        {% else %}
+            <p class="listedness-meta">
+                Not checked yet. Listedness is checked automatically when the
+                case is saved or its events are coded, or you can run the check now.
+            </p>
+        {% endif %}
+
+        <div class="listedness-actions">
+            {% if not safety_assessment or safety_assessment.assessment_source == "automatic" %}
+                <form method="post" action="{{ url_for('cases.recheck_listedness', case_id=case.case_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit">{% if safety_assessment %}Re-check now{% else %}Check listedness now{% endif %}</button>
+                </form>
+            {% endif %}
+            {% if safety_assessment and safety_assessment.needs_rereview %}
+                <form method="post" action="{{ url_for('cases.recheck_listedness', case_id=case.case_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="replace_reviewer" value="1">
+                    <button type="submit">Replace with automatic check</button>
+                </form>
+            {% endif %}
+            <a href="{{ url_for('rsi.assess_case', case_id=case.case_id) }}">
+                {% if safety_assessment and safety_assessment.assessment_source == "automatic" %}Review and confirm{% else %}Open assessment{% endif %}
+            </a>
+        </div>
+    </div>
+</section>
 
 <div class="detail-grid">
     <div>

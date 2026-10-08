@@ -20,12 +20,12 @@ def normalise_text(value):
     return re.sub(r"\s+", " ", (value or "").strip()).lower()
 
 
-def search_dailymed_label(product_name):
+def search_dailymed_label(product_name, timeout=REQUEST_TIMEOUT_SECONDS):
     """Return the most suitable current DailyMed SPL for a product name."""
     response = requests.get(
         f"{DAILYMED_BASE_URL}/spls.json",
         params={"drug_name": product_name, "pagesize": 10},
-        timeout=REQUEST_TIMEOUT_SECONDS,
+        timeout=timeout,
     )
     response.raise_for_status()
 
@@ -43,11 +43,11 @@ def search_dailymed_label(product_name):
     return results[0]
 
 
-def get_dailymed_label_text(set_id):
+def get_dailymed_label_text(set_id, timeout=REQUEST_TIMEOUT_SECONDS):
     """Download label XML and return readable text."""
     response = requests.get(
         f"{DAILYMED_BASE_URL}/spls/{set_id}.xml",
-        timeout=REQUEST_TIMEOUT_SECONDS,
+        timeout=timeout,
     )
     response.raise_for_status()
 

@@ -18,6 +18,10 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from app.audit import write_audit_log
+from app.services.case_listedness import (
+    listedness_message,
+    run_automatic_listedness,
+)
 from app.db import query_all, query_one, transaction
 from app.security import login_required
 from .forms import SafetyCaseForm
@@ -406,7 +410,118 @@ def case_detail(case_id):
         ),
         event_terms=get_case_event_terms(case_id),
         dictionary_terms=get_active_terms(),
+        safety_assessment=_load_safety_assessment(case_id),
     )
+
+
+# Evidence text written by the old automatic check, which reported "Not
+# listed" even when no reaction terms had been extracted.
+LEGACY_UNRELIABLE_EVIDENCE = (
+    "No matching reaction term was found among the automatically "
+    "extracted RSI reactions"
+)
+
+
+def needs_rereview(assessment):
+    """A reviewer-saved conclusion that rests on the old flawed check."""
+    if not assessment:
+        return False
+    return (
+        assessment.get("assessment_source", "reviewer") != "automatic"
+        and LEGACY_UNRELIABLE_EVIDENCE in (assessment.get("rsi_evidence") or "")
+    )
+
+
+def _load_safety_assessment(case_id):
+    try:
+        assessment = query_one(
+            """
+            SELECT assessments.*, users.full_name AS assessed_by_name
+            FROM pv.case_safety_assessments AS assessments
+            LEFT JOIN pv.users AS users
+                ON users.user_id = assessments.assessed_by
+            WHERE assessments.case_id = %s
+            """,
+            (case_id,),
+        )
+    except Exception:
+        current_app.logger.exception(
+            "Could not load the listedness assessment for case %s", case_id
+        )
+        return None
+    if assessment:
+        assessment = dict(assessment)
+        assessment["needs_rereview"] = needs_rereview(assessment)
+    return assessment
+
+
+@bp.post("/<int:case_id>/listedness/recheck")
+@login_required
+def recheck_listedness(case_id):
+    if not query_one(
+        "SELECT case_id FROM pv.safety_cases WHERE case_id = %s", (case_id,)
+    ):
+        abort(404)
+
+    replace_reviewer = request.form.get("replace_reviewer") == "1"
+    previous = _load_safety_assessment(case_id) if replace_reviewer else None
+    outcome = run_automatic_listedness(
+        case_id,
+        actor_user_id=session["user_id"],
+        force=replace_reviewer,
+    )
+    if (
+        previous
+        and outcome
+        and not outcome.get("failed")
+        and previous.get("assessment_source", "reviewer") != "automatic"
+    ):
+        write_audit_log(
+            record_type="case",
+            record_id=case_id,
+            action="Reviewer listedness conclusion replaced by automatic check",
+            details=(
+                f"Previous conclusion: {previous.get('listedness_status')} / "
+                f"{previous.get('expectedness_status')}, saved "
+                f"{previous['updated_at']:%d %b %Y}"
+                + (
+                    f" by {previous['assessed_by_name']}"
+                    if previous.get("assessed_by_name")
+                    else ""
+                )
+                + ". New result: "
+                + f"{outcome.get('listedness_status')} / "
+                + f"{outcome.get('expectedness_status')}."
+            )
+            if previous.get("updated_at")
+            else "Previous reviewer conclusion replaced.",
+            actor_user_id=session["user_id"],
+        )
+    if outcome and outcome.get("kept_reviewer"):
+        flash(
+            "A reviewer has confirmed this case's listedness, so the "
+            "automatic check did not change it.",
+            "info",
+        )
+    elif outcome and outcome.get("unchanged"):
+        flash(
+            "Listedness re-checked: no change "
+            f"({outcome['listedness_status']} / "
+            f"{outcome['expectedness_status']}).",
+            "info",
+        )
+    else:
+        message = listedness_message(outcome)
+        if message:
+            flash(*message)
+
+    detected_signals, _ = screen_case_for_signals(
+        case_id, actor_user_id=session["user_id"]
+    )
+    screening_message = summarise_screening(detected_signals)
+    if screening_message:
+        flash(screening_message, "warning")
+    return redirect(url_for("cases.case_detail", case_id=case_id) + "#listedness")
 
 
 @bp.post("/<int:case_id>/event-terms/<int:case_event_term_id>")
@@ -441,6 +556,13 @@ def code_event_term(case_id, case_event_term_id):
             """,
             (case_id, "Event term coded", details, session["user_id"]),
         )
+
+    listedness_outcome = run_automatic_listedness(
+        case_id, actor_user_id=session["user_id"]
+    )
+    listedness_flash = listedness_message(listedness_outcome)
+    if listedness_flash:
+        flash(*listedness_flash)
 
     detected_signals, _ = screen_case_for_signals(
         case_id, actor_user_id=session["user_id"]
@@ -773,6 +895,13 @@ def create_case():
                 session["user_id"],
                 f"Safety case {case_number} was created from this complaint.",
             )
+
+        listedness_outcome = run_automatic_listedness(
+            case_id, actor_user_id=session["user_id"]
+        )
+        listedness_flash = listedness_message(listedness_outcome)
+        if listedness_flash:
+            flash(*listedness_flash)
 
         detected_signals, screening_failed = screen_case_for_signals(
             case_id,
@@ -1110,6 +1239,13 @@ def edit_case(case_id):
         )
 
         flash("Safety case updated successfully.", "success")
+
+        listedness_outcome = run_automatic_listedness(
+            case_id, actor_user_id=session["user_id"]
+        )
+        listedness_flash = listedness_message(listedness_outcome)
+        if listedness_flash:
+            flash(*listedness_flash)
 
         detected_signals, screening_failed = screen_case_for_signals(
             case_id,

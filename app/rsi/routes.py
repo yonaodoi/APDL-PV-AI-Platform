@@ -33,9 +33,15 @@ from app.rsi.forms import (
     ReferenceSafetyInformationForm,
 )
 from app.security import login_required, roles_required
+from app.services.case_listedness import (
+    listedness_message,
+    reassess_product_cases,
+    run_automatic_listedness,
+)
 from app.services.rsi_assessment import (
     assess_event_against_rsi,
     choose_rsi_document,
+    rsi_document_title,
 )
 from app.services.rsi_versions import (
     duplicate_current_groups,
@@ -134,6 +140,7 @@ def make_rsi_current(rsi_id):
         ),
         actor_user_id=session["user_id"],
     )
+    _flash_rechecked(_recheck_cases_for_document(rsi_id))
     flash(
         "Document marked as the current reference"
         + (
@@ -172,6 +179,7 @@ def make_rsi_historic(rsi_id):
         "listedness review.",
         "success",
     )
+    _flash_rechecked(_recheck_cases_for_document(rsi_id))
     return redirect(url_for("rsi.rsi_list"))
 
 
@@ -317,6 +325,23 @@ def create_rsi():
                     "warning",
                 )
 
+        if stored_filename:
+            term_count, term_error = extract_terms_for_document(
+                rsi_id, stored_filename, session["user_id"], original_filename
+            )
+            if term_error:
+                flash(
+                    "Reaction terms could not be extracted automatically: "
+                    f"{term_error}",
+                    "warning",
+                )
+            else:
+                flash(
+                    f"{term_count} reaction term(s) extracted automatically. "
+                    "Verify them under Verify terms.",
+                    "success",
+                )
+
         write_audit_log(
             record_type="reference_safety_information",
             record_id=rsi_id,
@@ -332,6 +357,7 @@ def create_rsi():
             "Reference safety information saved successfully.",
             "success",
         )
+        _flash_rechecked(_recheck_cases_for_document(rsi_id))
         return redirect(
             return_to or url_for("rsi.rsi_list")
         )
@@ -433,6 +459,13 @@ def download_rsi(rsi_id):
     )
 
 
+def _reference_title_for(rsi_id, documents):
+    for document in documents:
+        if document["rsi_id"] == rsi_id:
+            return rsi_document_title(document)
+    return None
+
+
 @bp.route("/cases/<int:case_id>/assessment", methods=["GET", "POST"])
 @roles_required(*REVIEWER_ROLES)
 def assess_case(case_id):
@@ -461,6 +494,8 @@ def assess_case(case_id):
             product_name,
             reference_product_name,
             document_type,
+            document_version,
+            effective_date,
             market
         FROM pv.reference_safety_information
         WHERE is_current = TRUE
@@ -512,13 +547,16 @@ def assess_case(case_id):
                     frequency_evidence,
                     assessment_rationale,
                     assessed_by,
+                    assessment_source,
+                    is_provisional,
+                    reference_title,
                     assessed_at,
                     updated_at
                 )
                 VALUES (
                     %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s,
-                    %s, %s,
+                    %s, %s, 'reviewer', FALSE, %s,
                     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 )
                 ON CONFLICT (case_id)
@@ -534,6 +572,9 @@ def assess_case(case_id):
                 frequency_evidence = EXCLUDED.frequency_evidence,
                 assessment_rationale = EXCLUDED.assessment_rationale,
                     assessed_by = EXCLUDED.assessed_by,
+                    assessment_source = 'reviewer',
+                    is_provisional = FALSE,
+                    reference_title = EXCLUDED.reference_title,
                     assessed_at = CURRENT_TIMESTAMP,
                     updated_at = CURRENT_TIMESTAMP
                 """,
@@ -550,6 +591,7 @@ def assess_case(case_id):
                     form.frequency_evidence.data.strip() or None,
                     form.assessment_rationale.data.strip() or None,
                     session["user_id"],
+                    _reference_title_for(form.rsi_id.data, rsi_documents),
                 ),
             )
 
@@ -587,7 +629,11 @@ def assess_case(case_id):
             actor_user_id=session["user_id"],
         )
 
-        flash("Safety assessment saved successfully.", "success")
+        flash(
+            "Safety assessment saved and confirmed by you. The automatic "
+            "check will not change it.",
+            "success",
+        )
         _flash_signal_screening(case_id)
         return redirect(url_for("cases.case_detail", case_id=case_id))
 
@@ -728,6 +774,93 @@ def reaction_candidates(section_text):
     return candidates[:250]
 
 
+def extract_terms_for_document(rsi_id, stored_filename, actor_user_id, source_name=None):
+    """Extract proposed reaction terms from an uploaded document.
+
+    Returns (inserted_count, error_message). Never raises.
+    """
+    try:
+        file_path = rsi_file_path(stored_filename)
+        if not file_path.is_file():
+            return 0, "The uploaded RSI file could not be found."
+        document_text = extract_document_text(file_path)
+        section_text = find_reaction_section(document_text)
+    except Exception as error:
+        current_app.logger.warning(
+            "Reaction term extraction failed for RSI %s", rsi_id, exc_info=True
+        )
+        return 0, f"Reaction extraction could not be completed: {error}"
+
+    if not section_text:
+        return 0, (
+            "No adverse-reactions or undesirable-effects heading was found. "
+            "Review the document manually."
+        )
+
+    candidates = reaction_candidates(section_text)
+    if not candidates:
+        return 0, (
+            "A likely reactions section was found, but no reaction terms "
+            "could be extracted."
+        )
+
+    inserted_count = 0
+    with transaction() as cursor:
+        for candidate in candidates:
+            cursor.execute(
+                """
+                INSERT INTO pv.rsi_reactions (
+                    rsi_id,
+                    reaction_term,
+                    source_excerpt
+                )
+                VALUES (%s, %s, %s)
+                ON CONFLICT (rsi_id, reaction_term) DO NOTHING
+                """,
+                (rsi_id, candidate, section_text[:1500]),
+            )
+            inserted_count += cursor.rowcount
+
+    write_audit_log(
+        record_type="reference_safety_information",
+        record_id=rsi_id,
+        action="RSI reaction terms extracted",
+        details=(
+            f"Created {inserted_count} proposed reaction term(s)"
+            + (f" from {source_name}." if source_name else ".")
+        ),
+        actor_user_id=actor_user_id,
+    )
+    return inserted_count, None
+
+
+def _recheck_cases_for_document(rsi_id):
+    """Re-run automatic listedness for cases of this document's product."""
+    document = query_one(
+        """
+        SELECT product_name, active_substance
+        FROM pv.reference_safety_information
+        WHERE rsi_id = %s
+        """,
+        (rsi_id,),
+    )
+    if not document:
+        return 0
+    return reassess_product_cases(
+        [document["product_name"], document.get("active_substance")],
+        actor_user_id=session.get("user_id"),
+    )
+
+
+def _flash_rechecked(count):
+    if count:
+        flash(
+            f"Listedness was re-checked automatically on {count} case(s) "
+            "for this product.",
+            "info",
+        )
+
+
 @bp.post("/<int:rsi_id>/extract-reactions")
 @roles_required(*REVIEWER_ROLES)
 def extract_reactions(rsi_id):
@@ -754,76 +887,23 @@ def extract_reactions(rsi_id):
         )
         return redirect(url_for("rsi.rsi_list"))
 
-    file_path = rsi_file_path(document["stored_filename"])
-
-    if not file_path.is_file():
-        flash("The uploaded RSI file could not be found.", "error")
-        return redirect(url_for("rsi.rsi_list"))
-
-    try:
-        document_text = extract_document_text(file_path)
-        section_text = find_reaction_section(document_text)
-    except Exception as error:
-        flash(f"Reaction extraction could not be completed: {error}", "error")
-        return redirect(url_for("rsi.rsi_list"))
-
-    if not section_text:
-        flash(
-            "No adverse-reactions or undesirable-effects heading was found. "
-            "Review the document manually.",
-            "error",
-        )
-        return redirect(url_for("rsi.rsi_list"))
-
-    candidates = reaction_candidates(section_text)
-
-    if not candidates:
-        flash(
-            "A likely RSI section was found, but no draft reaction terms could be extracted.",
-            "error",
-        )
-        return redirect(
-            url_for("rsi.review_reactions", rsi_id=rsi_id)
-        )
-
-    inserted_count = 0
-
-    with transaction() as cursor:
-        for candidate in candidates:
-            cursor.execute(
-                """
-                INSERT INTO pv.rsi_reactions (
-                    rsi_id,
-                    reaction_term,
-                    source_excerpt
-                )
-                VALUES (%s, %s, %s)
-                ON CONFLICT (rsi_id, reaction_term) DO NOTHING
-                """,
-                (
-                    rsi_id,
-                    candidate,
-                    section_text[:1500],
-                ),
-            )
-            inserted_count += cursor.rowcount
-
-    write_audit_log(
-        record_type="reference_safety_information",
-        record_id=rsi_id,
-        action="RSI reaction terms extracted",
-        details=(
-            f"Created {inserted_count} proposed reaction term(s) "
-            f"from {document['original_filename']}."
-        ),
-        actor_user_id=session["user_id"],
+    inserted_count, error = extract_terms_for_document(
+        rsi_id,
+        document["stored_filename"],
+        session["user_id"],
+        document["original_filename"],
     )
+    if error:
+        flash(error, "error")
+        return redirect(url_for("rsi.rsi_list"))
 
     flash(
         f"{inserted_count} proposed reaction term(s) extracted. "
-        "Verify each term before using it for listedness suggestions.",
+        "Verify each term; case listedness results stay provisional until "
+        "all terms are reviewed.",
         "success",
     )
+    _flash_rechecked(_recheck_cases_for_document(rsi_id))
 
     return redirect(url_for("rsi.review_reactions", rsi_id=rsi_id))
 
@@ -871,6 +951,24 @@ def review_reactions(rsi_id):
     )
 
 
+def _recheck_when_terms_reviewed(rsi_id):
+    remaining = query_one(
+        """
+        SELECT COUNT(*) AS count
+        FROM pv.rsi_reactions
+        WHERE rsi_id = %s
+          AND review_status = 'Proposed'
+        """,
+        (rsi_id,),
+    )
+    if remaining and remaining["count"] == 0:
+        flash(
+            "All reaction terms for this document have been reviewed.",
+            "success",
+        )
+        _flash_rechecked(_recheck_cases_for_document(rsi_id))
+
+
 @bp.post("/reactions/<int:reaction_id>/verify")
 @roles_required(*REVIEWER_ROLES)
 def verify_reaction(reaction_id):
@@ -898,6 +996,8 @@ def verify_reaction(reaction_id):
             """,
             (session["user_id"], reaction_id),
         )
+
+    _recheck_when_terms_reviewed(reaction["rsi_id"])
 
     return redirect(
         url_for(
@@ -935,6 +1035,8 @@ def exclude_reaction(reaction_id):
             (session["user_id"], reaction_id),
         )
 
+    _recheck_when_terms_reviewed(reaction["rsi_id"])
+
     return redirect(
         url_for(
             "rsi.review_reactions",
@@ -945,166 +1047,26 @@ def exclude_reaction(reaction_id):
 @bp.post("/cases/<int:case_id>/automatic-assessment")
 @login_required
 def automatic_case_assessment(case_id):
-    case = query_one(
-        """
-        SELECT
-            c.case_id,
-            c.case_number,
-            c.event_description,
-            c.seriousness,
-            c.seriousness_criteria,
-            COALESCE(p.generic_name, p.product_name) AS product_name
-        FROM pv.safety_cases AS c
-        LEFT JOIN pv.case_products AS p
-            ON p.case_id = c.case_id
-        WHERE c.case_id = %s
-        LIMIT 1
-        """,
-        (case_id,),
-    )
-
-    if not case:
+    if not query_one(
+        "SELECT case_id FROM pv.safety_cases WHERE case_id = %s", (case_id,)
+    ):
         abort(404)
 
-    result = automatic_uploaded_rsi_assessment(
-        case["product_name"],
-        case["event_description"],
+    outcome = run_automatic_listedness(
+        case_id, actor_user_id=session["user_id"], force=True
     )
-
-    if result is None:
-        try:
-            result = automatic_dailymed_assessment(
-                case["product_name"],
-                case["event_description"],
-            )
-        except Exception:
-            flash(
-                "No matching uploaded RSI was found and the official "
-                "label lookup could not be completed.",
-                "error",
-            )
-            return redirect(
-                url_for("rsi.assess_case", case_id=case_id)
-            )
-    if not result["available"]:
-        flash(result["message"], "error")
-        return redirect(url_for("rsi.assess_case", case_id=case_id))
-
-    seriousness_assessment = (
-        "Serious"
-        if case["seriousness"]
-        else "Non-serious"
-    )
-
-
-    try:
-        assessment_rationale = generate_rsi_assessment_explanation(
-            event_term=case["event_description"],
-            listedness=result["listedness_status"],
-            expectedness=result["expectedness_status"],
-            frequency=result.get("frequency_assessment", "Not stated"),
-            evidence=result["evidence"],
-        )
-    except Exception:
-        assessment_rationale = (
-            "Automated reference-information assessment: "
-            f"the reported event was assessed as "
-            f"{result['listedness_status']} and "
-            f"{result['expectedness_status']}. "
-            f"Frequency: {result.get('frequency_assessment', 'Not stated')}. "
-            "QPPV or medical reviewer confirmation is required."
-        )
-    if result.get("provisional"):
-        assessment_rationale = (
-            "PROVISIONAL: based partly on reaction terms not yet verified "
-            "by a reviewer. Confirm before relying on this assessment.\n\n"
-            + (assessment_rationale or "")
-        )
-    with transaction() as cursor:
-        cursor.execute(
-            """
-            INSERT INTO pv.case_safety_assessments (
-                case_id,
-                rsi_id,
-                event_term_assessed,
-                listedness_status,
-                expectedness_status,
-                seriousness_assessment,
-                seriousness_criteria,
-                rsi_evidence,
-                frequency_assessment,
-                frequency_evidence,
-                assessment_rationale,
-                assessed_by,
-                updated_at
-            )
-            VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW()
-            )
-            ON CONFLICT (case_id)
-            DO UPDATE SET
-                rsi_id = EXCLUDED.rsi_id,
-                event_term_assessed = EXCLUDED.event_term_assessed,
-                listedness_status = EXCLUDED.listedness_status,
-                expectedness_status = EXCLUDED.expectedness_status,
-                seriousness_assessment = EXCLUDED.seriousness_assessment,
-                seriousness_criteria = EXCLUDED.seriousness_criteria,
-                rsi_evidence = EXCLUDED.rsi_evidence,
-                frequency_assessment = EXCLUDED.frequency_assessment,
-                frequency_evidence = EXCLUDED.frequency_evidence,
-                assessment_rationale = EXCLUDED.assessment_rationale,
-                assessed_by = EXCLUDED.assessed_by,
-                updated_at = NOW()
-            """,
-            (
-                case_id,
-                result.get("rsi_id"),
-                case["event_description"],
-                result["listedness_status"],
-                result["expectedness_status"],
-                seriousness_assessment,
-                case["seriousness_criteria"],
-                result["evidence"],
-                result.get("frequency_assessment", "Not stated"),
-                result.get(
-                    "frequency_evidence",
-                    "Frequency was not stated in the source label.",
-                ),
-               assessment_rationale,
-                session["user_id"],
-            ),
-        )
-
-    write_audit_log(
-        "case",
-        case_id,
-        "Automatic listedness and expectedness assessment completed",
-        session["user_id"],
-        (
-            f"Source: {result['source']}; "
-            f"Label: {result['title']}; "
-            f"Outcome: {result['listedness_status']} / "
-            f"{result['expectedness_status']} / "
-            f"{seriousness_assessment}"
-            + ("; provisional (unverified terms)" if result.get("provisional") else "")
-        ),
-    )
-
-    flash(
-        f"Automatic assessment completed: {result['listedness_status']} / "
-        f"{result['expectedness_status']}, using {result['title']} "
-        f"({result['source']}).",
-        "success",
-    )
-    if result.get("provisional"):
+    if outcome and outcome.get("unchanged"):
         flash(
-            "This result is provisional: some reaction terms in the "
-            "reference document have not been verified. Verify the terms "
-            "and confirm the assessment before relying on it.",
-            "warning",
+            f"Automatic check re-run: no change ({outcome['listedness_status']} "
+            f"/ {outcome['expectedness_status']}).",
+            "info",
         )
+    else:
+        message = listedness_message(outcome)
+        if message:
+            flash(*message)
     _flash_signal_screening(case_id)
-    return redirect(url_for("rsi.assess_case", case_id=case_id))
+    return redirect(url_for("cases.case_detail", case_id=case_id) + "#listedness")
 
 
 def _flash_signal_screening(case_id):
