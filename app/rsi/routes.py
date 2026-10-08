@@ -670,6 +670,14 @@ def assess_case(case_id):
         existing_assessment=existing_assessment,
     )
 
+MIN_READABLE_TEXT = 200
+IMAGE_ONLY_MESSAGE = (
+    "No text could be read from this file. It is probably a scanned or "
+    "printed-to-PDF copy that holds images of the pages. Upload the "
+    "original PDF from the source (for example the emc or EMA download) "
+    "or a Word (.docx) copy, then extract the terms again."
+)
+
 REACTION_SECTION_HEADINGS = (
     "adverse reactions",
     "undesirable effects",
@@ -784,6 +792,8 @@ def extract_terms_for_document(rsi_id, stored_filename, actor_user_id, source_na
         if not file_path.is_file():
             return 0, "The uploaded RSI file could not be found."
         document_text = extract_document_text(file_path)
+        if len((document_text or "").strip()) < MIN_READABLE_TEXT:
+            return 0, IMAGE_ONLY_MESSAGE
         section_text = find_reaction_section(document_text)
     except Exception as error:
         current_app.logger.warning(
