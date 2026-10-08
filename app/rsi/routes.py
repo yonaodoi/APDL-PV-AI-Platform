@@ -33,6 +33,10 @@ from app.rsi.forms import (
     ReferenceSafetyInformationForm,
 )
 from app.security import login_required, roles_required
+from app.services.rsi_assessment import (
+    assess_event_against_rsi,
+    choose_rsi_document,
+)
 from app.services.rsi_versions import (
     duplicate_current_groups,
     make_current,
@@ -1010,6 +1014,12 @@ def automatic_case_assessment(case_id):
             f"Frequency: {result.get('frequency_assessment', 'Not stated')}. "
             "QPPV or medical reviewer confirmation is required."
         )
+    if result.get("provisional"):
+        assessment_rationale = (
+            "PROVISIONAL: based partly on reaction terms not yet verified "
+            "by a reviewer. Confirm before relying on this assessment.\n\n"
+            + (assessment_rationale or "")
+        )
     with transaction() as cursor:
         cursor.execute(
             """
@@ -1076,13 +1086,23 @@ def automatic_case_assessment(case_id):
             f"Outcome: {result['listedness_status']} / "
             f"{result['expectedness_status']} / "
             f"{seriousness_assessment}"
+            + ("; provisional (unverified terms)" if result.get("provisional") else "")
         ),
     )
 
     flash(
-        "Automatic safety assessment completed from the official product label.",
+        f"Automatic assessment completed: {result['listedness_status']} / "
+        f"{result['expectedness_status']}, using {result['title']} "
+        f"({result['source']}).",
         "success",
     )
+    if result.get("provisional"):
+        flash(
+            "This result is provisional: some reaction terms in the "
+            "reference document have not been verified. Verify the terms "
+            "and confirm the assessment before relying on it.",
+            "warning",
+        )
     _flash_signal_screening(case_id)
     return redirect(url_for("rsi.assess_case", case_id=case_id))
 
@@ -1104,30 +1124,34 @@ def normalise_rsi_text(value):
 
 def automatic_uploaded_rsi_assessment(product_name, event_term):
     """
-    Automatically assess an event against the current uploaded RSI
-    for the product. Returns None when no matching uploaded RSI exists.
+    Assess an event against the current uploaded RSI for the product.
+
+    Returns None when no current document exists for the product (the
+    caller may then try the online label). Returns an "available": False
+    result when the chosen document has no extracted reaction terms, rather
+    than wrongly concluding the event is not listed.
     """
-    rsi = query_one(
+    documents = query_all(
         """
         SELECT
             rsi_id,
             product_name,
             active_substance,
             document_type,
-            document_version
+            document_version,
+            effective_date
         FROM pv.reference_safety_information
         WHERE is_current = TRUE
           AND (
               LOWER(product_name) = LOWER(%s)
               OR LOWER(COALESCE(active_substance, '')) = LOWER(%s)
           )
-        ORDER BY rsi_id DESC
-        LIMIT 1
         """,
         (product_name, product_name),
     )
 
-    if not rsi:
+    document = choose_rsi_document(documents)
+    if not document:
         return None
 
     reactions = query_all(
@@ -1143,66 +1167,17 @@ def automatic_uploaded_rsi_assessment(product_name, event_term):
             CASE WHEN review_status = 'Verified' THEN 0 ELSE 1 END,
             reaction_term
         """,
-        (rsi["rsi_id"],),
+        (document["rsi_id"],),
     )
 
-    event = normalise_rsi_text(event_term)
-    event_words = set(event.split())
-    matches = []
-
-    for reaction in reactions:
-        term = normalise_rsi_text(reaction["reaction_term"])
-        term_words = set(term.split())
-
-        matched = (
-            term
-            and (
-                term in event
-                or event in term
-                or (
-                    len(term_words) >= 2
-                    and len(event_words.intersection(term_words))
-                    >= min(2, len(term_words))
-                )
-            )
+    result = assess_event_against_rsi(document, reactions, event_term)
+    if result["available"]:
+        frequency_assessment, frequency_evidence = (
+            frequency_from_rsi_matches(result["matches"])
         )
-
-        if matched:
-            matches.append(reaction)
-
-    evidence = "\n\n".join(
-        (
-            f"Matched RSI term: {match['reaction_term']}\n"
-            f"{match['source_excerpt'] or 'No source excerpt available.'}"
-        )
-        for match in matches[:3]
-    )
-
-    frequency_assessment, frequency_evidence = (
-        frequency_from_rsi_matches(matches)
-    )
-
-
-    title = (
-        f"{rsi['product_name']} — "
-        f"{rsi['document_type'] or 'Reference Safety Information'} "
-        f"{rsi['document_version'] or ''}"
-    ).strip()
-
-    return {
-        "available": True,
-        "rsi_id": rsi["rsi_id"],
-        "source": "Uploaded APDL Reference Safety Information",
-        "title": title,
-        "listedness_status": "Listed" if matches else "Not listed",
-        "expectedness_status": "Expected" if matches else "Unexpected",
-        "evidence": evidence or (
-            "No matching reaction term was found among the automatically "
-            "extracted RSI reactions."
-        ),
-        "frequency_assessment": frequency_assessment,
-        "frequency_evidence": frequency_evidence,
-    }
+        result["frequency_assessment"] = frequency_assessment
+        result["frequency_evidence"] = frequency_evidence
+    return result
 
 def frequency_from_rsi_matches(matches):
     """Extract a standard frequency category from matched RSI excerpts."""

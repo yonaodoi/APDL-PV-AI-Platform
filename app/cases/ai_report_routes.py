@@ -24,6 +24,7 @@ from app.services.ai_case_assessment import (
     progress_message,
 )
 from app.services.case_consistency import evaluate_case_consistency
+from app.services.rsi_assessment import choose_rsi_document, is_apdl_document
 from app.services.rsi_lookup import automatic_dailymed_assessment
 from app.services.ai_case_assessment_docx import (
     build_ai_case_assessment_docx,
@@ -118,26 +119,13 @@ def rsi_documents_for_product(product):
         ),
     )
 
-    apdl_document = None
-    innovator_document = None
-
-    for document in documents:
-        document_type = (
-            document.get("document_type") or ""
-        ).lower()
-
-        if (
-            "apdl" in document_type
-            or "local product information" in document_type
-        ):
-            apdl_document = document
-        elif (
-            document.get("reference_product_name")
-            or "innovator" in document_type
-            or "reference safety" in document_type
-            or "rsi" in document_type
-        ):
-            innovator_document = document
+    # Newest APDL local product information, and the best reference
+    # document for listedness (innovator / RSI first, then SmPC or label).
+    apdl_documents = [d for d in documents if is_apdl_document(d)]
+    apdl_document = choose_rsi_document(apdl_documents)
+    innovator_document = choose_rsi_document(
+        [d for d in documents if not is_apdl_document(d)]
+    )
 
     return documents, apdl_document, innovator_document
 

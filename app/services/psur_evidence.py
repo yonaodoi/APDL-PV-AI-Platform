@@ -102,19 +102,67 @@ def _rsi_lines(rsi_documents):
             "PBRER is finalised."
         )
 
-    return "\n\n".join(
-        (
+    lines = []
+    for document in rsi_documents:
+        if document.get("effective_date"):
+            dated = f"effective {_display_date(document['effective_date'])}"
+        else:
+            dated = (
+                "with no effective date recorded (added to the platform on "
+                f"{_display_date(document.get('added_on'))}); the QPPV "
+                "should confirm the effective date"
+            )
+        lines.append(
             f"Reference safety information for the product was "
             f"reviewed through the {document['document_type']}"
             f"{' (version ' + document['document_version'] + ')' if document['document_version'] else ''}"
             f"{' for the ' + document['market'] + ' market' if document['market'] else ''}, "
-            f"effective {_display_date(document['effective_date'])}. "
+            f"{dated}. "
             "The QPPV should assess whether this information changes "
             "the listedness, expectedness, frequency or risk "
             "characterisation of any reported adverse reaction."
         )
-        for document in rsi_documents
+    return "\n\n".join(lines)
+
+
+def rsi_appendix_text(product_name, current_documents):
+    """Appendix 2: the reference safety information in force."""
+    if not current_documents:
+        return (
+            f"No current reference safety information for {product_name} "
+            "is recorded in the APDL PV platform. Add the approved "
+            "reference document under Reference Safety Information, or "
+            "attach it to this PSUR manually, before the report is finalised."
+        )
+
+    entries = []
+    for document in current_documents:
+        details = [document["document_type"]]
+        if document.get("reference_product_name"):
+            details.append(f"reference product: {document['reference_product_name']}")
+        if document.get("document_version"):
+            details.append(f"version {document['document_version']}")
+        if document.get("market"):
+            details.append(f"market: {document['market']}")
+        details.append(
+            f"effective {_display_date(document['effective_date'])}"
+            if document.get("effective_date")
+            else "effective date not recorded"
+        )
+        if document.get("original_filename"):
+            details.append(f"file: {document['original_filename']}")
+        if document.get("source_url"):
+            details.append(f"source: {document['source_url']}")
+        entries.append("- " + "; ".join(details) + ".")
+
+    return (
+        f"The following reference safety information for {product_name} "
+        "was in force at the time this report was prepared and was used "
+        "for the listedness and expectedness assessments in this report:"
+        "\n\n" + "\n".join(entries)
     )
+
+
 def build_psur_evidence_sections(report):
     product_name = report["product_name"]
     start_date = report["reporting_period_start"]
@@ -189,19 +237,45 @@ def build_psur_evidence_sections(report):
         (product_name, start_date, end_date),
     )
 
+    # Documents that took effect in the period, plus undated documents
+    # added to the platform in the period (so they are not silently missed).
     rsi_documents = query_all(
         """
         SELECT
             document_type,
             document_version,
             market,
-            effective_date
+            effective_date,
+            created_at::date AS added_on
         FROM pv.reference_safety_information
         WHERE LOWER(product_name) = LOWER(%s)
-          AND effective_date BETWEEN %s AND %s
-        ORDER BY effective_date, document_type
+          AND (
+              effective_date BETWEEN %s AND %s
+              OR (
+                  effective_date IS NULL
+                  AND created_at::date BETWEEN %s AND %s
+              )
+          )
+        ORDER BY COALESCE(effective_date, created_at::date), document_type
         """,
-        (product_name, start_date, end_date),
+        (product_name, start_date, end_date, start_date, end_date),
+    )
+    current_rsi_documents = query_all(
+        """
+        SELECT
+            document_type,
+            document_version,
+            market,
+            effective_date,
+            reference_product_name,
+            original_filename,
+            source_url
+        FROM pv.reference_safety_information
+        WHERE LOWER(product_name) = LOWER(%s)
+          AND is_current = TRUE
+        ORDER BY document_type, effective_date DESC NULLS LAST
+        """,
+        (product_name,),
     )
     case_assessments = query_all(
         """
@@ -362,6 +436,9 @@ def build_psur_evidence_sections(report):
         "other_events": product_quality,
         "reference_safety_information": (
             reference_safety_information
+        ),
+        "appendix_reference_safety_information": rsi_appendix_text(
+            product_name, current_rsi_documents
         ),
         "exposure": exposure,
         "signals": signal_evaluation,
