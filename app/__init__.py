@@ -90,6 +90,17 @@ def create_app(config_class=Config):
         ):
             return redirect(url_for("auth.change_password"))
 
+    @app.template_filter("when")
+    def format_when(value):
+        """Date and time in this computer's local time, e.g. 08 Oct 2026, 21:52."""
+        if not value:
+            return ""
+        if getattr(value, "tzinfo", None) is not None:
+            value = value.astimezone()
+        if hasattr(value, "hour"):
+            return value.strftime("%d %b %Y, %H:%M")
+        return value.strftime("%d %b %Y")
+
     @app.context_processor
     def inject_follow_up_reminder_count():
         if not session.get("user_id"):

@@ -29,7 +29,7 @@ from app.services.case_listedness import (
     run_automatic_listedness,
 )
 from app.db import query_all, query_one, transaction
-from app.security import login_required
+from app.security import login_required, safe_next_path
 from .forms import SafetyCaseForm
 from app.services.signal_detection import (
     screen_case_for_signals,
@@ -1528,6 +1528,26 @@ def edit_case(case_id):
                 "Automated signal screening could not run for this case.",
                 "warning",
             )
+        # Re-check completeness now, so follow-up items answered by this
+        # edit close straight away (not only when the case page is opened).
+        try:
+            updated_case = query_one(
+                "SELECT * FROM pv.safety_cases WHERE case_id = %s", (case_id,)
+            )
+            updated_products = query_all(
+                "SELECT * FROM pv.case_products WHERE case_id = %s ORDER BY case_product_id",
+                (case_id,),
+            )
+            refresh_case_completeness(updated_case, updated_products)
+        except Exception:
+            current_app.logger.exception(
+                "Could not refresh completeness after editing case %s", case_id
+            )
+            _rollback_quietly()
+
+        next_url = safe_next_path(request.form.get("next"))
+        if next_url:
+            return redirect(next_url)
         return redirect(
             url_for("cases.case_detail", case_id=case_id)
             + _case_page_anchor(request.form.get("return_section"))
@@ -1543,4 +1563,5 @@ def edit_case(case_id):
         case=case,
         return_section=section if section in EDIT_SECTIONS else None,
         return_anchor=_case_page_anchor(section),
+        next_url=safe_next_path(request.values.get("next")),
     )

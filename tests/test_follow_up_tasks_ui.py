@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 import app.services.case_follow_up as follow_up_service
 from app import create_app
@@ -27,9 +27,16 @@ def test_follow_up_page_groups_tasks_into_one_request_per_case(monkeypatch):
     monkeypatch.setattr(
         follow_up_service, "get_open_follow_up_tasks", lambda: tasks
     )
+    sent = datetime(2026, 4, 1, 18, 52, tzinfo=timezone.utc)
     monkeypatch.setattr(
-        "app.cases.review_routes._last_requests", lambda case_ids: {}
+        "app.cases.review_routes._last_requests", lambda case_ids: {34: sent}
     )
+    monkeypatch.setattr(
+        "app.cases.review_routes._reminder_history",
+        lambda: {34: {"requested": sent, "reminders": 1, "last_sent": sent,
+                      "due": date(2026, 4, 10), "next_reminder": None, "exhausted": False}},
+    )
+    monkeypatch.setattr("app.cases.review_routes._last_failures", lambda case_ids: {})
     monkeypatch.setattr(
         "app.services.case_follow_up_reminders.get_open_reminder_count",
         lambda: 0,
@@ -53,10 +60,15 @@ def test_follow_up_page_groups_tasks_into_one_request_per_case(monkeypatch):
     assert "To ask the reporter (2)" in page
     assert "For the PV team" in page
     assert "/cases/34/follow-up-request.docx" in page
-    assert "Email request to reporter" in page
+    assert "Email again" in page
     assert "Download email draft" not in page
     assert "Email + form in Word" not in page
     assert page.count("Not available</button>") == 2
+    assert page.count("Enter information</a>") == 2
+    assert "section=event-assessment" in page
+    assert "next=/cases/follow-up-tasks%23case-34#event-assessment" in page
+    assert "Follow-up 2 of 3" in page
+    assert "Request emailed 01 Apr 2026, " in page
     assert "Mark done" not in page
     assert 'class="task-status overdue"' in page
 

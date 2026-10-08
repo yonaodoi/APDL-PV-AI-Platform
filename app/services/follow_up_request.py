@@ -43,6 +43,20 @@ SERIOUSNESS_OPTIONS = (
     "Other medically important condition",
 )
 
+# Where on the case edit form each item is filled in or corrected.
+EDIT_SECTION_FOR_CODE = {
+    "minimum_patient": "patient-information",
+    "patient_consistency": "patient-information",
+    "identifiable_reporter": "report-details",
+    "suspected_product": "product-details",
+    "reported_event": "event-assessment",
+    "event_onset_date": "event-assessment",
+    "event_outcome": "event-assessment",
+    "seriousness_basis": "event-assessment",
+    "fatal_outcome_consistency": "event-assessment",
+    "date_sequence": "event-assessment",
+}
+
 # Plain-language headings for the reporter (the checklist labels are ours).
 REPORTER_LABELS = {
     "minimum_patient": "Patient details",
@@ -410,6 +424,8 @@ def group_tasks_by_case(tasks, last_requests=None):
         })
         if task.get("due_date") and (not group["due_date"] or task["due_date"] < group["due_date"]):
             group["due_date"] = task["due_date"]
+        task = dict(task)
+        task["edit_section"] = EDIT_SECTION_FOR_CODE.get(task.get("check_code"))
         if task.get("check_code") in INTERNAL_CODES:
             bucket = "internal_tasks"
         elif task.get("check_code") in CHECK_FIRST_CODES:

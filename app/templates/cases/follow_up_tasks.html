@@ -47,30 +47,38 @@
                     </div>
                     {% if group.last_failure %}
                         <div class="request-failed" role="alert">
-                            Email not sent ({{ group.last_failure.sent_at.strftime("%d %b %Y, %H:%M") }}): {{ group.last_failure.error_message }}
+                            Email not sent ({{ group.last_failure.sent_at|when }}): {{ group.last_failure.error_message }}
                         </div>
                     {% endif %}
                     {% set h = group.history %}
                     {% if h %}
                         <div class="request-sent">
-                            Request emailed {{ h.requested.strftime("%d %b %Y") if h.requested else group.last_request.strftime("%d %b %Y") }}{% if h.reminders %} · {{ h.reminders }} reminder{% if h.reminders != 1 %}s{% endif %} sent{% endif %}
+                            Request emailed {{ (h.requested or group.last_request)|when }}{% if h.reminders %} · {{ h.reminders }} reminder{% if h.reminders != 1 %}s{% endif %} sent, last {{ h.last_sent|when }}{% endif %}
                             {% if automation.active and h.next_reminder and not h.exhausted %} · next reminder {{ h.next_reminder.strftime("%d %b %Y") }}{% endif %}
                         </div>
                     {% elif group.last_request %}
-                        <div class="request-sent">Request emailed {{ group.last_request.strftime("%d %b %Y") }}</div>
+                        <div class="request-sent">Request emailed {{ group.last_request|when }}</div>
                     {% elif automation.active and group.reporter_tasks and group.can_email %}
                         <div class="request-sent">Will be emailed automatically</div>
                     {% endif %}
                 </div>
+                <div class="card-side">
                 <span class="task-status {% if (group.history and group.history.exhausted) or (overdue and not automation.active) %}overdue{% endif %}">
-                    {% if group.history and group.history.exhausted %}No reply after reminders
-                    {% elif group.history or group.last_request %}Awaiting reply
-                    {% elif not group.reporter_tasks and group.check_tasks %}For you to check
-                    {% elif not group.reporter_tasks %}PV team task
-                    {% elif overdue and not automation.active %}Overdue
-                    {% elif automation.active and group.can_email %}Queued to send
-                    {% else %}Not yet requested{% endif %}
-                </span>
+                        {% if group.history and group.history.exhausted %}No reply after reminders
+                        {% elif group.history or group.last_request %}Awaiting reply
+                        {% elif not group.reporter_tasks and group.check_tasks %}For you to check
+                        {% elif not group.reporter_tasks %}PV team task
+                        {% elif overdue and not automation.active %}Overdue
+                        {% elif automation.active and group.can_email %}Queued to send
+                        {% else %}Not yet requested{% endif %}
+                    </span>
+                    {% if group.history %}
+                        {% set sent_count = 1 + group.history.reminders %}
+                        <span class="follow-up-count" title="Request plus reminders emailed to the reporter">Follow-up {{ sent_count }} of {{ 1 + automation.max_reminders }}</span>
+                    {% elif group.last_request %}
+                        <span class="follow-up-count">Follow-up 1 of {{ 1 + automation.max_reminders }}</span>
+                    {% endif %}
+                </div>
             </div>
 
             {% if group.reporter_tasks %}
@@ -82,10 +90,15 @@
                                 <strong>{{ task.task_title|replace("Follow up: ", "") }}</strong>
                                 <span>{{ task.task_description }}</span>
                             </div>
-                            <form method="post" action="{{ url_for('case_review.complete_follow_up_task', task_id=task.task_id) }}">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button class="item-done" type="submit" title="The reporter says this is not known or cannot be provided. Stops asking for it.">Not available</button>
-                            </form>
+                            <div class="item-actions">
+                                {% if task.edit_section %}
+                                    <a class="item-enter" href="{{ url_for('cases.edit_case', case_id=group.case_id, section=task.edit_section, next=url_for('case_review.follow_up_tasks') ~ '#case-' ~ group.case_id) }}#{{ task.edit_section }}" title="Open the case form at this section to enter the reporter's answer. The item closes when you save.">Enter information</a>
+                                {% endif %}
+                                <form method="post" action="{{ url_for('case_review.complete_follow_up_task', task_id=task.task_id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="item-done" type="submit" title="The reporter says this is not known or cannot be provided. Stops asking for it.">Not available</button>
+                                </form>
+                            </div>
                         </li>
                     {% endfor %}
                 </ol>
@@ -112,6 +125,11 @@
                                 <strong>{{ task.task_title|replace("Follow up: ", "") }}</strong>
                                 <span>{{ task.task_description }}</span>
                             </div>
+                            {% if task.edit_section %}
+                                <div class="item-actions">
+                                    <a class="item-enter" href="{{ url_for('cases.edit_case', case_id=group.case_id, section=task.edit_section, next=url_for('case_review.follow_up_tasks') ~ '#case-' ~ group.case_id) }}#{{ task.edit_section }}">Correct on the case</a>
+                                </div>
+                            {% endif %}
                         </li>
                     {% endfor %}
                 </ul>

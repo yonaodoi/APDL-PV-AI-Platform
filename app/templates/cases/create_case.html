@@ -61,6 +61,9 @@
         {% if editing and return_section %}
             <input type="hidden" name="return_section" value="{{ return_section }}">
         {% endif %}
+        {% if editing and next_url %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+        {% endif %}
         {% if source_complaint %}
             <input type="hidden" name="from_complaint_id" value="{{ source_complaint.complaint_id }}">
         {% endif %}
@@ -327,7 +330,7 @@
         </section>
 
         <div class="actions">
-            <a class="button secondary" href="{% if editing %}{{ url_for('cases.case_detail', case_id=case.case_id) }}{{ return_anchor or "" }}{% else %}{{ url_for('core.dashboard') }}{% endif %}">Cancel</a>
+            <a class="button secondary" href="{% if editing and next_url %}{{ next_url }}{% elif editing %}{{ url_for('cases.case_detail', case_id=case.case_id) }}{{ return_anchor or "" }}{% else %}{{ url_for('core.dashboard') }}{% endif %}">Cancel</a>
 <button class="button primary" type="submit">{% if editing %}Update safety case{% else %}Create safety case{% endif %}</button>
         </div>
     </form>
