@@ -4804,3 +4804,213 @@ details.fold-card > summary:hover { background: #fcfbfd; }
 }
 .fold-edit-link:hover { background: #eee9ff; }
 details.fold-card > summary .fold-spacer { margin-left: auto; }
+
+/* ==========================================================================
+   Forest and lime theme
+   Dark forest green frames the tool (navigation and register banners);
+   lime is the single accent and is only used on dark green. Working pages
+   stay light, and red / amber keep their alert meaning.
+   ========================================================================== */
+:root {
+    --forest: #0b3d2c;
+    --forest-mid: #145a40;
+    --forest-line: rgba(200, 228, 210, 0.16);
+    --lime: #c6dd5d;
+    --lime-hover: #d4e87a;
+    --lime-ink: #1a2e0b;
+    --on-forest: #ffffff;
+    --on-forest-muted: #c9ded2;
+}
+
+/* Navigation */
+.app-shell .sidebar {
+    background:
+        radial-gradient(circle at 8% 4%, rgba(198, 221, 93, 0.10), transparent 12rem),
+        var(--forest);
+}
+
+.app-shell .brand-mark {
+    background: var(--lime);
+    color: var(--lime-ink);
+}
+
+.app-shell .nav-link.active::before {
+    background: var(--lime);
+}
+
+.app-shell .nav-link.active {
+    color: var(--on-forest);
+    background: rgba(198, 221, 93, 0.12);
+    border-color: rgba(198, 221, 93, 0.22);
+}
+
+.app-shell .nav-link:focus-visible {
+    outline-color: var(--lime);
+}
+
+/* Register banners and welcome panels */
+.app-shell .dashboard-page .welcome-panel,
+.app-shell .case-list-page .cases-header,
+.app-shell .quality-complaint-page .complaints-header,
+.app-shell .signal-workspace-page .signals-header,
+.app-shell .psur-workspace-page .psur-header,
+.app-shell .rsi-page .rsi-header,
+.app-shell .reporting-page .reporting-header {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 18px 28px;
+    align-items: center;
+    margin-bottom: 24px;
+    padding: 30px clamp(22px, 4vw, 40px);
+    overflow: hidden;
+    border: 1px solid #0f4a35;
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(198, 221, 93, 0.14), transparent 18rem),
+        linear-gradient(120deg, var(--forest) 0%, #0f4a36 60%, var(--forest-mid) 100%);
+    box-shadow: 0 14px 30px rgba(11, 61, 44, 0.18);
+    color: var(--on-forest);
+}
+
+.app-shell .dashboard-page .welcome-panel > div:first-child,
+.app-shell .case-list-page .cases-header > div:first-child,
+.app-shell .quality-complaint-page .complaints-header > div:first-child,
+.app-shell .signal-workspace-page .signals-header > div:first-child,
+.app-shell .psur-workspace-page .psur-header > div:first-child,
+.app-shell .rsi-page .rsi-header > div:first-child,
+.app-shell .reporting-page .reporting-header > div:first-child {
+    flex: 1 1 320px;
+    min-width: 0;
+}
+
+.app-shell .dashboard-page .welcome-panel,
+.app-shell .case-list-page .cases-header,
+.app-shell .quality-complaint-page .complaints-header,
+.app-shell .signal-workspace-page .signals-header,
+.app-shell .psur-workspace-page .psur-header,
+.app-shell .rsi-page .rsi-header,
+.app-shell .reporting-page .reporting-header {
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.app-shell .dashboard-page .welcome-panel h2,
+.app-shell .case-list-page .cases-header h2,
+.app-shell .quality-complaint-page .complaints-header h2,
+.app-shell .signal-workspace-page .signals-header h2,
+.app-shell .psur-workspace-page .psur-header h2,
+.app-shell .rsi-page .rsi-header h1,
+.app-shell .reporting-page .reporting-header h2 {
+    margin: 0 0 8px;
+    color: var(--on-forest);
+    font-size: clamp(23px, 3vw, 30px);
+    letter-spacing: -0.6px;
+    line-height: 1.15;
+}
+
+.app-shell .dashboard-page .welcome-panel p:not(.welcome-kicker),
+.app-shell .case-list-page .cases-header p,
+.app-shell .quality-complaint-page .complaints-header p,
+.app-shell .signal-workspace-page .signals-header p,
+.app-shell .psur-workspace-page .psur-header p,
+.app-shell .rsi-page .rsi-header p:not(.rsi-kicker),
+.app-shell .reporting-page .reporting-header p:not(.eyebrow) {
+    max-width: 640px;
+    margin: 0;
+    color: var(--on-forest-muted);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.app-shell .dashboard-page .welcome-kicker,
+.app-shell .rsi-page .rsi-kicker,
+.app-shell .reporting-page .reporting-header .eyebrow {
+    margin: 0 0 10px;
+    color: var(--lime);
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: 1.4px;
+}
+
+.app-shell .reporting-page .reporting-header .back-link {
+    color: var(--on-forest-muted);
+    text-decoration: none;
+}
+
+.app-shell .reporting-page .reporting-header .back-link:hover {
+    color: var(--lime);
+}
+
+/* Banner buttons: one lime primary action, outlined secondary actions */
+.app-shell .dashboard-page .welcome-panel .analytics-button,
+.app-shell .case-list-page .cases-header .new-case-button.primary-case-button,
+.app-shell .quality-complaint-page .complaints-header .new-complaint-button:not(.document-action),
+.app-shell .signal-workspace-page .signals-header .new-signal-button,
+.app-shell .psur-workspace-page .psur-header .new-psur-button,
+.app-shell .rsi-page .rsi-header .new-rsi-button {
+    border: 1px solid var(--lime);
+    background: var(--lime);
+    color: var(--lime-ink);
+    box-shadow: none;
+    font-weight: 850;
+    text-decoration: none;
+}
+
+.app-shell .dashboard-page .welcome-panel .analytics-button:hover,
+.app-shell .case-list-page .cases-header .new-case-button.primary-case-button:hover,
+.app-shell .quality-complaint-page .complaints-header .new-complaint-button:not(.document-action):hover,
+.app-shell .signal-workspace-page .signals-header .new-signal-button:hover,
+.app-shell .psur-workspace-page .psur-header .new-psur-button:hover,
+.app-shell .rsi-page .rsi-header .new-rsi-button:hover {
+    border-color: var(--lime-hover);
+    background: var(--lime-hover);
+    color: var(--lime-ink);
+}
+
+.app-shell .case-list-page .cases-header .new-case-button.secondary-case-button,
+.app-shell .quality-complaint-page .complaints-header .new-complaint-button.document-action,
+.app-shell .signal-workspace-page .signals-header .signal-notifications-link,
+.app-shell .rsi-page .rsi-header .close-rsi-button {
+    border: 1px solid rgba(255, 255, 255, 0.38);
+    background: transparent;
+    color: var(--on-forest);
+    box-shadow: none;
+    text-decoration: none;
+}
+
+.app-shell .case-list-page .cases-header .new-case-button.secondary-case-button:hover,
+.app-shell .quality-complaint-page .complaints-header .new-complaint-button.document-action:hover,
+.app-shell .signal-workspace-page .signals-header .signal-notifications-link:hover,
+.app-shell .rsi-page .rsi-header .close-rsi-button:hover {
+    border-color: var(--lime);
+    background: rgba(198, 221, 93, 0.10);
+    color: var(--on-forest);
+}
+
+.app-shell .dashboard-page .welcome-panel a:focus-visible,
+.app-shell .case-list-page .cases-header a:focus-visible,
+.app-shell .quality-complaint-page .complaints-header a:focus-visible,
+.app-shell .signal-workspace-page .signals-header a:focus-visible,
+.app-shell .signal-workspace-page .signals-header button:focus-visible,
+.app-shell .psur-workspace-page .psur-header a:focus-visible,
+.app-shell .rsi-page .rsi-header a:focus-visible,
+.app-shell .reporting-page .reporting-header a:focus-visible {
+    outline: 2px solid var(--lime);
+    outline-offset: 3px;
+}
+
+@media (max-width: 620px) {
+    .app-shell .dashboard-page .welcome-panel,
+    .app-shell .case-list-page .cases-header,
+    .app-shell .quality-complaint-page .complaints-header,
+    .app-shell .signal-workspace-page .signals-header,
+    .app-shell .psur-workspace-page .psur-header,
+    .app-shell .rsi-page .rsi-header,
+    .app-shell .reporting-page .reporting-header {
+        padding: 22px 18px;
+        border-radius: 14px;
+    }
+}
