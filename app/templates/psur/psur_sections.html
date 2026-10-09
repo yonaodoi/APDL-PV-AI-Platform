@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}PSUR Sections | APDL PV{% endblock %}
+{% block title %}PSUR Sections | {{ company.platform_name }}{% endblock %}
 {% block page_title %}PSUR Sections{% endblock %}
 
 {% block content %}
@@ -16,7 +16,7 @@
     .back-link {
         display:inline-block;
         margin-bottom:10px;
-        color:#7656e8;
+        color:#145a40;
         font-size:15px;
         font-weight:bold;
         text-decoration:none;
@@ -24,13 +24,13 @@
 
     .sections-header h2 {
         margin:0 0 7px;
-        color:#282037;
+        color:#183d34;
         font-size:28px;
     }
 
     .sections-header p {
         margin:0;
-        color:#746d7d;
+        color:#6b7d75;
         font-size:14px;
     }
 
@@ -43,7 +43,7 @@
 
     .section-card {
         overflow:hidden;
-        border:1px solid #e9e2e7;
+        border:1px solid #dce8e1;
         border-radius:14px;
         background:white;
         box-shadow:0 5px 12px rgba(40,32,55,.025);
@@ -51,12 +51,12 @@
 
     .card-heading {
         padding:17px 19px;
-        border-bottom:1px solid #eee8ec;
+        border-bottom:1px solid #e7efea;
     }
 
     .card-heading h3 {
         margin:0 0 4px;
-        color:#403748;
+        color:#244a3d;
         font-size:16px;
     }
 
@@ -77,7 +77,7 @@
     .field label {
         display:block;
         margin-bottom:7px;
-        color:#554d5d;
+        color:#4b6158;
         font-size:12px;
         font-weight:bold;
     }
@@ -86,10 +86,10 @@
         width:100%;
         box-sizing:border-box;
         padding:10px 11px;
-        border:1px solid #ddd5dc;
+        border:1px solid #d5e2d9;
         border-radius:8px;
-        background:#fffeff;
-        color:#322a3b;
+        background:#fbfdfc;
+        color:#244a3d;
         font:inherit;
         font-size:14px;
     }
@@ -102,15 +102,15 @@
 
     .input:focus {
         outline:none;
-        border-color:#9f88ed;
-        box-shadow:0 0 0 3px #eee9ff;
+        border-color:#4f9c78;
+        box-shadow:0 0 0 3px #eaf3ee;
     }
 
     .save-button {
         padding:12px 18px;
         border:0;
         border-radius:9px;
-        background:#7656e8;
+        background:#145a40;
         color:white;
         font-size:14px;
         font-weight:bold;
@@ -120,7 +120,7 @@
 
     .saved-section {
         padding:16px 18px;
-        border-bottom:1px solid #f0ebee;
+        border-bottom:1px solid #eef3f0;
     }
 
     .saved-section:last-child {
@@ -129,7 +129,7 @@
 
     .saved-section h4 {
         margin:0 0 6px;
-        color:#49366d;
+        color:#0b3d2c;
         font-size:13px;
     }
 
@@ -149,7 +149,7 @@
 
     .guide {
         overflow:hidden;
-        border:1px solid #e9e2e7;
+        border:1px solid #dce8e1;
         border-radius:14px;
         background:white;
         box-shadow:0 5px 12px rgba(40,32,55,.025);
@@ -157,8 +157,8 @@
 
     .guide-heading {
         padding:17px 18px;
-        background:#f7f4ff;
-        color:#493273;
+        background:#f1f8f4;
+        color:#0b3d2c;
         font-size:14px;
         font-weight:bold;
     }
@@ -231,7 +231,7 @@
                         <h4>{{ section.section_title }}</h4>
                         <p>{{ section.content }}</p>
                         <time>Updated {{ section.updated_at.strftime("%d %b %Y %H:%M") }}</time>
-<a href="{{ url_for('psur_sections.manage_psur_sections', psur_id=report.psur_id, section_key=section.section_key) }}" style="display:inline-block; margin-top:10px; color:#5f3ed4; font-size:12px; font-weight:bold; text-decoration:none;">
+<a href="{{ url_for('psur_sections.manage_psur_sections', psur_id=report.psur_id, section_key=section.section_key) }}" style="display:inline-block; margin-top:10px; color:#145a40; font-size:12px; font-weight:bold; text-decoration:none;">
     Edit this section
 </a>
                     </div>

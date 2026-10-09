@@ -20,6 +20,7 @@ from werkzeug.utils import secure_filename
 from app.audit import write_audit_log
 from app.services.case_documents import (
     DOCUMENT_TYPES,
+    document_types,
     STATUS_DISMISSED,
     apply_suggestions,
     document_type_label,
@@ -50,6 +51,7 @@ from app.services.case_document_extraction import (
     extract_case_fields,
     extract_document_text,
 )
+from app.services import company_profile as company_profile_service
 
 
 
@@ -463,7 +465,7 @@ def case_detail(case_id):
         workflow=_workflow_panel(case, completeness_checks),
         approval=_approval_panel(case),
         today_iso=date.today().isoformat(),
-        document_types=DOCUMENT_TYPES,
+        document_types=document_types(),
         document_type_label=document_type_label,
         attachments=query_all(
             """
@@ -1410,7 +1412,7 @@ def _prefill_case_from_complaint(form, complaint):
     form.expiry_date.data = complaint.get("expiry_date")
     form.event_description.data = complaint["complaint_description"]
     form.case_narrative.data = (
-        f"Reported to APDL as product complaint "
+        f"Reported to {company_profile_service.short_name()} as product complaint "
         f"{complaint['complaint_number']} on "
         f"{complaint['date_received']:%d %b %Y}. Complaint description: "
         f"{complaint['complaint_description']}"

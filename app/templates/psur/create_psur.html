@@ -1,46 +1,46 @@
 {% extends "base.html" %}
 
-{% block title %}New PSUR | APDL PV{% endblock %}
+{% block title %}New PSUR | {{ company.platform_name }}{% endblock %}
 {% block page_title %}New PSUR{% endblock %}
 
 {% block content %}
 <style>
     .page-header { display:flex; justify-content:space-between; gap:20px; align-items:flex-end; margin-bottom:22px; }
-    .page-header h2 { margin:0 0 7px; color:#282037; font-size:28px; }
-    .page-header p { margin:0; color:#746d7d; font-size:14px; }
-    .psur-label { padding:8px 11px; border-radius:20px; background:#eee9ff; color:#6545d8; font-size:12px; font-weight:bold; }
+    .page-header h2 { margin:0 0 7px; color:#183d34; font-size:28px; }
+    .page-header p { margin:0; color:#6b7d75; font-size:14px; }
+    .psur-label { padding:8px 11px; border-radius:20px; background:#eaf3ee; color:#145a40; font-size:12px; font-weight:bold; }
 
-    .progress { display:grid; grid-template-columns:repeat(4, 1fr); overflow:hidden; margin-bottom:22px; border:1px solid #e6dff3; border-radius:12px; background:white; }
-    .progress-item { padding:14px 15px; color:#6242d7; background:#f6f3ff; font-size:12px; font-weight:bold; }
-    .progress-item span { display:inline-grid; width:20px; height:20px; place-items:center; margin-right:7px; border-radius:50%; background:#7656e8; color:white; font-size:11px; }
+    .progress { display:grid; grid-template-columns:repeat(4, 1fr); overflow:hidden; margin-bottom:22px; border:1px solid #d5e2d9; border-radius:12px; background:white; }
+    .progress-item { padding:14px 15px; color:#145a40; background:#f1f8f4; font-size:12px; font-weight:bold; }
+    .progress-item span { display:inline-grid; width:20px; height:20px; place-items:center; margin-right:7px; border-radius:50%; background:#145a40; color:white; font-size:11px; }
 
     .layout { display:grid; grid-template-columns:minmax(0, 1fr) 280px; gap:22px; align-items:start; }
-    .section { margin-bottom:20px; padding:24px; border:1px solid #e9e2e7; border-radius:14px; background:white; box-shadow:0 5px 12px rgba(40,32,55,.025); }
+    .section { margin-bottom:20px; padding:24px; border:1px solid #dce8e1; border-radius:14px; background:white; box-shadow:0 5px 12px rgba(40,32,55,.025); }
     .section-title { display:flex; gap:12px; align-items:flex-start; margin-bottom:21px; }
-    .section-number { width:29px; height:29px; display:grid; place-items:center; flex:0 0 29px; border-radius:9px; background:#eee9ff; color:#6545d8; font-size:13px; font-weight:bold; }
-    .section-title h3 { margin:1px 0 4px; color:#282037; font-size:16px; }
+    .section-number { width:29px; height:29px; display:grid; place-items:center; flex:0 0 29px; border-radius:9px; background:#eaf3ee; color:#145a40; font-size:13px; font-weight:bold; }
+    .section-title h3 { margin:1px 0 4px; color:#183d34; font-size:16px; }
     .section-title p { margin:0; color:#847b89; font-size:12px; line-height:1.4; }
 
     .grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:17px; }
     .field.full { grid-column:1 / -1; }
-    .field label { display:block; margin-bottom:7px; color:#554d5d; font-size:12px; font-weight:bold; }
+    .field label { display:block; margin-bottom:7px; color:#4b6158; font-size:12px; font-weight:bold; }
     .required { color:#d85c54; }
-    .input { width:100%; box-sizing:border-box; padding:10px 11px; border:1px solid #ddd5dc; border-radius:8px; background:#fffeff; color:#322a3b; font:inherit; font-size:14px; }
+    .input { width:100%; box-sizing:border-box; padding:10px 11px; border:1px solid #d5e2d9; border-radius:8px; background:#fbfdfc; color:#244a3d; font:inherit; font-size:14px; }
     textarea.input { min-height:100px; resize:vertical; }
-    .input:focus { outline:none; border-color:#9f88ed; box-shadow:0 0 0 3px #eee9ff; }
+    .input:focus { outline:none; border-color:#4f9c78; box-shadow:0 0 0 3px #eaf3ee; }
     .error { margin-top:6px; color:#d85c54; font-size:12px; }
 
     .actions { display:flex; justify-content:flex-end; gap:12px; margin-top:8px; }
     .button { padding:12px 18px; border-radius:9px; font-size:14px; font-weight:bold; cursor:pointer; }
-    .primary { border:0; background:#7656e8; color:white; box-shadow:0 7px 15px rgba(118,86,232,.2); }
-    .secondary { border:1px solid #ded6dd; background:white; color:#655c6a; text-decoration:none; }
+    .primary { border:0; background:#145a40; color:white; box-shadow:0 7px 15px rgba(118,86,232,.2); }
+    .secondary { border:1px solid #ded6dd; background:white; color:#5c6f67; text-decoration:none; }
 
-    .guide { overflow:hidden; border:1px solid #e9e2e7; border-radius:14px; background:white; box-shadow:0 5px 12px rgba(40,32,55,.025); }
-    .guide-heading { padding:17px 18px; background:#f7f4ff; color:#493273; font-size:14px; font-weight:bold; }
+    .guide { overflow:hidden; border:1px solid #dce8e1; border-radius:14px; background:white; box-shadow:0 5px 12px rgba(40,32,55,.025); }
+    .guide-heading { padding:17px 18px; background:#f1f8f4; color:#0b3d2c; font-size:14px; font-weight:bold; }
     .guide-content { padding:18px; }
-    .guide-item { display:flex; gap:10px; padding:12px 0; border-bottom:1px solid #f0ebee; }
+    .guide-item { display:flex; gap:10px; padding:12px 0; border-bottom:1px solid #eef3f0; }
     .guide-item:last-child { border-bottom:0; }
-    .dot { width:8px; height:8px; flex:0 0 8px; margin-top:5px; border-radius:50%; background:#7656e8; }
+    .dot { width:8px; height:8px; flex:0 0 8px; margin-top:5px; border-radius:50%; background:#145a40; }
     .dot.coral { background:#d85c54; }
     .guide-item strong { display:block; margin-bottom:3px; color:#4d4555; font-size:12px; }
     .guide-item span { color:#817887; font-size:12px; line-height:1.4; }
@@ -60,10 +60,19 @@
     {% endfor %}
 {% endmacro %}
 
+<nav class="ui-crumbs" aria-label="Breadcrumb">
+    <a href="{{ url_for('psur.psur_list') }}">PSURs</a><span class="sep">›</span>
+    {% if editing and report is defined and report %}
+        <a href="{{ url_for('psur.psur_detail', psur_id=report.psur_id) }}">{{ report.report_number }}</a><span class="sep">›</span><span>Edit</span>
+    {% else %}
+        <span>{% if editing %}Edit PSUR record{% else %}New PSUR{% endif %}</span>
+    {% endif %}
+</nav>
+
 <section class="page-header">
     <div>
-        {% if editing %}Edit PSUR record{% else %}Create PSUR record{% endif %}
-        <p>Capture the report information required for the approved APDL PSUR template.</p>
+        <h2>{% if editing %}Edit PSUR record{% else %}Create PSUR record{% endif %}</h2>
+        <p>Capture the report information required for the approved {{ company.short_name }} PSUR template.</p>
     </div>
     <span class="psur-label">Periodic safety report</span>
 </section>
@@ -91,7 +100,7 @@
             <div class="grid">
                 <div class="field">
                     <label>{{ form.report_number.label.text }} <span class="required">*</span></label>
-                    {{ form.report_number(class_="input", placeholder="For example: APDL-PSUR-2026-0001") }}
+                    {{ form.report_number(class_="input", placeholder="For example: " ~ company_example("psur")) }}
                     {{ errors(form.report_number) }}
                 </div>
 
@@ -191,7 +200,7 @@
                     <label>{{ form.marketing_authorisation_holder_name.label.text }}</label>
                     {{ form.marketing_authorisation_holder_name(
                         class_="input",
-                        placeholder="For example: Abacus Parenteral Drugs Limited"
+                        placeholder="For example: " ~ company.legal_name
                     ) }}
                 </div>
 
@@ -228,8 +237,8 @@
                 </div>
 
                 <div class="field full">
-                    <div style="margin:5px 0 1px; padding-top:15px; border-top:1px solid #eee8ec;">
-                        <strong style="color:#403748; font-size:14px;">PBRER contact and document signatories</strong>
+                    <div style="margin:5px 0 1px; padding-top:15px; border-top:1px solid #e7efea;">
+                        <strong style="color:#244a3d; font-size:14px;">PBRER contact and document signatories</strong>
                     </div>
                 </div>
 
@@ -347,7 +356,7 @@
         </div>
 
         <p class="privacy">
-            Create the PSUR record first. We will then generate the report from the controlled APDL template.
+            Create the PSUR record first. We will then generate the report from the controlled {{ company.short_name }} template.
         </p>
     </aside>
 </div>

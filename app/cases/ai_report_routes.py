@@ -29,6 +29,7 @@ from app.services.rsi_lookup import automatic_dailymed_assessment
 from app.services.ai_case_assessment_docx import (
     build_ai_case_assessment_docx,
 )
+from app.services.company_profile import platform as _co_platform, platform_name as _co_pv, short_name as _co_short
 
 
 bp = Blueprint("case_ai_reports", __name__)
@@ -315,7 +316,7 @@ def run_ai_case_assessment_generation(
                 user_id,
                 (
                     f"Model: {assessment_model_name()}; "
-                    "APDL PI and innovator RSI comparison requested."
+                    f"{_co_short()} PI and innovator RSI comparison requested."
                 ),
             )
 
@@ -574,18 +575,28 @@ def download_ai_case_assessment(case_id):
     if not report:
         abort(404)
 
-    output = build_ai_case_assessment_docx(
-        dict(case),
-        dict(product or {}),
-        dict(report),
+    from app.services.report_fields import ai_assessment_context
+    from app.services.report_templates import render_with_active
+
+    output, notice = render_with_active(
+        "ai_assessment",
+        lambda: ai_assessment_context(dict(case), dict(product or {}), dict(report)),
     )
+    if notice:
+        flash(notice, "warning")
+    if output is None:
+        output = build_ai_case_assessment_docx(
+            dict(case),
+            dict(product or {}),
+            dict(report),
+        )
 
     write_audit_log(
         "case",
         case_id,
         "AI case assessment report downloaded",
         session["user_id"],
-        "APDL-formatted Word report generated for download.",
+        f"{_co_short()}-formatted Word report generated for download.",
     )
 
     return send_file(

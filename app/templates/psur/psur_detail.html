@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ report.report_number }} | APDL PV{% endblock %}
+{% block title %}{{ report.report_number }} | {{ company.platform_name }}{% endblock %}
 
 {% block page_title %}PSUR{% endblock %}
 
@@ -18,7 +18,7 @@
     .back-link {
         display:inline-block;
         margin-bottom:10px;
-        color:#7656e8;
+        color:#145a40;
         font-size:13px;
         font-weight:bold;
         text-decoration:none;
@@ -26,13 +26,13 @@
 
     .psur-detail-header h2 {
         margin:0 0 7px;
-        color:#282037;
+        color:#183d34;
         font-size:28px;
     }
 
     .psur-detail-header p {
         margin:0;
-        color:#746d7d;
+        color:#6b7d75;
         font-size:14px;
     }
 
@@ -40,8 +40,8 @@
         display:inline-block;
         padding:7px 11px;
         border-radius:20px;
-        background:#eee9ff;
-        color:#6242d7;
+        background:#eaf3ee;
+        color:#145a40;
         font-size:12px;
         font-weight:bold;
         white-space:nowrap;
@@ -57,7 +57,7 @@
     .detail-card {
         margin-bottom:20px;
         overflow:hidden;
-        border:1px solid #e9e2e7;
+        border:1px solid #dce8e1;
         border-radius:14px;
         background:white;
         box-shadow:0 5px 12px rgba(40,32,55,.025);
@@ -68,7 +68,7 @@
         gap:12px;
         align-items:center;
         padding:16px 19px;
-        border-bottom:1px solid #eee8ec;
+        border-bottom:1px solid #e7efea;
     }
 
     .detail-card-heading span {
@@ -77,15 +77,15 @@
         display:grid;
         place-items:center;
         border-radius:8px;
-        background:#eee9ff;
-        color:#6545d8;
+        background:#eaf3ee;
+        color:#145a40;
         font-size:12px;
         font-weight:bold;
     }
 
     .detail-card-heading h3 {
         margin:0;
-        color:#3d3546;
+        color:#244a3d;
         font-size:15px;
     }
 
@@ -100,7 +100,7 @@
     .note-label {
         display:block;
         margin-bottom:6px;
-        color:#918896;
+        color:#7d8d86;
         font-size:10px;
         font-weight:bold;
         letter-spacing:.6px;
@@ -125,7 +125,7 @@
 
     .review-card {
         overflow:hidden;
-        border:1px solid #e9e2e7;
+        border:1px solid #dce8e1;
         border-radius:14px;
         background:white;
         box-shadow:0 5px 12px rgba(40,32,55,.025);
@@ -133,8 +133,8 @@
 
     .review-heading {
         padding:17px 18px;
-        background:#f7f4ff;
-        color:#493273;
+        background:#f1f8f4;
+        color:#0b3d2c;
         font-size:14px;
         font-weight:bold;
     }
@@ -150,7 +150,7 @@
     .field label {
         display:block;
         margin-bottom:7px;
-        color:#554d5d;
+        color:#4b6158;
         font-size:12px;
         font-weight:bold;
     }
@@ -159,10 +159,10 @@
         width:100%;
         box-sizing:border-box;
         padding:10px 11px;
-        border:1px solid #ddd5dc;
+        border:1px solid #d5e2d9;
         border-radius:8px;
-        background:#fffeff;
-        color:#322a3b;
+        background:#fbfdfc;
+        color:#244a3d;
         font:inherit;
         font-size:14px;
     }
@@ -174,8 +174,8 @@
 
     .input:focus {
         outline:none;
-        border-color:#9f88ed;
-        box-shadow:0 0 0 3px #eee9ff;
+        border-color:#4f9c78;
+        box-shadow:0 0 0 3px #eaf3ee;
     }
 
     .save-button {
@@ -183,7 +183,7 @@
         padding:12px;
         border:0;
         border-radius:9px;
-        background:#7656e8;
+        background:#145a40;
         color:white;
         font-size:14px;
         font-weight:bold;
@@ -219,10 +219,10 @@
     .record-card-links a {
         display: block;
         padding: 9px 11px;
-        border: 1px solid #dcd1ee;
+        border: 1px solid #cfe0d6;
         border-radius: 8px;
-        background: #faf8ff;
-        color: #6242d7;
+        background: #ffffff;
+        color: #145a40;
         font-size: 12.5px;
         font-weight: bold;
         text-align: center;
@@ -230,23 +230,39 @@
     }
 </style>
 
-<section class="psur-detail-header">
-    <div>
-        <a class="back-link" href="{{ url_for('psur.psur_list') }}">← Back to PSURs</a>
-        <h2>{{ report.report_number }}</h2>
-        <p>{{ report.product_name }} · Period ending {{ report.reporting_period_end.strftime("%d %B %Y") }}</p>
+<nav class="ui-crumbs" aria-label="Breadcrumb">
+    <a href="{{ url_for('psur.psur_list') }}">PSURs</a><span class="sep">›</span>
+    <span>{{ report.report_number }}</span>
+</nav>
+
+<section class="ui-record-head">
+    <div class="bar">
+        <div>
+            <h2>{{ report.report_number }}</h2>
+            <p class="subtitle">{{ report.product_name }} · Period ending {{ report.reporting_period_end.strftime("%d %B %Y") }}</p>
+            <div class="labels">
+                <span class="status-pill">{{ report.status }}</span>
+                {% if submission %}
+                    <span class="clock-badge clock-{{ submission.state }}" title="Due {{ submission.due_date.strftime('%d %b %Y') }}">{{ submission.label }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="ui-actions">
+            <a class="ui-btn primary" href="{{ url_for('psur_builder.psur_builder_home', psur_id=report.psur_id) }}">Open PSUR Builder</a>
+            <a class="ui-btn" href="{{ url_for('psur_reports.preview_psur_report', psur_id=report.psur_id) }}">Preview PSUR</a>
+            <details class="ui-menu">
+                <summary aria-label="More actions for this PSUR" title="More actions">⋯</summary>
+                <div class="menu">
+                    {% if not locked %}<a href="{{ url_for('psur.edit_psur', psur_id=report.psur_id) }}">Edit PSUR record</a>{% endif %}
+                    <a href="{{ url_for('psur_sections.manage_psur_sections', psur_id=report.psur_id) }}">Narrative sections</a>
+                    <a href="{{ url_for('psur_builder.preview_psur_builder_report', psur_id=report.psur_id) }}">Preview Builder report</a>
+                    <a href="#attachments">Attachments</a>
+                    <hr>
+                    <a href="{{ url_for('psur.psur_list') }}">Back to all PSURs</a>
+                </div>
+            </details>
+        </div>
     </div>
-    <div style="display:flex; gap:10px; align-items:center;">
-    {% if not locked %}
-    <a href="{{ url_for('psur.edit_psur', psur_id=report.psur_id) }}" style="padding:8px 11px; border:1px solid #dcd3e4; border-radius:8px; background:white; color:#6242d7; font-size:12px; font-weight:bold; text-decoration:none;">Edit PSUR record</a>
-    {% endif %}
-    <a href="{{ url_for('psur_builder.psur_builder_home', psur_id=report.psur_id) }}" style="padding:8px 11px; border:1px solid #dcd3e4; border-radius:8px; background:#5f3ed4; color:white; font-size:12px; font-weight:bold; text-decoration:none;">Open PSUR Builder</a>
-    <a href="{{ url_for('psur_reports.preview_psur_report', psur_id=report.psur_id) }}" style="padding:8px 11px; border-radius:8px; background:#5f3ed4; color:white; font-size:12px; font-weight:bold; text-decoration:none;">Preview PSUR</a>
-    <span class="status-pill">{{ report.status }}</span>
-    {% if submission %}
-        <span class="clock-badge clock-{{ submission.state }}" title="Due {{ submission.due_date.strftime('%d %b %Y') }}">{{ submission.label }}</span>
-    {% endif %}
-</div>
 </section>
 
 {% if locked %}
@@ -475,7 +491,7 @@
 
         <div class="record-card">
     <strong>PSUR document</strong><br>
-    Download a Word report using the approved APDL PSUR template.
+    Download a Word report using the approved {{ company.short_name }} PSUR template.
 <div class="record-card-links">
         <a href="{{ url_for('psur_sections.manage_psur_sections', psur_id=report.psur_id) }}">Manage PSUR narrative sections</a>
         <a href="{{ url_for('psur_builder.preview_psur_builder_report', psur_id=report.psur_id) }}">Preview Builder report</a>

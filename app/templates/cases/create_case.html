@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{% if editing %}Edit Safety Case{% else %}Create Safety Case{% endif %} | APDL PV{% endblock %}
+{% block title %}{% if editing %}Edit Safety Case{% else %}Create Safety Case{% endif %} | {{ company.platform_name }}{% endblock %}
 
 {% block page_title %}{% if editing %}Edit Safety Case{% else %}New Safety Case{% endif %}{% endblock %}
 
@@ -19,10 +19,20 @@
 {% endmacro %}
 
 <section class="safety-case-form-page">
+<nav class="ui-crumbs" aria-label="Breadcrumb">
+    <a href="{{ url_for('cases.case_list') }}">Safety cases</a><span class="sep">›</span>
+    {% if editing %}
+        <a href="{{ url_for('cases.case_detail', case_id=case.case_id) }}">{{ case.case_number }}</a><span class="sep">›</span>
+        <span>Edit</span>
+    {% else %}
+        <span>New case</span>
+    {% endif %}
+</nav>
+
 <header class="page-header">
     <div>
         <h2>{% if editing %}Edit safety case{% else %}Capture adverse drug reaction{% endif %}</h2>
-        <p>Record the information exactly as received. Enter the APDL ICSR Case ID exactly as assigned before saving.</p>
+        <p>Record the information exactly as received. Enter the {{ company.short_name }} ICSR Case ID exactly as assigned before saving.</p>
     </div>
     <span class="case-label">Official ADR form</span>
 </header>
@@ -38,7 +48,7 @@
     <section class="extraction-notice" role="status">
         <strong>AI-extracted draft from {{ extraction_filename }}</strong>
         <p>
-            Verify each value against the source document before saving. AI has not assigned an APDL case ID or assessed seriousness or causality.
+            Verify each value against the source document before saving. AI has not assigned a {{ company.short_name }} case ID or assessed seriousness or causality.
         </p>
         {% if uncertain_fields %}
             <p class="uncertain-fields"><strong>Review these fields carefully:</strong> {{ uncertain_fields|join(", ") }}</p>
@@ -83,7 +93,7 @@
                     {% if editing %}
                         {{ form.icsr_case_id(class_="input", readonly=true, required=true) }}
 {% else %}
-    {{ form.icsr_case_id(class_="input", placeholder="For example: APDL/ICSR/2026/0001", required=true) }}
+    {{ form.icsr_case_id(class_="input", placeholder="For example: " ~ company_example("case"), required=true) }}
 {% endif %}
                     {{ errors(form.icsr_case_id) }}
                 </div>
@@ -330,7 +340,7 @@
         </section>
 
         <div class="actions">
-            <a class="button secondary" href="{% if editing and next_url %}{{ next_url }}{% elif editing %}{{ url_for('cases.case_detail', case_id=case.case_id) }}{{ return_anchor or "" }}{% else %}{{ url_for('core.dashboard') }}{% endif %}">Cancel</a>
+            <a class="button secondary" href="{% if editing and next_url %}{{ next_url }}{% elif editing %}{{ url_for('cases.case_detail', case_id=case.case_id) }}{{ return_anchor or "" }}{% else %}{{ url_for('cases.case_list') }}{% endif %}">Cancel</a>
 <button class="button primary" type="submit">{% if editing %}Update safety case{% else %}Create safety case{% endif %}</button>
         </div>
     </form>
@@ -356,7 +366,7 @@
                 <span class="dot"></span>
                 <div>
                     <strong>Report generation</strong>
-                    <span>Saved information will populate the controlled APDL ADR reporting form.</span>
+                    <span>Saved information will populate the controlled {{ company.short_name }} ADR reporting form.</span>
                 </div>
             </div>
         </div>

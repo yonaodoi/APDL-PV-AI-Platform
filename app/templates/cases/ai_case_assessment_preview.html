@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}AI Assessment Preview | APDL PV{% endblock %}
+{% block title %}AI Assessment Preview | {{ company.platform_name }}{% endblock %}
 {% block page_title %}AI Assessment Preview{% endblock %}
 
 {% block content %}
@@ -138,7 +138,7 @@
   {% endif %}
 </div>
 <article class="report-sheet">
-  <p class="company-name">ABACUS PARENTERAL DRUGS LIMITED</p>
+  <p class="company-name">{{ company.legal_name|upper }}</p>
   <p class="department">REGULATORY AFFAIRS DEPARTMENT</p>
 
   <table class="control-table">
@@ -186,22 +186,22 @@
     <tbody>
       <tr>
         <td>Prepared by</td>
-        <td><input name="prepared_by_name" value="{{ report.prepared_by_name or 'AMEKO CHARLES' }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
-        <td><input name="prepared_by_designation" value="{{ report.prepared_by_designation or 'DEPUTY Q.P.P.V.' }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
+        <td><input name="prepared_by_name" value="{{ report.prepared_by_name or company.sign_prepared_name }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
+        <td><input name="prepared_by_designation" value="{{ report.prepared_by_designation or company.sign_prepared_title }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
         <td></td>
         <td></td>
       </tr>
       <tr>
         <td>Reviewed by</td>
-        <td><input name="reviewed_by_name" value="{{ report.reviewed_by_name or 'YONA ODOI' }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
-        <td><input name="reviewed_by_designation" value="{{ report.reviewed_by_designation or 'Q.P.P.V.' }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
+        <td><input name="reviewed_by_name" value="{{ report.reviewed_by_name or company.sign_reviewed_name }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
+        <td><input name="reviewed_by_designation" value="{{ report.reviewed_by_designation or company.sign_reviewed_title }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
         <td></td>
         <td></td>
       </tr>
       <tr>
         <td>Authorised by</td>
-        <td><input name="authorised_by_name" value="{{ report.authorised_by_name or 'KEITH ARUHO' }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
-        <td><input name="authorised_by_designation" value="{{ report.authorised_by_designation or 'GROUP HEAD, RA & QUALITY' }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
+        <td><input name="authorised_by_name" value="{{ report.authorised_by_name or company.sign_authorised_name }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
+        <td><input name="authorised_by_designation" value="{{ report.authorised_by_designation or company.sign_authorised_title }}" style="width:100%; border:0; background:transparent; font:inherit;"></td>
         <td></td>
         <td></td>
       </tr>

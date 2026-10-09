@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}APDL PV AI Platform{% endblock %}</title>
+    <title>{% block title %}{{ company.platform_name }} AI Platform{% endblock %}</title>
     <link
         rel="stylesheet"
         href="{{ url_for('static', filename='css/voice_entry.css') }}"
     >
     <style>
         :root {
-            --ink: #282037;
-            --muted: #746d7d;
-            --violet: #7656e8;
-            --violet-dark: #5f3ed4;
-            --violet-soft: #eee9ff;
+            --ink: #183d34;
+            --muted: #6b7d75;
+            --violet: #145a40;
+            --violet-dark: #145a40;
+            --violet-soft: #eaf3ee;
             --page: #f7f4f6;
             --surface: #ffffff;
             --sidebar: #fffafb;
-            --line: #e9e2e7;
+            --line: #dce8e1;
         }
 
         * {
@@ -168,7 +168,7 @@
         }
 
         .account-chevron {
-            color: #918896;
+            color: #7d8d86;
             font-size: 15px;
         }
 
@@ -187,7 +187,7 @@
 
         .account-identity {
             padding: 14px;
-            border-bottom: 1px solid #eee9ee;
+            border-bottom: 1px solid #e7efea;
         }
 
         .account-identity strong {
@@ -220,12 +220,12 @@
 
 
         .account-action:hover {
-            background: #faf8ff;
+            background: #f8fbf9;
             color: var(--violet-dark);
         }
 
         .logout-action {
-            border-top: 1px solid #eee9ee;
+            border-top: 1px solid #e7efea;
             color: #a24a55;
         }
 
@@ -236,10 +236,10 @@
         .flash {
             margin-bottom: 20px;
             padding: 13px 15px;
-            border: 1px solid #d9cffb;
+            border: 1px solid #cfe0d6;
             border-radius: 9px;
-            background: #f5f1ff;
-            color: #5f3ed4;
+            background: #f1f8f4;
+            color: #145a40;
         }
 
         .flash-success {
@@ -274,17 +274,22 @@
     </style>
     <link
         rel="stylesheet"
-        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-32') }}"
+        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-35') }}"
     >
+    <style>:root { --sidebar-footer: "{{ company.short_name|upper|replace('"', '') }}  /  PV OPERATIONS"; {{ company_brand_css }} }</style>
 </head>
 <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="app-shell">
         <aside class="sidebar" aria-label="Application sidebar">
             <div class="brand">
-                <div class="brand-mark">PV</div>
+                {% if company.logo_file %}
+                    <img class="brand-mark brand-logo" src="{{ url_for('administration.company_logo', v=company.logo_file) }}" alt="{{ company.short_name }} logo">
+                {% else %}
+                    <div class="brand-mark">PV</div>
+                {% endif %}
                 <div>
-                    <div class="brand-name">APDL PV</div>
+                    <div class="brand-name">{{ company.platform_name }}</div>
                     <div class="brand-subtitle">AI Platform</div>
                 </div>
             </div>
@@ -348,7 +353,8 @@
                     >PSURs</a>
                 </div>
 
-                {% if session.get('role') in ('System Administrator', 'Auditor', 'Group Head RA & Quality') %}
+                {% set system_role = session.get('role') %}
+                {% if system_role in ('System Administrator', 'Auditor', 'Group Head RA & Quality', 'QPPV', 'Deputy QPPV') %}
                     <div class="nav-group">
                         <div class="nav-label">SYSTEM</div>
                         {% if session.get('role') == 'System Administrator' %}
@@ -358,11 +364,20 @@
                                 {% if request.endpoint.startswith('administration.') and request.endpoint != 'administration.audit_log' %}aria-current="page"{% endif %}
                             >Administration</a>
                         {% endif %}
-                        <a
-                            class="nav-link {% if request.endpoint == 'administration.audit_log' %}active{% endif %}"
-                            href="{{ url_for('administration.audit_log') }}"
-                            {% if request.endpoint == 'administration.audit_log' %}aria-current="page"{% endif %}
-                        >Audit Trail</a>
+                        {% if system_role in ('System Administrator', 'QPPV', 'Deputy QPPV', 'Group Head RA & Quality') %}
+                            <a
+                                class="nav-link {% if request.endpoint.startswith('report_templates.') %}active{% endif %}"
+                                href="{{ url_for('report_templates.template_list') }}"
+                                {% if request.endpoint.startswith('report_templates.') %}aria-current="page"{% endif %}
+                            >Report Templates</a>
+                        {% endif %}
+                        {% if system_role in ('System Administrator', 'Auditor', 'Group Head RA & Quality') %}
+                            <a
+                                class="nav-link {% if request.endpoint == 'administration.audit_log' %}active{% endif %}"
+                                href="{{ url_for('administration.audit_log') }}"
+                                {% if request.endpoint == 'administration.audit_log' %}aria-current="page"{% endif %}
+                            >Audit Trail</a>
+                        {% endif %}
                     </div>
                 {% endif %}
             </nav>
@@ -370,7 +385,7 @@
 
         <div class="main-area">
             <header class="topbar">
-                <h1 class="page-title">{% block page_title %}APDL PV AI Platform{% endblock %}</h1>
+                <h1 class="page-title">{% block page_title %}{{ company.platform_name }} AI Platform{% endblock %}</h1>
 
                 <details class="account-menu">
                     <summary>
@@ -454,5 +469,36 @@
             });
         })();
     </script>
+<script>
+    // Links to a folded section open it.
+    (function () {
+        function openTarget() {
+            var id = decodeURIComponent((location.hash || "").slice(1));
+            var el = id && document.getElementById(id);
+            if (!el) return;
+            for (var node = el; node; node = node.parentElement) {
+                if (node.tagName === "DETAILS") node.open = true;
+            }
+        }
+        window.addEventListener("hashchange", openTarget);
+        openTarget();
+    })();
+
+    // ⋯ menus: one open at a time; close when clicking elsewhere or pressing Escape.
+    (function () {
+        function menus() { return document.querySelectorAll("details.ui-menu"); }
+        document.addEventListener("click", function (event) {
+            menus().forEach(function (menu) { if (menu.open && !menu.contains(event.target)) menu.open = false; });
+        });
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") menus().forEach(function (menu) { menu.open = false; });
+        });
+        document.addEventListener("toggle", function (event) {
+            var menu = event.target;
+            if (!menu.classList || !menu.classList.contains("ui-menu") || !menu.open) return;
+            menus().forEach(function (other) { if (other !== menu) other.open = false; });
+        }, true);
+    })();
+</script>
 </body>
 </html>

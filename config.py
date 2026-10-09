@@ -79,10 +79,8 @@ class Config:
         "SMTP_SENDER_EMAIL",
         "odoiwilber2@gmail.com",
     )
-    SMTP_SENDER_NAME = os.environ.get(
-        "SMTP_SENDER_NAME",
-        "APDL Pharmacovigilance",
-    )
+    # Blank: use "<short name> Pharmacovigilance" from the company profile.
+    SMTP_SENDER_NAME = os.environ.get("SMTP_SENDER_NAME", "")
     GMAIL_OAUTH_CLIENT_SECRET_PATH = Path(
         os.environ.get(
             "GMAIL_OAUTH_CLIENT_SECRET_PATH",
@@ -119,7 +117,8 @@ class Config:
     APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5000")
 
     # Pharmacovigilance telephone number printed on follow-up emails and forms.
-    PV_CONTACT_PHONE = os.environ.get("PV_CONTACT_PHONE", "+256786557530")
+    # Blank: use the telephone number in the company profile.
+    PV_CONTACT_PHONE = os.environ.get("PV_CONTACT_PHONE", "")
 
     # Automatic follow-up. Requests and reminders are emailed without a click
     # once email sending is set up (Gmail connection or SMTP_PASSWORD).

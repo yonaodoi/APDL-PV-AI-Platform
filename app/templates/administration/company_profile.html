@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Company Profile | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Company Profile{% endblock %}
+
+{% macro field(key, label, hint, kind="text") %}
+    <div class="ui-field">
+        <label for="cp-{{ key }}">{{ label }}</label>
+        {% if kind == "textarea" %}
+            <textarea id="cp-{{ key }}" name="{{ key }}" rows="3">{{ profile[key] }}</textarea>
+        {% else %}
+            <input id="cp-{{ key }}" type="{{ kind }}" name="{{ key }}" value="{{ profile[key] }}" maxlength="200">
+        {% endif %}
+        {% if hint %}<p class="cp-hint">{{ hint }}</p>{% endif %}
+    </div>
+{% endmacro %}
+
+{% block content %}
+<section class="ui-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('administration.user_list') }}">Administration</a><span class="sep">›</span>
+        <span>Company profile</span>
+    </nav>
+
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">This installation</p>
+            <h1>Company profile</h1>
+            <p>The company this platform belongs to. Every page, email, Word report, file name and AI instruction uses these details, so the platform can be set up for another company by filling in this page.</p>
+        </div>
+        <div class="actions">
+            <a href="{{ url_for('administration.user_list') }}">← Administration</a>
+        </div>
+    </header>
+
+    <form method="post" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <article class="ui-card is-strong">
+            <h2>Company</h2>
+            <p class="sub">Names and contact details.</p>
+            <div class="ui-grid">
+                {% for key, label, hint in fields %}
+                    {{ field(key, label, hint, "textarea" if key == "address" else ("email" if key == "pv_email" else "text")) }}
+                {% endfor %}
+            </div>
+        </article>
+
+        <article class="ui-card is-strong">
+            <h2>Reference number prefixes</h2>
+            <p class="sub">Shown as examples on the forms and used to recognise case numbers in reporters’ email replies. Numbers already saved are not changed.</p>
+            <div class="ui-grid">
+                {% for key, label, part in prefix_fields %}
+                    <div class="ui-field">
+                        <label for="cp-{{ key }}">{{ label }}</label>
+                        <input id="cp-{{ key }}" type="text" name="{{ key }}" value="{{ profile[key] }}" maxlength="30" data-example="{{ key }}">
+                        <p class="cp-hint">Example: <strong class="cp-example" data-for="{{ key }}">{{ company_example(key.split('_')[0]) if profile[key] == company[key] else profile[key] }}</strong></p>
+                    </div>
+                {% endfor %}
+            </div>
+        </article>
+
+        <article class="ui-card is-strong">
+            <h2>Signatories</h2>
+            <p class="sub">Printed in the signature tables of follow-up forms and reports (people can still edit them on each report before downloading).</p>
+            <table class="ui-table cp-sign">
+                <thead><tr><th>Signs as</th><th>Name</th><th>Designation</th></tr></thead>
+                <tbody>
+                    {% for kind, label in [("prepared", "Prepared by"), ("reviewed", "Reviewed by"), ("authorised", "Authorised by")] %}
+                        <tr>
+                            <td><strong>{{ label }}</strong></td>
+                            <td><input type="text" name="sign_{{ kind }}_name" value="{{ profile['sign_' ~ kind ~ '_name'] }}" maxlength="120" aria-label="{{ label }} name"></td>
+                            <td><input type="text" name="sign_{{ kind }}_title" value="{{ profile['sign_' ~ kind ~ '_title'] }}" maxlength="120" aria-label="{{ label }} designation"></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+        <article class="ui-card is-strong">
+            <h2>Follow-up form document control</h2>
+            <p class="sub">Printed at the top of the built-in follow-up form. If you upload your own follow-up form under Report templates, that form is used instead.</p>
+            <div class="ui-grid">
+                {{ field("form_code", "Document number", "") }}
+                {{ field("form_revision", "Revision", "") }}
+                {{ field("form_effective_date", "Effective date", "As printed, e.g. 31/08/2026.") }}
+            </div>
+        </article>
+
+        <article class="ui-card is-strong">
+            <h2>Look</h2>
+            <p class="sub">The logo appears in the sidebar and on the sign-in page; the colour is used for the sidebar, page headers and section edges.</p>
+            <div class="ui-grid">
+                <div class="ui-field">
+                    <label for="cp-logo">Logo (PNG, JPG, SVG or WEBP, up to 2 MB)</label>
+                    {% if profile.logo_file %}
+                        <div class="cp-logo-now">
+                            <img src="{{ url_for('administration.company_logo', v=profile.logo_file) }}" alt="Current logo">
+                            <label class="cp-check"><input type="checkbox" name="remove_logo"> Remove this logo</label>
+                        </div>
+                    {% endif %}
+                    <input id="cp-logo" type="file" name="logo" accept=".png,.jpg,.jpeg,.svg,.webp">
+                </div>
+                <div class="ui-field">
+                    <label for="cp-brand_colour">Brand colour</label>
+                    <div class="cp-colour">
+                        <input id="cp-brand_colour_pick" type="color" value="{{ profile.brand_colour }}" aria-label="Pick a colour">
+                        <input id="cp-brand_colour" type="text" name="brand_colour" value="{{ profile.brand_colour }}" maxlength="7">
+                        <button type="button" class="ui-btn small" data-reset-colour="{{ defaults.brand_colour }}">Reset</button>
+                    </div>
+                    <p class="cp-hint">Dark colours work best: the sidebar text is white.</p>
+                </div>
+            </div>
+        </article>
+
+        <div class="ui-actions cp-save">
+            <button class="ui-btn primary" type="submit">Save company profile</button>
+            <a class="ui-btn" href="{{ url_for('administration.user_list') }}">Cancel</a>
+        </div>
+    </form>
+</section>
+
+<style>
+    .cp-hint { margin: 4px 0 0; color: #71817a; font-size: 11.5px; line-height: 1.4; }
+    .cp-sign input { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #d5e2d9; border-radius: 7px; font: inherit; font-size: 13px; }
+    .cp-colour { display: flex; gap: 8px; align-items: center; }
+    .cp-colour input[type=color] { width: 44px; height: 36px; padding: 2px; border: 1px solid #d5e2d9; border-radius: 8px; background: #fff; }
+    .cp-colour input[type=text] { width: 110px; }
+    .cp-logo-now { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+    .cp-logo-now img { max-width: 120px; max-height: 56px; padding: 6px; border: 1px solid #dce8e1; border-radius: 8px; background: #fff; object-fit: contain; }
+    .cp-check { font-size: 12.5px; color: #27483b; font-weight: 600 !important; }
+    .cp-save { margin: 4px 0 30px; }
+    .ui-field input[type=email] { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #d5e2d9; border-radius: 8px; font: inherit; font-size: 13px; }
+</style>
+<script>
+    (function () {
+        var pick = document.getElementById("cp-brand_colour_pick");
+        var text = document.getElementById("cp-brand_colour");
+        pick.addEventListener("input", function () { text.value = pick.value; });
+        text.addEventListener("input", function () { if (/^#[0-9a-fA-F]{6}$/.test(text.value)) pick.value = text.value; });
+        document.querySelector("[data-reset-colour]").addEventListener("click", function (e) {
+            text.value = pick.value = e.currentTarget.dataset.resetColour;
+        });
+        var year = new Date().getFullYear(), yy = String(year % 100).padStart(2, "0");
+        var shapes = { case_prefix: "-" + yy + "-001", signal_prefix: "-001", complaint_prefix: "-" + year + "-0001", psur_prefix: "-" + year + "-0001" };
+        document.querySelectorAll("[data-example]").forEach(function (input) {
+            var out = document.querySelector('.cp-example[data-for="' + input.name + '"]');
+            function show() { out.textContent = (input.value.trim().replace(/-+$/, "").toUpperCase() || "…") + shapes[input.name]; }
+            input.addEventListener("input", show);
+            show();
+        });
+    })();
+</script>
+{% endblock %}

@@ -55,6 +55,7 @@ from app.services.complaint_document_extraction import (
     extract_complaint_fields,
     extract_document_text,
 )
+from app.services import company_profile as company_profile_service
 
 bp = Blueprint("complaints", __name__, url_prefix="/complaints")
 
@@ -1018,16 +1019,28 @@ def download_product_complaint_reporting_summary():
 
         editable_content = draft["report_content"]
 
-    report_file = build_product_complaint_reporting_docx(
-        complaints=complaints,
-        report_filters=report_filters,
-        editable_content=editable_content,
-    )
+    report_file = None
+    if not editable_content:
+        # An edited draft is printed as edited; otherwise use the template.
+        from app.services.report_fields import complaint_summary_context
+        from app.services.report_templates import render_with_active
+
+        report_file, notice = render_with_active(
+            "complaint_summary", lambda: complaint_summary_context(complaints, report_filters)
+        )
+        if notice:
+            flash(notice, "warning")
+    if report_file is None:
+        report_file = build_product_complaint_reporting_docx(
+            complaints=complaints,
+            report_filters=report_filters,
+            editable_content=editable_content,
+        )
 
     return send_file(
         report_file,
         as_attachment=True,
-        download_name="APDL_product_complaint_reporting_summary.docx",
+        download_name=f"{company_profile_service.file_prefix()}_product_complaint_reporting_summary.docx",
         mimetype=(
             "application/vnd.openxmlformats-officedocument."
             "wordprocessingml.document"

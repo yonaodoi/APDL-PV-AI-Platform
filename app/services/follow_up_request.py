@@ -19,6 +19,14 @@ from app.services.ai_case_assessment_docx import (
     set_cell_shading,
     set_cell_text,
 )
+from app.services import company_profile as _company_profile
+from app.services.company_profile import DEFAULTS
+
+
+def company():
+    """The company profile (looked up each time, so changes apply at once)."""
+    return _company_profile.company()
+
 
 # Checks the PV team resolves itself; never sent to a reporter.
 INTERNAL_CODES = {"follow_up_due_date", "event_coding"}
@@ -85,16 +93,23 @@ REPORTER_LABELS = {
     "patient_consistency": "Patient details",
 }
 
-FORM_CONTROL = (
-    ("DOCUMENT No", "SF/RA/012.2"),
-    ("REVISION STATUS", "00"),
-    ("EFFECTIVE DATE", "31/08/2026"),
-)
-REVIEWED_BY = ("YONA ODOI", "Q.P.P.V.")
-AUTHORISED_BY = ("KEITH ARUHO", "GROUP HEAD, RA & QUALITY")
+def form_control():
+    """Document-control block of the follow-up form (from the company profile)."""
+    profile = company()
+    return (
+        ("DOCUMENT No", profile["form_code"]),
+        ("REVISION STATUS", profile["form_revision"]),
+        ("EFFECTIVE DATE", profile["form_effective_date"]),
+    )
 
 
-DEFAULT_PV_PHONE = "+256786557530"
+def form_signatories():
+    from app.services.company_profile import signatory
+
+    return signatory("reviewed"), signatory("authorised")
+
+
+DEFAULT_PV_PHONE = DEFAULTS["pv_phone"]
 
 
 def format_sent(value):
@@ -218,7 +233,7 @@ def email_subject(case):
 def email_body(case, product, items, due_date, reminder_of=None, sent_at=None, phone=None):
     product_name = (product or {}).get("product_name") or "a medicine"
     received = _fmt(case.get("received_date"))
-    phone = phone or DEFAULT_PV_PHONE
+    phone = phone or company()["pv_phone"] or DEFAULT_PV_PHONE
     greeting = f"Dear {case['reporter_name']}," if case.get("reporter_name") else "Dear reporter,"
     if reminder_of:
         opening = [
@@ -248,13 +263,14 @@ def email_body(case, product, items, due_date, reminder_of=None, sent_at=None, p
         + (f" by {_fmt(due_date)}" if due_date else "")
         + ". If some information is not available, please say so.",
         "",
-        f"If it is easier, you can call us on {phone}.",
-        "",
+        *([f"If it is easier, you can call us on {phone}.", ""] if phone else []),
         "Kind regards,",
-        "Pharmacovigilance team",
-        "Abacus Parenteral Drugs Ltd",
-        f"Tel: {phone}",
+        company()["pv_team_name"],
+        company()["letter_name"],
+        *([f"Tel: {phone}"] if phone else []),
     ]
+    if company()["pv_email"]:
+        lines.append(f"Email: {company()['pv_email']}")
     if sent_at:
         lines += ["", f"Sent on {format_sent(sent_at)}."]
     return "\n".join(lines)
@@ -315,7 +331,7 @@ def build_follow_up_request_docx(case, product, items, due_date, prepared_by=Non
                                 today=None, sent_at=None, phone=None):
     """The consolidated follow-up form for one case, as a Word file."""
     today = today or date.today()
-    phone = phone or DEFAULT_PV_PHONE
+    phone = phone or company()["pv_phone"] or DEFAULT_PV_PHONE
     product = product or {}
     document = Document()
     section = document.sections[0]
@@ -328,11 +344,11 @@ def build_follow_up_request_docx(case, product, items, due_date, prepared_by=Non
 
     header = section.header.paragraphs[0]
     header.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = header.add_run("ABACUS PARENTERAL DRUGS LTD")
+    run = header.add_run(company()["letter_name"].upper())
     run.bold = True
     run.font.size = Pt(12)
     run.font.color.rgb = RGBColor.from_string("666666")
-    subtitle = section.header.add_paragraph("REGULATORY AFFAIRS DEPARTMENT")
+    subtitle = section.header.add_paragraph(company()["department"].upper())
     subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
     subtitle.runs[0].font.size = Pt(9)
 
@@ -345,7 +361,7 @@ def build_follow_up_request_docx(case, product, items, due_date, prepared_by=Non
 
     _label_table(
         document,
-        FORM_CONTROL
+        form_control()
         + (
             ("SENT ON", format_sent(sent_at)) if sent_at else ("DATE OF REQUEST", _fmt(today)),
             ("PLEASE REPLY BY", _fmt(due_date)),
@@ -405,7 +421,8 @@ def build_follow_up_request_docx(case, product, items, due_date, prepared_by=Non
     back.paragraph_format.space_before = Pt(8)
     back.add_run(
         "Please return this form by replying to the email it came with, or to "
-        f"the APDL Pharmacovigilance team (telephone {phone}). Information you "
+        f"the {company()['short_name']} Pharmacovigilance team"
+        f"{f' (telephone {phone})' if phone else ''}. Information you "
         "provide is used only for medicine safety monitoring."
     ).font.size = Pt(8)
 
@@ -413,8 +430,8 @@ def build_follow_up_request_docx(case, product, items, due_date, prepared_by=Non
     _heading(document, "INTERNAL USE: SIGNATORIES")
     signatories = (
         ("Prepared by", (prepared_by or "").upper(), ""),
-        ("Reviewed by",) + REVIEWED_BY,
-        ("Authorised by",) + AUTHORISED_BY,
+        ("Reviewed by",) + form_signatories()[0],
+        ("Authorised by",) + form_signatories()[1],
     )
     table = document.add_table(rows=len(signatories) + 1, cols=5)
     table.style = "Table Grid"

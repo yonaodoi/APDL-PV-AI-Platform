@@ -1,10 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Create Product Quality Complaint from Document | APDL PV{% endblock %}
+{% block title %}Create Product Quality Complaint from Document | {{ company.platform_name }}{% endblock %}
 {% block page_title %}Document intake{% endblock %}
 
 {% block content %}
 <section class="quality-document-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb" style="margin-bottom:12px;">
+        <a href="{{ url_for('complaints.complaint_list') }}">Quality complaints</a><span class="sep">›</span><span>Create from a document</span>
+    </nav>
     <a class="quality-document-back" href="{{ url_for('complaints.complaint_list') }}">
         <span aria-hidden="true">←</span> Product quality complaint register
     </a>
@@ -13,7 +16,7 @@
             <p class="quality-document-eyebrow">PRODUCT QUALITY / DOCUMENT INTAKE</p>
             <h2>Start with the report. Finish with a reviewed complaint.</h2>
             <p class="quality-document-intro">
-                Add a complaint report and APDL will prepare an editable intake draft from the facts stated in the document. Nothing is saved until you review and submit the completed form.
+                Add a complaint report and the platform will prepare an editable intake draft from the facts stated in the document. Nothing is saved until you review and submit the completed form.
             </p>
 
             <form method="post" enctype="multipart/form-data">

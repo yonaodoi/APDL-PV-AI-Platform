@@ -838,11 +838,16 @@ def download_follow_up_request(case_id):
         )
         return redirect(url_for("case_review.follow_up_tasks"))
     due = reply_due(tasks, case, days=current_app.config.get("FOLLOW_UP_REMINDER_DAYS", 7))
+    from app.services.follow_up_automation import request_document
+
+    document, notice = request_document(
+        case, product, items, due, prepared_by=session.get("full_name"),
+        phone=current_app.config.get("PV_CONTACT_PHONE"),
+    )
+    if notice:
+        flash(notice, "warning")
     return send_file(
-        build_follow_up_request_docx(
-            case, product, items, due, prepared_by=session.get("full_name"),
-            phone=current_app.config.get("PV_CONTACT_PHONE"),
-        ),
+        document,
         as_attachment=True,
         download_name=request_filename(case),
         mimetype=(

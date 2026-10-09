@@ -59,14 +59,22 @@ def test_inline_answers_between_quoted_lines_are_kept():
     assert "Outcome of the reaction" not in text
 
 
-def test_reply_matched_by_case_number_and_reporter_address():
+def _apdl(monkeypatch):
+    from app.services import company_profile
+
+    monkeypatch.setattr(company_profile, "company", lambda: company_profile.normalise(company_profile.APDL_PROFILE))
+
+
+def test_reply_matched_by_case_number_and_reporter_address(monkeypatch):
+    _apdl(monkeypatch)
     parsed = replies.parse_message(raw_reply())
     case_id, status, note = replies.match_reply(parsed, CASES, REQUESTS)
     assert (case_id, status) == (7, "New")
     assert "case number" in note
 
 
-def test_case_number_from_a_different_address_waits_to_be_linked():
+def test_case_number_from_a_different_address_waits_to_be_linked(monkeypatch):
+    _apdl(monkeypatch)
     parsed = replies.parse_message(raw_reply(sender="someone@else.com"))
     case_id, status, note = replies.match_reply(parsed, CASES, REQUESTS)
     assert case_id is None and status == "Unmatched"
@@ -189,3 +197,14 @@ def test_whole_pv_team_is_notified_at_their_own_addresses(monkeypatch):
     ])
     people = replies.team_recipients(7, {"officer_roles": ["PV Officer", "QPPV"], "officer_extra_emails": ["pv.box@apdl.org"]})
     assert [p[1] for p in people] == ["agnes@apdl.org", "brian@apdl.org", "pv.box@apdl.org"]
+
+
+def test_case_numbers_follow_the_company_prefix_and_earlier_ones(monkeypatch):
+    from app.services import company_profile
+
+    profile = company_profile.normalise({**company_profile.APDL_PROFILE, "case_prefix": "XYZ-ICSR",
+                                         "previous_case_prefixes": ["APDL-ICSR"]})
+    monkeypatch.setattr(company_profile, "company", lambda: profile)
+    pattern = company_profile.case_number_pattern()
+    text = "Re: XYZ-ICSR-26-004 and older APDL-ICSR-25-010, not ABC-XYZ-ICSR-26-1"
+    assert [m.upper() for m in pattern.findall(text)] == ["XYZ-ICSR-26-004", "APDL-ICSR-25-010"]

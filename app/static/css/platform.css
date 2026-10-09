@@ -163,7 +163,7 @@ body {
     padding: 16px 10px 0;
     border-top: 1px solid rgba(219, 237, 227, 0.15);
     color: #95b5a7;
-    content: "APDL  /  PV OPERATIONS";
+    content: var(--sidebar-footer, "PV  /  OPERATIONS");
     font-size: 9px;
     font-weight: 800;
     letter-spacing: 1.1px;
@@ -2772,7 +2772,7 @@ summary:focus-visible {
 }
 
 .dashboard-page .module-card:focus-visible {
-    outline: 3px solid var(--violet, #7656e8);
+    outline: 3px solid var(--violet, #145a40);
     outline-offset: 3px;
 }
 
@@ -4272,7 +4272,7 @@ summary:focus-visible {
 .reporting-clock-panel {
     margin: 0;
     padding: 14px 18px 16px;
-    border-bottom: 1px solid #eee8ec;
+    border-bottom: 1px solid #e7efea;
     background: transparent;
 }
 
@@ -4871,14 +4871,14 @@ summary:focus-visible {
 .record-attachments {
     margin-bottom: 20px;
     overflow: hidden;
-    border: 1px solid #e9e2e7;
+    border: 1px solid #dce8e1;
     border-radius: 14px;
     background: #fff;
 }
 .record-attachments-title {
     padding: 15px 20px;
-    border-bottom: 1px solid #eee8ec;
-    color: #403748;
+    border-bottom: 1px solid #e7efea;
+    color: #244a3d;
     font-size: 15px;
     font-weight: bold;
 }
@@ -4893,7 +4893,7 @@ summary:focus-visible {
     border-bottom: 1px solid #f0ebee;
 }
 .record-attachment-list a {
-    color: #6242d7;
+    color: #145a40;
     font-weight: bold;
     text-decoration: none;
     overflow-wrap: anywhere;
@@ -4905,10 +4905,10 @@ summary:focus-visible {
 .record-attachment-upload input[type="file"] { max-width: 100%; font-size: 13px; }
 .record-attachment-upload button {
     padding: 8px 14px;
-    border: 1px solid #dcd1ee;
+    border: 1px solid #cfe0d6;
     border-radius: 8px;
-    background: #faf8ff;
-    color: #6242d7;
+    background: #f8fbf9;
+    color: #145a40;
     font: inherit;
     font-size: 12.5px;
     font-weight: bold;
@@ -4960,15 +4960,15 @@ details.fold-card > summary:hover { background: #fcfbfd; }
 .fold-edit-link {
     margin-left: auto;
     padding: 5px 12px;
-    border: 1px solid #dcd1ee;
+    border: 1px solid #cfe0d6;
     border-radius: 8px;
-    background: #faf8ff;
-    color: #6242d7;
+    background: #f8fbf9;
+    color: #145a40;
     font-size: 12px;
     font-weight: bold;
     text-decoration: none;
 }
-.fold-edit-link:hover { background: #eee9ff; }
+.fold-edit-link:hover { background: #eaf3ee; }
 details.fold-card > summary .fold-spacer { margin-left: auto; }
 
 /* Register tables that fold open from their heading (safety cases) */
@@ -5064,7 +5064,7 @@ details.register-fold:not([open]) > summary { border-bottom: 0; }
     border-radius: 18px;
     background:
         radial-gradient(circle at 100% 0%, rgba(198, 221, 93, 0.14), transparent 18rem),
-        linear-gradient(120deg, var(--forest) 0%, #0f4a36 60%, var(--forest-mid) 100%);
+        linear-gradient(120deg, var(--forest) 0%, var(--forest-deep, #0f4a36) 60%, var(--forest-mid) 100%);
     box-shadow: 0 14px 30px rgba(11, 61, 44, 0.18);
     color: var(--on-forest);
 }
@@ -5280,7 +5280,7 @@ details.register-fold:not([open]) > summary { border-bottom: 0; }
     border-radius: 18px;
     background:
         radial-gradient(circle at 100% 0%, rgba(198, 221, 93, 0.14), transparent 18rem),
-        linear-gradient(120deg, var(--forest, #0b3d2c) 0%, #0f4a36 60%, var(--forest-mid, #145a40) 100%);
+        linear-gradient(120deg, var(--forest, #0b3d2c) 0%, var(--forest-deep, #0f4a36) 60%, var(--forest-mid, #145a40) 100%);
     color: #ffffff;
 }
 .approvals-page .approvals-header h2 { margin: 0 0 6px; color: #ffffff; font-size: clamp(22px, 3vw, 28px); }
@@ -5602,3 +5602,321 @@ details.register-fold:not([open]) > summary { border-bottom: 0; }
 .case-holder-cell { color: #3f544d; font-size: 12.5px; min-width: 140px; }
 .mine-chip { border-color: #c6dd5d !important; }
 .mine-chip.is-on { background: #f3f9dc !important; }
+
+/* ==========================================================================
+   Shared page parts: banner, crumbs, cards, buttons, ⋯ menu
+   (used by Report templates, Audit trail and the tidied inner pages)
+   ========================================================================== */
+.ui-page { max-width: 1150px; margin: 0 auto; }
+.ui-crumbs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 12px; font-size: 12.5px; color: #6b7d75; }
+.ui-crumbs a { color: #145a40; font-weight: 800; text-decoration: none; }
+.ui-crumbs a:hover { text-decoration: underline; }
+.ui-crumbs .sep { color: #a9b7b0; }
+.ui-banner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 26px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    padding: 24px clamp(20px, 4vw, 34px);
+    border: 1px solid #0f4a35;
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(198, 221, 93, 0.14), transparent 18rem),
+        linear-gradient(120deg, var(--forest, #0b3d2c) 0%, var(--forest-deep, #0f4a36) 60%, var(--forest-mid, #145a40) 100%);
+    box-shadow: 0 14px 30px rgba(11, 61, 44, 0.16);
+    color: #ffffff;
+}
+.ui-banner > div:first-child { flex: 1 1 300px; min-width: 0; }
+.ui-banner .kicker { margin: 0 0 6px; color: var(--lime, #c6dd5d); font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+.ui-banner h1, .ui-banner h2 { margin: 0 0 6px; color: #ffffff; font-size: clamp(21px, 3vw, 27px); letter-spacing: -0.4px; }
+.ui-banner p { margin: 0; color: #c9ded2; font-size: 13.5px; max-width: 680px; }
+.ui-banner .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ui-banner .actions a, .ui-banner .actions button {
+    padding: 9px 14px;
+    border: 1px solid rgba(200, 228, 210, 0.3);
+    border-radius: 9px;
+    background: transparent;
+    color: #ffffff;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.ui-banner .actions a:hover, .ui-banner .actions button:hover { background: rgba(255, 255, 255, 0.08); }
+.ui-banner .actions .primary { border-color: transparent; background: var(--lime, #c6dd5d); color: var(--lime-ink, #1a2e0b); }
+.ui-banner .actions .primary:hover { background: var(--lime-hover, #d4e87a); }
+
+.ui-card { margin-bottom: 16px; padding: 16px 18px; border: 1px solid #dce8e1; border-radius: 14px; background: #ffffff; }
+.ui-card.is-strong { border: 2px solid #b9d3c5; border-left: 7px solid var(--forest, #0b3d2c); box-shadow: 0 10px 24px rgba(11, 61, 44, 0.06); }
+.ui-card h2, .ui-card h3 { margin: 0 0 4px; color: #183d34; font-size: 16px; }
+.ui-card .sub { margin: 0 0 12px; color: #6b7d75; font-size: 12.5px; }
+.ui-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 18px; }
+.ui-field label, .ui-field .label { display: block; margin-bottom: 5px; color: #526a5f; font-size: 11.5px; font-weight: 800; }
+.ui-field input[type=text], .ui-field input[type=search], .ui-field input[type=date], .ui-field input[type=file], .ui-field select, .ui-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid #d5e2d9;
+    border-radius: 8px;
+    background: #ffffff;
+    font: inherit;
+    font-size: 13px;
+}
+.ui-hint { margin-top: 4px; color: #71817a; font-size: 11.5px; }
+.ui-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+.ui-actions form { margin: 0; }
+.ui-btn {
+    display: inline-block;
+    padding: 8px 14px;
+    border: 1px solid #cfe0d6;
+    border-radius: 9px;
+    background: #ffffff;
+    color: #145a40;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.2;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.ui-btn:hover { background: #f1f8f4; }
+.ui-btn.primary { border-color: #145a40; background: #145a40; color: #ffffff; }
+.ui-btn.primary:hover { background: #0f4a35; }
+.ui-btn.danger { border-color: #efc2ba; color: #a3392b; }
+.ui-btn.small { padding: 6px 11px; font-size: 12.5px; }
+.ui-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.ui-pill { display: inline-block; padding: 3px 9px; border-radius: 999px; background: #eef4f0; color: #2f5146; font-size: 11.5px; font-weight: 800; white-space: nowrap; }
+.ui-pill.good { background: #e3f4ea; color: #1d6b45; }
+.ui-pill.warn { background: #fff3df; color: #8a5a12; }
+.ui-pill.bad { background: #fff0ee; color: #a3392b; }
+.ui-pill.muted { background: #f1f3f2; color: #7a8580; }
+.ui-note { padding: 11px 14px; border: 1px solid #dce8e1; border-radius: 10px; background: #f6faf8; color: #3f544d; font-size: 13px; }
+.ui-note.warn { border-color: #f0d9a8; background: #fff8e8; color: #6b4a0c; }
+.ui-note.bad { border-color: #efc2ba; background: #fff3f1; color: #a3392b; }
+.ui-list { margin: 6px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.55; }
+.ui-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ui-table th { padding: 9px 12px; background: #f7faf8; color: #6f8178; font-size: 10.5px; font-weight: 800; letter-spacing: 0.6px; text-align: left; text-transform: uppercase; }
+.ui-table td { padding: 10px 12px; border-top: 1px solid #eef3f0; color: #3f544d; vertical-align: middle; }
+.ui-table code, .ui-code { padding: 2px 6px; border-radius: 6px; background: #f1f6f3; color: #0f4a35; font-size: 12.5px; }
+
+.ui-menu { position: relative; display: inline-block; }
+.ui-menu > summary {
+    list-style: none;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    box-sizing: border-box;
+    border: 1px solid #dce8e1;
+    border-radius: 9px;
+    color: #4b6158;
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 29px;
+    text-align: center;
+    cursor: pointer;
+    background: #ffffff;
+}
+.ui-menu > summary::-webkit-details-marker { display: none; }
+.ui-menu[open] > summary { background: #f1f8f4; }
+.ui-menu .menu {
+    position: absolute;
+    z-index: 30;
+    right: 0;
+    top: calc(100% + 4px);
+    min-width: 220px;
+    padding: 6px;
+    border: 1px solid #dce8e1;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 0 12px 26px rgba(24, 61, 52, 0.14);
+    text-align: left;
+}
+.ui-menu .menu form { margin: 0; }
+.ui-menu .menu a, .ui-menu .menu button {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #27483b;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+    text-decoration: none;
+    white-space: normal;
+    cursor: pointer;
+}
+.ui-menu .menu a:hover, .ui-menu .menu button:hover { background: #f1f8f4; }
+.ui-menu .menu .danger { color: #a3392b; }
+.ui-menu .menu hr { margin: 4px 2px; border: 0; border-top: 1px solid #eef3f0; }
+
+/* ==========================================================================
+   Bold, distinctive separators for sections on inner pages
+   (cases, complaints, signals, PSURs, reference documents, users)
+   ========================================================================== */
+.app-shell .case-detail-page .detail-section,
+.app-shell .case-detail-page .side-panel,
+.app-shell main .detail-card,
+.app-shell main .review-card,
+.app-shell main .record-card,
+.app-shell main .status-card,
+.app-shell main .signal-card,
+.app-shell main .evaluation-card,
+.app-shell main .supporting-cases-card,
+.app-shell main .assessment-card,
+.app-shell main .report-card,
+.app-shell main .user-form-card,
+.app-shell .sections-layout .section-card,
+.app-shell .authoring-page .section-card {
+    margin-bottom: 22px;
+    overflow: hidden;
+    border: 2px solid #b9d3c5 !important;
+    border-left: 7px solid var(--forest, #0b3d2c) !important;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(11, 61, 44, 0.07);
+}
+
+.app-shell .case-detail-page .section-title,
+.app-shell .case-detail-page .side-heading,
+.app-shell main .card-heading,
+.app-shell main .detail-card-heading {
+    border-bottom: 2px solid #d5e5dc !important;
+    background: linear-gradient(90deg, #e8f2ec 0%, #f5faf7 100%);
+    color: var(--forest, #0b3d2c) !important;
+    font-weight: 900;
+}
+
+.app-shell details.fold-card > summary { background: linear-gradient(90deg, #e8f2ec 0%, #f5faf7 100%); }
+.app-shell details.fold-card:not([open]) > summary { background: #f7fbf9; }
+
+/* Jump-to links for long record pages */
+.ui-jump {
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin: 0 0 18px;
+    padding: 8px 10px;
+    border: 1px solid #dce8e1;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 6px 16px rgba(11, 61, 44, 0.06);
+    backdrop-filter: blur(4px);
+}
+.ui-jump span { color: #6b7d75; font-size: 11.5px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; margin-right: 4px; }
+.ui-jump a {
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #eef5f1;
+    color: #145a40;
+    font-size: 12.5px;
+    font-weight: 800;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.ui-jump a:hover { background: #dcefe4; }
+[id] { scroll-margin-top: 70px; }
+
+/* Record page header: title, labels, then actions on one tidy row */
+.ui-record-head { margin-bottom: 16px; }
+.ui-record-head h2 { margin: 0; color: #183d34; font-size: clamp(22px, 3vw, 28px); letter-spacing: -0.5px; overflow-wrap: anywhere; }
+.ui-record-head .subtitle { margin: 6px 0 0; color: #6b7d75; font-size: 14px; }
+.ui-record-head .labels { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.ui-record-head .bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between; }
+.ui-record-head .bar > div:first-child { flex: 1 1 320px; min-width: 0; }
+.ui-record-head .ui-actions { margin-top: 0; }
+
+/* ==========================================================================
+   Registers and lists: clear separators between rows in every module
+   ========================================================================== */
+.app-shell main :is(.case-table, .signal-table, .records-table, .complaint-table, .user-table,
+    .ui-table, .supporting-cases-table, .suggest-table, .rsi-table, .reaction-table,
+    .psur-table, .psur-tabulation-table, .event-coding-table, .audit-table) {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+.app-shell main :is(.case-table, .signal-table, .records-table, .complaint-table, .user-table,
+    .ui-table, .supporting-cases-table, .suggest-table, .rsi-table, .reaction-table,
+    .psur-table, .psur-tabulation-table, .event-coding-table, .audit-table) thead th {
+    border-bottom: 2px solid #b9d3c5 !important;
+    background: #eaf3ee !important;
+    color: #2a5546 !important;
+}
+.app-shell main :is(.case-table, .signal-table, .records-table, .complaint-table, .user-table,
+    .ui-table, .supporting-cases-table, .suggest-table, .rsi-table, .reaction-table,
+    .psur-table, .psur-tabulation-table, .event-coding-table, .audit-table) tbody td {
+    border-top: 0 !important;
+    border-bottom: 2px solid #dbe8e0 !important;
+}
+.app-shell main :is(.case-table, .signal-table, .records-table, .complaint-table, .user-table,
+    .ui-table, .supporting-cases-table, .rsi-table, .reaction-table,
+    .psur-table, .audit-table) tbody tr:nth-child(even) td {
+    background: #f7fbf9;
+}
+.app-shell main :is(.case-table, .signal-table, .records-table, .complaint-table, .user-table,
+    .ui-table, .supporting-cases-table, .rsi-table, .reaction-table,
+    .psur-table, .audit-table) tbody tr:hover td {
+    background: #edf6f0;
+}
+.app-shell main :is(.case-table, .signal-table, .records-table, .complaint-table, .user-table,
+    .ui-table, .supporting-cases-table, .suggest-table, .rsi-table, .reaction-table,
+    .psur-table, .psur-tabulation-table, .event-coding-table, .audit-table) tbody tr:last-child td {
+    border-bottom: 0 !important;
+}
+/* The first cell of a row holds the record number: one line, bold, with a
+   dark-green marker so each row starts clearly. */
+.app-shell main :is(.case-table, .signal-table, .records-table, .complaint-table, .psur-table,
+    .supporting-cases-table, .audit-table) tbody td:first-child {
+    position: relative;
+    white-space: nowrap;
+    font-weight: 800;
+}
+.app-shell main :is(.case-table, .signal-table, .records-table, .complaint-table, .psur-table,
+    .supporting-cases-table) tbody td:first-child::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 4px;
+    border-radius: 0 4px 4px 0;
+    background: var(--forest, #0b3d2c);
+}
+.app-shell main :is(.case-table, .signal-table, .records-table, .complaint-table, .psur-table) tbody td:first-child a {
+    white-space: nowrap;
+}
+
+/* Card lists (approvals, reminders, attachments) get the same separation. */
+.app-shell main .approval-list .approval-row,
+.app-shell main .reminder-card {
+    border: 2px solid #d5e5dc !important;
+    border-left: 6px solid var(--forest, #0b3d2c) !important;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    background: #ffffff;
+}
+
+/* Safety case list: fit on one screen */
+.app-shell main .case-table td.event-description { max-width: 220px; }
+.app-shell main .case-table td, .app-shell main .case-table th { padding-left: 12px; padding-right: 12px; }
+.app-shell main .case-table td:nth-child(7) { white-space: nowrap; }
+.app-shell main :is(.complaint-table, .signal-table, .psur-table) td { white-space: normal; }
+.app-shell main :is(.complaint-table, .signal-table, .psur-table) td:first-child { white-space: nowrap; }
+.app-shell main :is(.case-table, .complaint-table, .signal-table, .psur-table, .records-table) td span { white-space: nowrap; }
+
+.app-shell .signal-badges, .app-shell .header-badges { align-items: center; }
+/* Back links follow the green theme everywhere */
+.app-shell main a.back-link { color: #145a40 !important; font-weight: 800; }
+.app-shell main a.back-link:hover { text-decoration: underline; }

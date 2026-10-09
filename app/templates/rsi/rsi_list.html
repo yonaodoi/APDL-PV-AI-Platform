@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Reference Safety Information | APDL PV{% endblock %}
+{% block title %}Reference Safety Information | {{ company.platform_name }}{% endblock %}
 
 {% block page_title %}Reference Safety Information{% endblock %}
 
@@ -21,7 +21,7 @@
 
     .rsi-kicker {
         margin: 0 0 8px;
-        color: #7656e8;
+        color: #145a40;
         font-size: 11px;
         font-weight: bold;
         letter-spacing: 1px;
@@ -29,13 +29,13 @@
 
     .rsi-header h1 {
         margin: 0 0 7px;
-        color: #282037;
+        color: #183d34;
         font-size: 28px;
     }
 
     .rsi-header p {
         margin: 0;
-        color: #746d7d;
+        color: #6b7d75;
         font-size: 14px;
     }
     .rsi-header-actions {
@@ -46,10 +46,10 @@
 
     .close-rsi-button {
         padding:12px 15px;
-        border:1px solid #ded6e5;
+        border:1px solid #cfe0d6;
         border-radius:9px;
         background:white;
-        color:#6242d7;
+        color:#145a40;
         font-size:13px;
         font-weight:bold;
         text-decoration:none;
@@ -59,7 +59,7 @@
     .new-rsi-button {
         padding: 12px 17px;
         border-radius: 9px;
-        background: #7656e8;
+        background: #145a40;
         color: white;
         font-size: 13px;
         font-weight: bold;
@@ -73,7 +73,7 @@
         padding: 14px 16px;
         border: 1px solid #e2d9f0;
         border-radius: 10px;
-        background: #faf8ff;
+        background: #f8fbf9;
         color: #635576;
         font-size: 13px;
         line-height: 1.5;
@@ -81,7 +81,7 @@
 
     .rsi-register {
         overflow: hidden;
-        border: 1px solid #e9e2e7;
+        border: 1px solid #dce8e1;
         border-radius: 14px;
         background: white;
         box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);
@@ -93,17 +93,17 @@
         gap: 12px;
         align-items: center;
         padding: 17px 20px;
-        border-bottom: 1px solid #eee8ec;
+        border-bottom: 1px solid #e7efea;
     }
 
     .rsi-register-heading h2 {
         margin: 0;
-        color: #403748;
+        color: #244a3d;
         font-size: 15px;
     }
 
     .rsi-register-heading span {
-        color: #8a818f;
+        color: #71817a;
         font-size: 12px;
     }
 
@@ -114,8 +114,8 @@
 
     .rsi-table th {
         padding: 13px 20px;
-        background: #fffdfe;
-        color: #918896;
+        background: #fbfdfc;
+        color: #7d8d86;
         font-size: 10px;
         letter-spacing: 0.6px;
         text-align: left;
@@ -124,8 +124,8 @@
 
     .rsi-table td {
         padding: 15px 20px;
-        border-top: 1px solid #f0ebee;
-        color: #5d5365;
+        border-top: 1px solid #eef3f0;
+        color: #4b6158;
         font-size: 13px;
         vertical-align: middle;
     }
@@ -157,13 +157,13 @@
     }
 
     .historic-tag {
-        background: #f1edf1;
+        background: #eef3f0;
         color: #716674;
     }
 
     .document-link,
     .source-link {
-        color: #6242d7;
+        color: #145a40;
         font-size: 12px;
         font-weight: bold;
         text-decoration: none;
@@ -197,10 +197,10 @@
 
     .status-change-button {
         padding: 5px 9px;
-        border: 1px solid #ded6e5;
+        border: 1px solid #cfe0d6;
         border-radius: 8px;
         background: white;
-        color: #6242d7;
+        color: #145a40;
         font-size: 11px;
         font-weight: bold;
         cursor: pointer;
@@ -223,10 +223,10 @@
 
     .rsi-action-button {
         padding: 7px 10px;
-        border: 1px solid #dcd1ee;
+        border: 1px solid #cfe0d6;
         border-radius: 8px;
-        background: #faf8ff;
-        color: #6242d7;
+        background: #f8fbf9;
+        color: #145a40;
         font-size: 12px;
         font-weight: bold;
         cursor: pointer;
@@ -455,7 +455,7 @@
             <input id="rsi-q" type="search" name="q" value="{{ filters.q }}" placeholder="Product, substance, version, file…">
         </div>
         <div class="rsi-filter">
-            <label for="rsi-product">APDL product</label>
+            <label for="rsi-product">{{ company.short_name }} product</label>
             <select id="rsi-product" name="product">
                 <option value="">All products</option>
                 {% for option in product_options %}<option value="{{ option }}" {% if filters.product == option %}selected{% endif %}>{{ option }}</option>{% endfor %}
@@ -509,7 +509,7 @@
             <table class="rsi-table rsi-table-compact">
                 <thead>
                     <tr>
-                        <th>APDL product</th>
+                        <th>{{ company.short_name }} product</th>
                         <th>Reference document</th>
                         <th>Status</th>
                         <th>Reaction terms</th>

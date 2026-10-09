@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{% if editing %}Edit Product Quality Complaint{% else %}New Product Quality Complaint{% endif %} | APDL PV{% endblock %}
+{% block title %}{% if editing %}Edit Product Quality Complaint{% else %}New Product Quality Complaint{% endif %} | {{ company.platform_name }}{% endblock %}
 
 {% block page_title %}{% if editing %}Edit Product Quality Complaint{% else %}New Product Quality Complaint{% endif %}{% endblock %}
 
@@ -28,7 +28,7 @@
 
     .complaint-kicker {
         margin: 0 0 8px;
-        color: #7656e8;
+        color: #145a40;
         font-size: 11px;
         font-weight: 800;
         letter-spacing: 1px;
@@ -36,14 +36,14 @@
 
     .complaint-header h1 {
         margin: 0 0 8px;
-        color: #282037;
+        color: #183d34;
         font-size: 29px;
         letter-spacing: -0.6px;
     }
 
     .complaint-header p {
         margin: 0;
-        color: #746d7d;
+        color: #6b7d75;
         font-size: 14px;
     }
 
@@ -76,7 +76,7 @@
 
     .complaint-card,
     .complaint-guide {
-        border: 1px solid #e9e2e8;
+        border: 1px solid #dce8e1;
         border-radius: 15px;
         background: #ffffff;
         box-shadow: 0 7px 18px rgba(50, 37, 67, 0.04);
@@ -101,8 +101,8 @@
         place-items: center;
         flex: 0 0 28px;
         border-radius: 9px;
-        background: #eee9ff;
-        color: #6847dc;
+        background: #eaf3ee;
+        color: #145a40;
         font-size: 13px;
         font-weight: 800;
     }
@@ -186,7 +186,7 @@
     }
 
     .save-button {
-        background: #7656e8;
+        background: #145a40;
         color: #ffffff;
         box-shadow: 0 8px 16px rgba(118, 86, 232, 0.22);
     }
@@ -199,7 +199,7 @@
         margin: 0;
         padding: 17px 19px;
         border-bottom: 1px solid #eee8f1;
-        background: #faf8ff;
+        background: #f8fbf9;
         color: #493760;
         font-size: 14px;
     }
@@ -210,7 +210,7 @@
 
     .guide-item {
         padding: 15px 0;
-        border-bottom: 1px solid #eee9ee;
+        border-bottom: 1px solid #e7efea;
     }
 
     .guide-item:last-child {
@@ -331,7 +331,7 @@
                     <div class="form-grid">
                         <div class="field">
                             <label>{{ form.complaint_number.label.text }} <span class="required">*</span></label>
-                            {{ form.complaint_number(placeholder="For example: APDL-PC-2026-0001") }}
+                            {{ form.complaint_number(placeholder="For example: " ~ company_example("complaint")) }}
                             {% for error in form.complaint_number.errors %}
                                 <p class="field-error">{{ error }}</p>
                             {% endfor %}

@@ -1,13 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Signal Notifications | APDL PV{% endblock %}
+{% block title %}Signal Notifications | {{ company.platform_name }}{% endblock %}
 {% block page_title %}Signal Notifications{% endblock %}
 
 {% block content %}
 <style>
     .notification-panel {
         overflow:hidden;
-        border:1px solid #e9e2e7;
+        border:2px solid #b9d3c5;
+        border-left:7px solid #145a40;
         border-radius:14px;
         background:white;
         box-shadow:0 5px 12px rgba(40,32,55,.035);
@@ -15,25 +16,25 @@
 
     .notification-header {
         padding:18px 20px;
-        border-bottom:1px solid #eee8ec;
+        border-bottom:1px solid #e7efea;
     }
 
     .notification-header h2 {
         margin:0 0 6px;
-        color:#282037;
+        color:#183d34;
         font-size:22px;
     }
 
     .notification-header p {
         margin:0;
-        color:#746d7d;
+        color:#6b7d75;
         font-size:13px;
     }
 
     .notification-item {
         display:block;
         padding:17px 20px;
-        border-top:1px solid #f0ebee;
+        border-top:1px solid #eef3f0;
         color:inherit;
         text-decoration:none;
     }
@@ -48,31 +49,34 @@
 
     .notification-title {
         margin:0 0 5px;
-        color:#49366d;
+        color:#0b3d2c;
         font-size:14px;
         font-weight:bold;
     }
 
     .notification-message {
         margin:0;
-        color:#655c6a;
+        color:#5c6f67;
         font-size:13px;
     }
 
     .notification-meta {
         display:block;
         margin-top:7px;
-        color:#8a818f;
+        color:#71817a;
         font-size:11px;
     }
 
     .empty-state {
         padding:55px 25px;
-        color:#827988;
+        color:#71817a;
         text-align:center;
     }
 </style>
 
+<nav class="ui-crumbs" aria-label="Breadcrumb" style="margin-bottom:12px;">
+        <a href="{{ url_for('signals.signal_list') }}">Signals</a><span class="sep">›</span><span>Notifications</span>
+    </nav>
 <section class="notification-panel">
     <div class="notification-header">
         <h2>Potential safety signal notifications</h2>

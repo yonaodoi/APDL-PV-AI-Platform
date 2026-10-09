@@ -1,4 +1,4 @@
-PSUR_SECTION_TITLES = {
+_SECTION_TITLES = {
     "executive_summary": "Executive summary",
     "introduction": "Introduction",
     "special_populations": "2.0 Use in special population:",
@@ -139,7 +139,7 @@ PSUR_SECTION_TITLES = {
         "Appendix 2: Reference Safety Information"
     ),
     "appendix_sponsored_studies": (
-        "Appendix 3: Listing of all APDL sponsored studies"
+        "Appendix 3: Listing of all {company} sponsored studies"
     ),
     "appendix_safety_data_sources": (
         "Appendix 4: Sources of safety data"
@@ -147,4 +147,38 @@ PSUR_SECTION_TITLES = {
     "references": "References",
 }
 
-PSUR_SECTION_CHOICES = tuple(PSUR_SECTION_TITLES.items())
+
+
+def _company(text):
+    if "{company}" not in text:
+        return text
+    from app.services.company_profile import short_name
+
+    return text.replace("{company}", short_name())
+
+
+class _CompanyTitles(dict):
+    """Section titles with the company's short name filled in when read."""
+
+    def __getitem__(self, key):
+        return _company(super().__getitem__(key))
+
+    def get(self, key, default=None):
+        return _company(super().get(key, default)) if key in self else default
+
+    def items(self):
+        return [(key, _company(value)) for key, value in super().items()]
+
+    def values(self):
+        return [_company(value) for value in super().values()]
+
+
+class _Choices:
+    """Form choices, read fresh each time a form is built."""
+
+    def __iter__(self):
+        return iter(PSUR_SECTION_TITLES.items())
+
+
+PSUR_SECTION_TITLES = _CompanyTitles(_SECTION_TITLES)
+PSUR_SECTION_CHOICES = _Choices()

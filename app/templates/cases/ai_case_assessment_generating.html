@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Assessment in Progress | APDL PV{% endblock %}
+{% block title %}Assessment in Progress | {{ company.platform_name }}{% endblock %}
 {% block page_title %}AI Case Assessment{% endblock %}
 
 {% block content %}
@@ -29,8 +29,8 @@
         place-items: center;
         margin: 0 auto 20px;
         border-radius: 18px;
-        background: #eee9ff;
-        color: #6545d8;
+        background: #eaf3ee;
+        color: #145a40;
         font-size: 30px;
         font-weight: bold;
         animation: pulse 1.5s ease-in-out infinite;
@@ -52,7 +52,7 @@
         padding: 18px;
         border: 1px solid #e3dbef;
         border-radius: 12px;
-        background: #faf8ff;
+        background: #f8fbf9;
     }
 
     .stage-label {
@@ -78,7 +78,7 @@
         overflow: hidden;
         margin: 24px 0 14px;
         border-radius: 20px;
-        background: #eee9ff;
+        background: #eaf3ee;
     }
 
     .progress-track span {
@@ -86,7 +86,7 @@
         width: 40%;
         height: 100%;
         border-radius: inherit;
-        background: #7656e8;
+        background: #145a40;
         animation: progress-slide 1.4s ease-in-out infinite;
     }
 
@@ -110,7 +110,7 @@
     .back-link {
         display: inline-block;
         margin-top: 22px;
-        color: #6242d7;
+        color: #145a40;
         font-size: 13px;
         font-weight: bold;
         text-decoration: none;

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Add Reference Safety Information | APDL PV{% endblock %}
+{% block title %}Add Reference Safety Information | {{ company.platform_name }}{% endblock %}
 
 {% block page_title %}Add Reference Safety Information{% endblock %}
 
@@ -21,13 +21,13 @@
 
     .rsi-form-header h1 {
         margin: 0 0 7px;
-        color: #282037;
+        color: #183d34;
         font-size: 28px;
     }
 
     .rsi-form-header p {
         margin: 0;
-        color: #746d7d;
+        color: #6b7d75;
         font-size: 14px;
     }
 
@@ -35,10 +35,10 @@
     .cancel-link {
         display: inline-block;
         padding: 11px 15px;
-        border: 1px solid #e1d9e6;
+        border: 1px solid #d5e2d9;
         border-radius: 9px;
         background: white;
-        color: #6242d7;
+        color: #145a40;
         font-size: 13px;
         font-weight: bold;
         text-decoration: none;
@@ -54,7 +54,7 @@
     .rsi-form-card,
     .guide-card {
         overflow: hidden;
-        border: 1px solid #e9e2e7;
+        border: 1px solid #dce8e1;
         border-radius: 14px;
         background: white;
         box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);
@@ -65,7 +65,7 @@
         gap: 12px;
         align-items: flex-start;
         padding: 20px 22px 16px;
-        border-bottom: 1px solid #eee8ec;
+        border-bottom: 1px solid #e7efea;
     }
 
     .form-heading span {
@@ -74,15 +74,15 @@
         display: grid;
         place-items: center;
         border-radius: 9px;
-        background: #eee9ff;
-        color: #6545d8;
+        background: #eaf3ee;
+        color: #145a40;
         font-size: 13px;
         font-weight: bold;
     }
 
     .form-heading h2 {
         margin: 2px 0 5px;
-        color: #3d3546;
+        color: #244a3d;
         font-size: 16px;
     }
 
@@ -113,7 +113,7 @@
     .field label {
         display: block;
         margin-bottom: 7px;
-        color: #554d5d;
+        color: #4b6158;
         font-size: 12px;
         font-weight: bold;
     }
@@ -123,10 +123,10 @@
         width: 100%;
         box-sizing: border-box;
         padding: 11px 12px;
-        border: 1px solid #ddd5dc;
+        border: 1px solid #d5e2d9;
         border-radius: 8px;
-        background: #fffeff;
-        color: #322a3b;
+        background: #fbfdfc;
+        color: #244a3d;
         font: inherit;
         font-size: 14px;
     }
@@ -134,8 +134,8 @@
     .field input:focus,
     .field select:focus {
         outline: none;
-        border-color: #9f88ed;
-        box-shadow: 0 0 0 3px #eee9ff;
+        border-color: #4f9c78;
+        box-shadow: 0 0 0 3px #eaf3ee;
     }
 
     .field-error {
@@ -165,7 +165,7 @@
         padding: 12px 18px;
         border: 0;
         border-radius: 9px;
-        background: #7656e8;
+        background: #145a40;
         color: white;
         font-size: 13px;
         font-weight: bold;
@@ -176,8 +176,8 @@
     .guide-card h2 {
         margin: 0;
         padding: 17px 18px;
-        background: #f7f4ff;
-        color: #493273;
+        background: #f1f8f4;
+        color: #0b3d2c;
         font-size: 14px;
     }
 
@@ -187,7 +187,7 @@
 
     .guide-item {
         padding: 14px 0;
-        border-bottom: 1px solid #f0ebee;
+        border-bottom: 1px solid #eef3f0;
     }
 
     .guide-item:last-child {
@@ -257,7 +257,7 @@
                 <div class="form-grid">
                     <div class="field">
                         <label>{{ form.product_name.label.text }}</label>
-                        {{ form.product_name(placeholder="APDL product name") }}
+                        {{ form.product_name(placeholder=company.short_name ~ " product name") }}
                         {% for error in form.product_name.errors %}
                             <p class="field-error">{{ error }}</p>
                         {% endfor %}
@@ -275,7 +275,7 @@
 
                     <div class="field">
                         <label>{{ form.market.label.text }}</label>
-                        {{ form.market(placeholder="For example: EU, US, Uganda") }}
+                        {{ form.market(placeholder="For example: EU, US, " ~ company.country) }}
                     </div>
 
                     <div class="field">

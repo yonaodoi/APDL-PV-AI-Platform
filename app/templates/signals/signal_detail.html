@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ signal.signal_number }} | APDL PV{% endblock %}
+{% block title %}{{ signal.signal_number }} | {{ company.platform_name }}{% endblock %}
 {% block page_title %}Safety Signal{% endblock %}
 
 {% from "attachments/_section.html" import attachments_section %}
@@ -32,7 +32,7 @@
 
     .signal-header p {
         margin:0;
-        color:#746d7d;
+        color:#6b7d75;
         font-size:14px;
     }
 
@@ -58,7 +58,7 @@
     }
 
     .priority-pill {
-        background:#f1edf1;
+        background:#eef3f0;
         color:#6f6572;
     }
 
@@ -88,7 +88,7 @@
         gap:12px;
         align-items:center;
         padding:16px 19px;
-        border-bottom:1px solid #eee8ec;
+        border-bottom:1px solid #e7efea;
     }
 
     .card-heading span {
@@ -105,7 +105,7 @@
 
     .card-heading h3 {
         margin:0;
-        color:#3d3546;
+        color:#244a3d;
         font-size:15px;
     }
 
@@ -120,7 +120,7 @@
     .note-label {
         display:block;
         margin-bottom:6px;
-        color:#918896;
+        color:#7d8d86;
         font-size:10px;
         font-weight:bold;
         letter-spacing:.6px;
@@ -170,7 +170,7 @@
     .field label {
         display:block;
         margin-bottom:7px;
-        color:#554d5d;
+        color:#4b6158;
         font-size:12px;
         font-weight:bold;
     }
@@ -181,8 +181,8 @@
         padding:10px 11px;
         border:1px solid #d5e2d9;
         border-radius:8px;
-        background:#fffeff;
-        color:#322a3b;
+        background:#fbfdfc;
+        color:#244a3d;
         font:inherit;
         font-size:14px;
     }
@@ -247,7 +247,7 @@
     .check-mark { flex:0 0 14px; font-weight:bold; }
     .check-ok .check-mark { color:#176247; }
     .check-missing .check-mark { color:#a8711a; }
-    .eval-rule { margin:6px 0 0; color:#776e7d; font-size:11px; }
+    .eval-rule { margin:6px 0 0; color:#6b7d75; font-size:11px; }
     .eval-status-buttons { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
     .eval-status-buttons button {
         padding:7px 12px;
@@ -260,7 +260,7 @@
         font-weight:bold;
         cursor:pointer;
     }
-    .eval-draft p { margin:0 0 8px; color:#776e7d; font-size:11px; }
+    .eval-draft p { margin:0 0 8px; color:#6b7d75; font-size:11px; }
     .eval-draft textarea {
         width:100%;
         box-sizing:border-box;
@@ -277,7 +277,7 @@
     .eval-draft button {
         width:100%;
         padding:9px;
-        border:1px solid #ded6e5;
+        border:1px solid #cfe0d6;
         border-radius:8px;
         background:white;
         color:#34765e;
@@ -311,9 +311,13 @@
     .ai-use-button:disabled { opacity: 0.75; cursor: default; }
 </style>
 
+<nav class="ui-crumbs" aria-label="Breadcrumb">
+    <a href="{{ url_for('signals.signal_list') }}">Safety signals</a><span class="sep">›</span>
+    <span>{{ signal.signal_number }}</span>
+</nav>
+
 <header class="signal-header">
     <div>
-        <a class="back-link" href="{{ url_for('signals.signal_list') }}">Back to safety signals</a>
         <h2>{{ signal.signal_number }}</h2>
         <p>Detected {{ signal.date_detected.strftime("%d %B %Y") }} for {{ signal.product_name }}.</p>
     </div>
@@ -323,6 +327,18 @@
         <span class="priority-pill {% if signal.priority in ('High', 'Critical') %}priority-high{% endif %}">
             {{ signal.priority }}
         </span>
+        <div class="ui-actions" style="margin-top:0;">
+            <a class="ui-btn primary small" href="#evaluation-panel">Evaluate</a>
+            <details class="ui-menu">
+                <summary aria-label="More actions for this signal" title="More actions">⋯</summary>
+                <div class="menu">
+                    <a href="{{ url_for('signals.edit_signal', signal_id=signal.signal_id) }}">Edit signal details</a>
+                    <a href="#supporting-cases-title">Supporting cases</a>
+                    <hr>
+                    <a href="{{ url_for('signals.signal_list') }}">Back to all safety signals</a>
+                </div>
+            </details>
+        </div>
     </div>
 </header>
 

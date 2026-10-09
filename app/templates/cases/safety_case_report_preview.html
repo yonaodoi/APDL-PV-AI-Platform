@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Safety Case Report Preview | APDL PV{% endblock %}
+{% block title %}Safety Case Report Preview | {{ company.platform_name }}{% endblock %}
 {% block page_title %}Safety Case Report Preview{% endblock %}
 
 {% block content %}
@@ -127,7 +127,7 @@
 
 <section class="report-page">
   <div class="report-header">
-    <strong>ABACUS PARENTERAL DRUGS LIMITED</strong>
+    <strong>{{ company.legal_name|upper }}</strong>
     <span>REGULATORY AFFAIRS DEPARTMENT</span>
   </div>
 
@@ -220,22 +220,22 @@
     <tbody>
       <tr>
         <td>Prepared by</td>
-        <td>AMEKO CHARLES</td>
-        <td>DEPUTY Q.P.P.V.</td>
+        <td>{{ company.sign_prepared_name }}</td>
+        <td>{{ company.sign_prepared_title }}</td>
         <td></td>
         <td></td>
       </tr>
       <tr>
         <td>Reviewed by</td>
-        <td>YONA ODOI</td>
-        <td>Q.P.P.V.</td>
+        <td>{{ company.sign_reviewed_name }}</td>
+        <td>{{ company.sign_reviewed_title }}</td>
         <td></td>
         <td></td>
       </tr>
       <tr>
         <td>Authorised by</td>
-        <td>KEITH ARUHO</td>
-        <td>GROUP HEAD, RA &amp; QUALITY</td>
+        <td>{{ company.sign_authorised_name }}</td>
+        <td>{{ company.sign_authorised_title }}</td>
         <td></td>
         <td></td>
       </tr>

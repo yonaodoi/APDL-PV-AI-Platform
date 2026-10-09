@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ title }} | Analytics | APDL PV{% endblock %}
+{% block title %}{{ title }} | Analytics | {{ company.platform_name }}{% endblock %}
 {% block page_title %}Analytics{% endblock %}
 
 {% block content %}
@@ -21,7 +21,7 @@
     .back-link {
         display: inline-block;
         margin-bottom: 11px;
-        color: #7656e8;
+        color: #145a40;
         font-size: 13px;
         font-weight: bold;
         text-decoration: none;
@@ -29,14 +29,14 @@
 
     .detail-header h2 {
         margin: 0 0 8px;
-        color: #282037;
+        color: #183d34;
         font-size: 28px;
     }
 
     .detail-header p {
         max-width: 680px;
         margin: 0;
-        color: #746d7d;
+        color: #6b7d75;
         font-size: 14px;
         line-height: 1.55;
     }
@@ -44,15 +44,18 @@
     .record-count {
         flex: none;
         padding: 10px 13px;
-        border: 1px solid #e3d9ef;
+        border: 1px solid #cfe0d6;
         border-radius: 9px;
-        background: #faf8ff;
-        color: #5f3ed4;
+        background: #f8fbf9;
+        color: #145a40;
         font-size: 13px;
         font-weight: bold;
         white-space: nowrap;
     }
 
+    .filter-actions { display: flex; gap: 8px; align-items: center; }
+    .table-scroll { overflow-x: auto; }
+    .records-table td.nowrap, .records-table td:first-child { white-space: nowrap; }
     .filter-card {
         display: grid;
         grid-template-columns: 1.3fr 1fr 1fr 1fr auto;
@@ -60,7 +63,8 @@
         align-items: end;
         margin-bottom: 20px;
         padding: 17px 19px;
-        border: 1px solid #e8e0eb;
+        border: 2px solid #b9d3c5;
+        border-left: 7px solid #145a40;
         border-radius: 13px;
         background: white;
         box-shadow: 0 4px 10px rgba(40, 32, 55, .025);
@@ -69,7 +73,7 @@
     .filter-field label {
         display: block;
         margin-bottom: 6px;
-        color: #655b6a;
+        color: #526a5f;
         font-size: 11px;
         font-weight: bold;
     }
@@ -78,25 +82,25 @@
         width: 100%;
         box-sizing: border-box;
         padding: 10px;
-        border: 1px solid #ddd5dc;
+        border: 1px solid #d5e2d9;
         border-radius: 8px;
-        background: #fffeff;
-        color: #403748;
+        background: #fbfdfc;
+        color: #244a3d;
         font: inherit;
         font-size: 13px;
     }
 
     .filter-input:focus {
         outline: none;
-        border-color: #9f88ed;
-        box-shadow: 0 0 0 3px #eee9ff;
+        border-color: #4f9c78;
+        box-shadow: 0 0 0 3px #eaf3ee;
     }
 
     .filter-button {
         padding: 10px 14px;
         border: 0;
         border-radius: 8px;
-        background: #7656e8;
+        background: #145a40;
         color: white;
         font-size: 13px;
         font-weight: bold;
@@ -106,7 +110,8 @@
 
     .register-card {
         overflow: hidden;
-        border: 1px solid #e9e2e7;
+        border: 2px solid #b9d3c5;
+        border-left: 7px solid #145a40;
         border-radius: 14px;
         background: white;
         box-shadow: 0 5px 12px rgba(40, 32, 55, .035);
@@ -114,9 +119,10 @@
 
     .register-heading {
         padding: 18px 20px;
-        border-bottom: 1px solid #eee8ec;
-        color: #4d4354;
-        font-size: 14px;
+        border-bottom: 1px solid #e7efea;
+        background: #eaf3ee;
+        color: #183d34;
+        font-size: 15px;
         font-weight: bold;
     }
 
@@ -127,8 +133,8 @@
 
     .records-table th {
         padding: 13px 20px;
-        background: #fffdfe;
-        color: #918896;
+        background: #fbfdfc;
+        color: #7d8d86;
         font-size: 10px;
         letter-spacing: .6px;
         text-align: left;
@@ -137,25 +143,25 @@
 
     .records-table td {
         padding: 15px 20px;
-        border-top: 1px solid #f0ebee;
-        color: #5c5365;
+        border-top: 1px solid #eef3f0;
+        color: #2f4b40;
         font-size: 13px;
         vertical-align: top;
     }
 
     .record-link {
-        color: #49366d;
+        color: #0b3d2c;
         font-weight: bold;
         text-decoration: none;
     }
 
     .record-link:hover {
-        color: #7656e8;
+        color: #145a40;
     }
 
     .record-detail {
         max-width: 410px;
-        color: #746b79;
+        color: #5d6f67;
         line-height: 1.45;
     }
 
@@ -163,15 +169,15 @@
         display: inline-block;
         padding: 5px 9px;
         border-radius: 20px;
-        background: #eee9ff;
-        color: #6242d7;
+        background: #eaf3ee;
+        color: #145a40;
         font-size: 11px;
         font-weight: bold;
     }
 
     .empty-state {
         padding: 58px 24px;
-        color: #746d7d;
+        color: #6b7d75;
         text-align: center;
         font-size: 14px;
         line-height: 1.55;
@@ -202,21 +208,22 @@
     }
 </style>
 
-<section class="detail-page">
-    <header class="detail-header">
-        <div>
-            <a
-                class="back-link"
-                href="{{ url_for('core.analytics_home') }}"
-            >
-                ← Back to Analytics Centre
-            </a>
+<section class="ui-page detail-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('core.analytics_home') }}">Analytics Centre</a><span class="sep">›</span>
+        <span>{{ title }}</span>
+    </nav>
 
-            <h2>{{ title }}</h2>
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Analytics</p>
+            <h1>{{ title }}</h1>
             <p>{{ description }}</p>
         </div>
-
-        <span class="record-count">{{ records|length }} record(s)</span>
+        <div class="actions">
+            <span class="ui-pill good">{{ records|length }} record(s)</span>
+            <a href="{{ url_for('core.analytics_home') }}">← Analytics Centre</a>
+        </div>
     </header>
 
     <form method="get" class="filter-card">
@@ -225,113 +232,56 @@
             <select class="filter-input" id="product" name="product">
                 <option value="">All products</option>
                 {% for product in products %}
-                    <option
-                        value="{{ product.product_name }}"
-                        {% if selected_product == product.product_name %}selected{% endif %}
-                    >
-                        {{ product.product_name }}
-                    </option>
+                    <option value="{{ product.product_name }}" {% if selected_product == product.product_name %}selected{% endif %}>{{ product.product_name }}</option>
                 {% endfor %}
             </select>
         </div>
-
         <div class="filter-field">
             <label for="status">Status</label>
             <select class="filter-input" id="status" name="status">
                 <option value="">All statuses</option>
                 {% for status in statuses %}
-                    <option
-                        value="{{ status.status }}"
-                        {% if selected_status == status.status %}selected{% endif %}
-                    >
-                        {{ status.status }}
-                    </option>
+                    <option value="{{ status.status }}" {% if selected_status == status.status %}selected{% endif %}>{{ status.status }}</option>
                 {% endfor %}
             </select>
         </div>
-
         <div class="filter-field">
             <label for="start_date">Date from</label>
-            <input
-                class="filter-input"
-                id="start_date"
-                name="start_date"
-                type="date"
-                value="{{ start_date }}"
-            >
+            <input class="filter-input" id="start_date" name="start_date" type="date" value="{{ start_date }}">
         </div>
-
         <div class="filter-field">
             <label for="end_date">Date to</label>
-            <input
-                class="filter-input"
-                id="end_date"
-                name="end_date"
-                type="date"
-                value="{{ end_date }}"
-            >
-        <div style="display:flex; gap:9px; align-items:center;">
-            <button class="filter-button" type="submit">
-                Apply filters
-            </button>
-
-            <a
-                href="{{ request.path }}"
-                style="color:#7656e8; font-size:12px; font-weight:bold; text-decoration:none; white-space:nowrap;"
-            >
-                Clear
-            </a>
+            <input class="filter-input" id="end_date" name="end_date" type="date" value="{{ end_date }}">
         </div>
-
+        <div class="filter-actions">
+            <button class="ui-btn primary" type="submit">Apply filters</button>
+            <a class="ui-btn" href="{{ request.path }}">Clear</a>
+        </div>
     </form>
 
     <section class="register-card">
         <div class="register-heading">{{ title }} register</div>
-
         {% if records %}
+            <div class="table-scroll">
             <table class="records-table">
                 <thead>
-                    <tr>
-                        <th>Reference</th>
-                        <th>Product</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Information</th>
-                    </tr>
+                    <tr><th>Reference</th><th>Product</th><th>Date</th><th>Status</th><th>Information</th></tr>
                 </thead>
                 <tbody>
                     {% for record in records %}
                         <tr>
-                            <td>
-                                <a
-                                    class="record-link"
-                                    href="{{ record.record_url }}"
-                                >
-                                    {{ record.record_number }}
-                                </a>
-                            </td>
+                            <td><a class="record-link" href="{{ record.record_url }}">{{ record.record_number }}</a></td>
                             <td>{{ record.product_name }}</td>
-                            <td>
-                                {% if record.record_date %}
-                                    {{ record.record_date.strftime("%d %b %Y") }}
-                                {% else %}
-                                    Not recorded
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span class="status-pill">{{ record.status }}</span>
-                            </td>
-                            <td class="record-detail">
-                                {{ record.detail or "No additional information recorded." }}
-                            </td>
+                            <td class="nowrap">{% if record.record_date %}{{ record.record_date.strftime("%d %b %Y") }}{% else %}Not recorded{% endif %}</td>
+                            <td><span class="status-pill">{{ record.status }}</span></td>
+                            <td class="record-detail">{{ record.detail or "No additional information recorded." }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
-        {% else %}
-            <div class="empty-state">
-                No records currently matched this measure.
             </div>
+        {% else %}
+            <div class="empty-state">No records currently matched this measure.</div>
         {% endif %}
     </section>
 </section>

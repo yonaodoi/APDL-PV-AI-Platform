@@ -22,6 +22,8 @@ from time import sleep
 from flask import current_app
 
 from app.db import get_db, query_all, query_one, transaction
+from app.services import company_profile as _company_profile
+
 from app.services.follow_up_request import (
     CHECK_FIRST_CODES,
     INTERNAL_CODES,
@@ -32,6 +34,11 @@ from app.services.follow_up_request import (
     format_sent,
     request_filename,
 )
+
+
+def company():
+    """The company profile (looked up each time, so changes apply at once)."""
+    return _company_profile.company()
 
 # Checks that compare recorded values; held for the PV team.
 HOLD_CODES = CHECK_FIRST_CODES
@@ -108,6 +115,23 @@ def reply_due(tasks, case, today=None, days=7):
     earliest = min((t["due_date"] for t in tasks), default=None) or case.get("follow_up_due_date")
     floor = today + timedelta(days=days)
     return max(earliest, floor) if earliest else floor
+
+
+def request_document(case, product, items, due, prepared_by=None, sent_at=None, phone=None):
+    """The follow-up form: the uploaded template if one is active, otherwise
+    the standard layout. Returns (BytesIO, notice or None)."""
+    from app.services.report_fields import follow_up_context
+    from app.services.report_templates import render_with_active
+
+    templated, notice = render_with_active(
+        "follow_up_form",
+        lambda: follow_up_context(case, product, items, due, prepared_by=prepared_by, sent_at=sent_at),
+    )
+    if templated is not None:
+        return templated, notice
+    return build_follow_up_request_docx(
+        case, product, items, due, prepared_by=prepared_by, sent_at=sent_at, phone=phone,
+    ), notice
 
 
 def preview_case_request(case_id, kind="Request", app=None, today=None):
@@ -205,7 +229,7 @@ def send_case_request(case_id, actor_user_id, *, automatic=False, kind="Request"
 
     sent_at = datetime.now(timezone.utc)
     phone = app.config.get("PV_CONTACT_PHONE")
-    document = build_follow_up_request_docx(
+    document, _notice = request_document(
         case, product, items, due, prepared_by=prepared_by, sent_at=sent_at, phone=phone,
     )
     subject = email_subject(case)
@@ -463,7 +487,7 @@ def run_follow_up_automation(app=None, today=None):
             try:
                 result = send_case_request(
                     case_id, case["created_by"], automatic=True, kind=kind,
-                    prepared_by="APDL PV system", app=app, today=today,
+                    prepared_by=f"{company()['platform_name']} system", app=app, today=today,
                 )
             except Exception:
                 app.logger.exception("Automatic follow-up failed for case %s", case_id)

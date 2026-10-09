@@ -11,6 +11,7 @@ from app.services.ai_case_assessment_docx import (
     set_cell_shading,
     set_cell_text,
 )
+from app.services import company_profile
 
 
 def _display_date(value):
@@ -66,7 +67,7 @@ def build_safety_signal_reporting_docx(
     header = section.header
     paragraph = header.paragraphs[0]
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = paragraph.add_run("ABACUS PARENTERAL DRUGS LIMITED")
+    run = paragraph.add_run(company_profile.legal_name().upper())
     run.bold = True
     run.font.size = Pt(11)
     run.font.color.rgb = RGBColor.from_string("666666")
@@ -223,14 +224,7 @@ def build_safety_signal_reporting_docx(
             bold=True, size=8, color="FFFFFF",
         )
 
-    signatures = edited_signatures or (
-        ("Prepared by", "AMEKO CHARLES", "DEPUTY Q.P.P.V.", "", ""),
-        ("Reviewed by", "YONA ODOI", "Q.P.P.V.", "", ""),
-        (
-            "Authorised by", "KEITH ARUHO",
-            "GROUP HEAD, RA & QUALITY", "", "",
-        ),
-    )
+    signatures = edited_signatures or company_profile.signatory_rows(2)
 
     for row_index, row in enumerate(signatures, start=1):
         values = list(row) + [""] * 5

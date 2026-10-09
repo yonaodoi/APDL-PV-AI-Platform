@@ -37,6 +37,7 @@ def create_app(config_class=Config):
     from .psur.section_routes import bp as psur_sections_blueprint
     from .psur.builder_routes import bp as psur_builder_blueprint
     from .core.routes import bp as core_blueprint
+    from .report_templates.routes import bp as report_templates_blueprint
 
     app.register_blueprint(administration_blueprint)
     app.register_blueprint(attachments_blueprint)
@@ -54,6 +55,7 @@ def create_app(config_class=Config):
     app.register_blueprint(psur_builder_blueprint)
     app.register_blueprint(core_blueprint)
     app.register_blueprint(case_ai_reports_blueprint)
+    app.register_blueprint(report_templates_blueprint)
 
     @app.before_request
     def refresh_session_activity():
@@ -87,6 +89,7 @@ def create_app(config_class=Config):
             "auth.change_password",
             "auth.logout",
             "static",
+            "administration.company_logo",
         ):
             return redirect(url_for("auth.change_password"))
 
@@ -100,6 +103,21 @@ def create_app(config_class=Config):
         if hasattr(value, "hour"):
             return value.strftime("%d %b %Y, %H:%M")
         return value.strftime("%d %b %Y")
+
+    @app.context_processor
+    def inject_company_profile():
+        """The company this installation belongs to, on every page."""
+        from app.services.company_profile import DEFAULTS, company, example_number, shade
+
+        profile = company()
+        colour = profile["brand_colour"]
+        brand_css = ""
+        if colour != DEFAULTS["brand_colour"]:
+            brand_css = (
+                f"--forest: {shade(colour, 0.68)}; --forest-mid: {colour}; "
+                f"--forest-deep: {shade(colour, 0.82)}; --sidebar: {shade(colour, 0.68)};"
+            )
+        return {"company": profile, "company_brand_css": brand_css, "company_example": example_number}
 
     @app.context_processor
     def inject_follow_up_reminder_count():

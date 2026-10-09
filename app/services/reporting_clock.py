@@ -1,6 +1,6 @@
 """Regulatory reporting clock for individual case safety reports.
 
-Day 0 is the date APDL first received the minimum case information
+Day 0 is the date the company first received the minimum case information
 (``received_date``). The clock stops when the case is submitted to the
 regulator (``regulatory_submitted_date``).
 

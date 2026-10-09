@@ -12,6 +12,8 @@ from docx.text.paragraph import Paragraph
 from flask import current_app
 from app.db import query_all
 from app.psur.section_definitions import PSUR_SECTION_TITLES
+from app.services.company_profile import signatory as _co_signatory
+from app.services.company_profile import platform as _co_platform, platform_name as _co_pv, short_name as _co_short
 DEFAULT_TEMPLATE_SECTION_HEADINGS = (
     "Executive summary",
     "Introduction",
@@ -292,7 +294,7 @@ def _section_default_content(section_key, report):
 
     if section_key == "special_populations":
         return (
-            f"The APDL PV records for {product_name} were reviewed "
+            f"The {_co_pv()} records for {product_name} were reviewed "
             f"for the period {period}. No completed analysis by "
             "special population was available in the platform. "
             "Individual ADR cases should be reviewed for pregnancy, "
@@ -310,7 +312,7 @@ def _section_default_content(section_key, report):
     ):
         return (
             "No validated sales, distribution, prescription or "
-            "patient-exposure denominator was available in the APDL "
+            f"patient-exposure denominator was available in the {_co_short()} "
             "PV platform for this reporting interval. Reporting "
             "rates and exposure-adjusted comparisons have therefore "
             "not been calculated. Verified exposure data should be "
@@ -324,7 +326,7 @@ def _section_default_content(section_key, report):
         "medication_error",
     ):
         return (
-            "The APDL PV records did not contain a completed, "
+            f"The {_co_pv()} records did not contain a completed, "
             "section-specific review for this topic during the "
             "reporting interval. The QPPV should confirm the position "
             "from case narratives, complaint investigations, medical "
@@ -345,7 +347,7 @@ def _section_default_content(section_key, report):
         "lack_of_efficacy",
     ):
         return (
-            "No APDL-sponsored clinical-trial information relevant to "
+            f"No {_co_short()}-sponsored clinical-trial information relevant to "
             "this section was available in the PV platform for the "
             "reporting interval. This section should be completed "
             "from verified clinical-development records where such "
@@ -355,7 +357,7 @@ def _section_default_content(section_key, report):
     if section_key == "non_interventional_studies":
         return (
             "No findings from non-interventional studies were entered "
-            "in the APDL PV platform for this reporting interval. The "
+            f"in the {_co_platform()} for this reporting interval. The "
             "QPPV should confirm whether any post-authorisation safety "
             "study, observational study or other real-world evidence "
             "source applies to this product."
@@ -375,7 +377,7 @@ def _section_default_content(section_key, report):
     ):
         return (
             "No verified information for this section was available "
-            "from the APDL PV platform during the reporting interval. "
+            f"from the {_co_platform()} during the reporting interval. "
             "Relevant literature-screening, non-clinical or medical "
             "information records should be reviewed and entered here "
             "before the PBRER is finalised."
@@ -388,7 +390,7 @@ def _section_default_content(section_key, report):
     ):
         return (
             "No information applicable to this section was entered in "
-            "the APDL PV platform for the reporting interval. The "
+            f"the {_co_platform()} for the reporting interval. The "
             "QPPV should confirm this against the applicable "
             "regulatory, safety and quality records before approval."
         )
@@ -419,7 +421,7 @@ def _section_default_content(section_key, report):
     ):
         return (
             "No product-specific efficacy or effectiveness evidence "
-            "for this section was recorded in the APDL PV platform "
+            f"for this section was recorded in the {_co_platform()} "
             "during the reporting interval. The benefit assessment "
             "should be completed from the approved product "
             "information, relevant clinical evidence and current "
@@ -427,7 +429,7 @@ def _section_default_content(section_key, report):
         )
 
     return (
-        "Review of the APDL pharmacovigilance records did not identify "
+        f"Review of the {_co_short()} pharmacovigilance records did not identify "
         "information applicable to this section during the reporting "
         "interval. The QPPV should confirm this against other relevant "
         "data sources before the PBRER is finalised."
@@ -478,11 +480,11 @@ def generate_psur_report(report):
     }
     qppv_name = _text(
         report["qppv_name"],
-        "YONA ODOI",
+        _co_signatory("reviewed")[0],
     )
     group_head_name = _text(
         report["approved_by"],
-        "KEITH ARUHO",
+        _co_signatory("authorised")[0],
     )
     for paragraph in document.paragraphs:
         for old_text, new_text in replacements.items():
@@ -684,7 +686,7 @@ def generate_psur_report(report):
         document,
         prepared_by=_text(
             report["prepared_by"],
-            "CHARLES AMEKO",
+            _co_signatory("prepared")[0],
         ),
         qppv_name=qppv_name,
         group_head_name=group_head_name,

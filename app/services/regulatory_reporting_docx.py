@@ -11,6 +11,7 @@ from app.services.ai_case_assessment_docx import (
     set_cell_shading,
     set_cell_text,
 )
+from app.services import company_profile
 
 
 def build_regulatory_reporting_docx(
@@ -39,7 +40,7 @@ def build_regulatory_reporting_docx(
     header_paragraph.paragraph_format.space_after = Pt(0)
 
     run = header_paragraph.add_run(
-        "ABACUS PARENTERAL DRUGS LIMITED"
+        company_profile.legal_name().upper()
     )
     run.bold = True
     run.font.size = Pt(11)
@@ -257,15 +258,7 @@ def build_regulatory_reporting_docx(
             color="FFFFFF",
         )
 
-    signature_rows = (
-        ("Prepared by", "AMEKO CHARLES", "DEPUTY Q.P.P.V."),
-        ("Reviewed by", "YONA ODOI", "Q.P.P.V."),
-        (
-            "Authorised by",
-            "KEITH ARUHO",
-            "GROUP HEAD, RA & QUALITY",
-        ),
-    )
+    signature_rows = company_profile.signatory_rows()
 
     for row_index, values in enumerate(signature_rows, start=1):
         set_cell_text(signature_table.cell(row_index, 0), values[0], size=8)

@@ -43,7 +43,7 @@ def build_abacus_follow_up_pdf(template_path, case, product, task, checks):
     template = Path(template_path)
     if not template.is_file():
         raise FileNotFoundError(
-            f"Abacus follow-up template was not found: {template}"
+            f"The follow-up form template was not found: {template}"
         )
 
     overlay_stream = BytesIO()

@@ -5,6 +5,7 @@ from docx import Document
 from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches, Pt, RGBColor
+from app.services import company_profile
 
 
 APDL_PURPLE = "5F3ED4"
@@ -102,7 +103,7 @@ def build_ai_case_assessment_docx(case, product, report):
     header_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     header_paragraph.paragraph_format.space_after = Pt(0)
 
-    run = header_paragraph.add_run("ABACUS PARENTERAL DRUGS LIMITED")
+    run = header_paragraph.add_run(company_profile.legal_name().upper())
     run.bold = True
     run.font.size = Pt(11)
     run.font.color.rgb = RGBColor.from_string("666666")
@@ -219,20 +220,20 @@ def build_ai_case_assessment_docx(case, product, report):
     signature_rows = (
         (
             "Prepared by",
-            report.get("prepared_by_name") or "AMEKO CHARLES",
+            report.get("prepared_by_name") or company_profile.signatory("prepared")[0],
             report.get("prepared_by_designation")
-            or "DEPUTY Q.P.P.V.",
+            or company_profile.signatory("prepared")[1],
         ),
         (
             "Reviewed by",
-            report.get("reviewed_by_name") or "YONA ODOI",
-            report.get("reviewed_by_designation") or "Q.P.P.V.",
+            report.get("reviewed_by_name") or company_profile.signatory("reviewed")[0],
+            report.get("reviewed_by_designation") or company_profile.signatory("reviewed")[1],
         ),
         (
             "Authorised by",
-            report.get("authorised_by_name") or "KEITH ARUHO",
+            report.get("authorised_by_name") or company_profile.signatory("authorised")[0],
             report.get("authorised_by_designation")
-            or "GROUP HEAD, RA & QUALITY",
+            or company_profile.signatory("authorised")[1],
         ),
     )
 

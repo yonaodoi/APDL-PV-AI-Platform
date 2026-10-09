@@ -1,11 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Follow-up Tasks | APDL PV{% endblock %}
+{% block title %}Follow-up Tasks | {{ company.platform_name }}{% endblock %}
 
 {% block page_title %}Follow-up Tasks{% endblock %}
 
 {% block content %}
 <section class="follow-up-tasks-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb" style="margin-bottom:12px;">
+        <a href="{{ url_for('cases.case_list') }}">Safety cases</a><span class="sep">›</span><span>Follow-up requests</span>
+    </nav>
 <header class="tasks-header">
     <div>
         <h2>Follow-up requests</h2>

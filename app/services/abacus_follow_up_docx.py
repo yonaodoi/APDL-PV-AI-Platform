@@ -10,6 +10,8 @@ from app.services.ai_case_assessment_docx import (
     set_cell_shading,
     set_cell_text,
 )
+from app.services import company_profile as _company_profile
+from app.services.follow_up_request import form_control, form_signatories
 
 
 def _date(value):
@@ -106,11 +108,11 @@ def build_abacus_follow_up_docx(case, product, task, check):
 
     header = section.header.paragraphs[0]
     header.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = header.add_run("ABACUS PARENTERAL DRUGS LTD")
+    run = header.add_run(_company_profile.company()["letter_name"].upper())
     run.bold = True
     run.font.size = Pt(12)
     run.font.color.rgb = RGBColor.from_string("666666")
-    subtitle = section.header.add_paragraph("REGULATORY AFFAIRS DEPARTMENT")
+    subtitle = section.header.add_paragraph(_company_profile.company()["department"].upper())
     subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
     subtitle.runs[0].font.size = Pt(9)
 
@@ -124,9 +126,7 @@ def build_abacus_follow_up_docx(case, product, task, check):
     control = _add_label_value_table(
         document,
         (
-            ("DOCUMENT No", "SF/RA/012.2"),
-            ("REVISION STATUS", "00"),
-            ("EFFECTIVE DATE", "31/08/2026"),
+            *form_control(),
             ("FOLLOW-UP DUE DATE", _date(task["due_date"])),
             ("ASSIGNED TO", task.get("assigned_to_name") or ""),
         ),
@@ -144,7 +144,7 @@ def build_abacus_follow_up_docx(case, product, task, check):
     _add_label_value_table(
         document,
         (
-            ("APDL CASE NUMBER", case["case_number"]),
+            (f"{_company_profile.company()['short_name'].upper()} CASE NUMBER", case["case_number"]),
             ("INTERNAL CASE ID", case["case_id"]),
             ("PATIENT IDENTIFIER", patient_detail),
             ("INITIAL DATE RECEIVED (DAY 0)", _date(case["received_date"])),
@@ -174,8 +174,8 @@ def build_abacus_follow_up_docx(case, product, task, check):
             check["code"],
             (
                 "Please provide the information requested under Part B "
-                "and return this form to the APDL Regulatory Affairs "
-                "Department."
+                f"and return this form to the {_company_profile.company()['short_name']} "
+                f"{_company_profile.company()['department']}."
             ),
         )
     )
@@ -221,13 +221,9 @@ def build_abacus_follow_up_docx(case, product, task, check):
         )
 
     signatories = (
-        ("Prepared by", "AMEKO CHARLES", "DEPUTY Q.P.P.V."),
-        ("Reviewed by", "YONA ODOI", "Q.P.P.V."),
-        (
-            "Authorised by",
-            "KEITH ARUHO",
-            "GROUP HEAD, RA & QUALITY",
-        ),
+        ("Prepared by", (task.get("assigned_to_name") or "").upper(), ""),
+        ("Reviewed by",) + form_signatories()[0],
+        ("Authorised by",) + form_signatories()[1],
     )
     for row, (role, name, designation) in enumerate(signatories, 1):
         set_cell_text(signatory_table.cell(row, 0), role, size=8)
@@ -240,7 +236,7 @@ def build_abacus_follow_up_docx(case, product, task, check):
     closing.paragraph_format.space_before = Pt(12)
     closing.add_run(
         "Signatures confirm review and authorisation of this follow-up "
-        "request in accordance with the Abacus controlled form."
+        f"request in accordance with the {_company_profile.company()['short_name']} controlled form."
     ).font.size = Pt(8)
 
     output = BytesIO()

@@ -5,6 +5,7 @@ from app.services.llm import generate_text
 from app.services.psur_evidence import (
     build_psur_evidence_sections,
 )
+from app.services.company_profile import platform as _co_platform, platform_name as _co_pv, short_name as _co_short
 
 
 
@@ -16,7 +17,7 @@ def _section_evidence(report, section_key):
         section_key,
         (
             "No section-specific evidence was assembled from the "
-            "APDL PV platform for this reporting interval."
+            f"{_co_platform()} for this reporting interval."
         ),
     )
 
@@ -69,7 +70,7 @@ def propose_psur_section_content(
     if no_system_evidence and not saved_content:
         return {
             "proposed_content": (
-                "No data were captured or available in the APDL PV "
+                f"No data were captured or available in the {_co_pv()} "
                 "platform for this reporting interval."
             ),
             "evidence_used": {
@@ -83,16 +84,16 @@ def propose_psur_section_content(
 
     prompt = f"""
 You are improving one saved section of a Periodic Benefit-Risk
-Evaluation Report for the APDL pharmacovigilance team.
+Evaluation Report for the {_co_short()} pharmacovigilance team.
 
 Exact section heading:
 {section_title}
 
 Improve the saved response below. The saved response is the primary
-source text. Preserve its factual meaning unless the supplied APDL
+source text. Preserve its factual meaning unless the supplied {_co_short()}
 system evidence clearly supports a correction or a relevant addition.
 
-Use only the saved response, product information, and APDL system
+Use only the saved response, product information, and {_co_short()} system
 evidence supplied below. Do not invent facts, dates, studies, clinical
 trials, literature findings, exposure data, regulatory activities,
 risk-minimisation actions, safety conclusions, or product information.
@@ -103,7 +104,7 @@ regulatory wording. Where the supplied records support an explanation,
 state it logically and specifically. Where the records do not support
 an explanation, do not create one.
 
-If no relevant APDL system evidence was available, improve only the
+If no relevant {_co_short()} system evidence was available, improve only the
 language of the saved response; do not add facts.
 
 Do not use bullet points, tables, markdown, headings, generic filler,
@@ -117,7 +118,7 @@ Product information:
 Saved section response:
 {saved_content}
 
-APDL system evidence for this reporting interval:
+{_co_short()} system evidence for this reporting interval:
 {evidence}
 """.strip()
 

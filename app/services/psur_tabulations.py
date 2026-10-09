@@ -7,6 +7,7 @@ original wording so the reviewer can code them before the PSUR is finalised.
 """
 
 from app.db import query_all
+from app.services.company_profile import platform as _co_platform, platform_name as _co_pv, short_name as _co_short
 
 
 UNCODED_SOC = "Uncoded reported terms (code before finalising)"
@@ -153,12 +154,12 @@ def tabulation_summary(report, tabulation):
     cumulative_text = (
         f"from the international birth date ({cumulative_from:%d %B %Y})"
         if cumulative_from
-        else "from the first case recorded in the APDL PV platform"
+        else f"from the first case recorded in the {_co_platform()}"
     )
     if not tabulation["groups"]:
         return (
             f"No adverse reactions for {report['product_name']} were "
-            f"recorded in the APDL PV platform up to "
+            f"recorded in the {_co_platform()} up to "
             f"{report['reporting_period_end']:%d %B %Y}."
         )
 

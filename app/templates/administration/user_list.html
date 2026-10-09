@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Administration | APDL PV{% endblock %}
+{% block title %}Administration | {{ company.platform_name }}{% endblock %}
 
 {% block page_title %}Administration{% endblock %}
 
@@ -229,7 +229,9 @@
         </div>
         <nav class="banner-actions" aria-label="Administration">
             <a href="{{ url_for('administration.audit_log') }}">Audit trail</a>
+            <a href="{{ url_for('administration.company_profile') }}">Company profile</a>
             <a href="{{ url_for('administration.sign_off_settings') }}">Sign-off settings</a>
+            <a href="{{ url_for('report_templates.template_list') }}">Report templates</a>
             <a class="primary" href="{{ url_for('administration.create_user') }}">+ New user</a>
         </nav>
     </header>

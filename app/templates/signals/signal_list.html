@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Safety Signals | APDL PV{% endblock %}
+{% block title %}Safety Signals | {{ company.platform_name }}{% endblock %}
 {% block page_title %}Safety Signals{% endblock %}
 
 {% block content %}
@@ -15,21 +15,21 @@
 
     .signals-header h2 {
         margin:0 0 7px;
-        color:#282037;
+        color:#183d34;
         font-size:28px;
         letter-spacing:-0.5px;
     }
 
     .signals-header p {
         margin:0;
-        color:#746d7d;
+        color:#6b7d75;
         font-size:14px;
     }
 
     .new-signal-button {
         padding:12px 17px;
         border-radius:9px;
-        background:#7656e8;
+        background:#145a40;
         color:white;
         font-size:14px;
         font-weight:bold;
@@ -41,7 +41,7 @@
     .signal-filter {
         margin-bottom:20px;
         padding:18px;
-        border:1px solid #e9e2e7;
+        border:1px solid #dce8e1;
         border-radius:14px;
         background:white;
         box-shadow:0 5px 12px rgba(40,32,55,.025);
@@ -57,7 +57,7 @@
     .filter-field label {
         display:block;
         margin-bottom:7px;
-        color:#655c6a;
+        color:#5c6f67;
         font-size:11px;
         font-weight:bold;
         letter-spacing:.4px;
@@ -67,10 +67,10 @@
     .filter-input {
         width:100%;
         padding:10px 11px;
-        border:1px solid #ddd5dc;
+        border:1px solid #d5e2d9;
         border-radius:8px;
-        background:#fffeff;
-        color:#322a3b;
+        background:#fbfdfc;
+        color:#244a3d;
         font:inherit;
         font-size:13px;
     }
@@ -79,7 +79,7 @@
         padding:11px 16px;
         border:0;
         border-radius:8px;
-        background:#7656e8;
+        background:#145a40;
         color:white;
         font-size:13px;
         font-weight:bold;
@@ -96,18 +96,18 @@
         border:1px solid #e6deeb;
         border-radius:9px;
         background:white;
-        color:#655c6a;
+        color:#5c6f67;
         font-size:12px;
     }
 
     .summary-chip strong {
         margin-right:4px;
-        color:#5f3ed4;
+        color:#145a40;
     }
 
     .signal-register {
         overflow:hidden;
-        border:1px solid #e9e2e7;
+        border:1px solid #dce8e1;
         border-radius:14px;
         background:white;
         box-shadow:0 5px 12px rgba(40,32,55,.035);
@@ -119,17 +119,17 @@
         gap:16px;
         align-items:center;
         padding:16px 20px;
-        border-bottom:1px solid #eee8ec;
+        border-bottom:1px solid #e7efea;
     }
 
     .register-toolbar h3 {
         margin:0;
-        color:#403748;
+        color:#244a3d;
         font-size:15px;
     }
 
     .register-toolbar span {
-        color:#8a818f;
+        color:#71817a;
         font-size:12px;
     }
 
@@ -140,8 +140,8 @@
 
     .signal-table th {
         padding:13px 20px;
-        color:#918896;
-        background:#fffdfe;
+        color:#7d8d86;
+        background:#fbfdfc;
         font-size:10px;
         letter-spacing:.6px;
         text-align:left;
@@ -150,14 +150,14 @@
 
     .signal-table td {
         padding:16px 20px;
-        border-top:1px solid #f0ebee;
-        color:#5c5365;
+        border-top:1px solid #eef3f0;
+        color:#2f4b40;
         font-size:13px;
         vertical-align:top;
     }
 
     .signal-number {
-        color:#49366d;
+        color:#0b3d2c;
         font-weight:bold;
     }
 
@@ -189,12 +189,12 @@
     }
 
     .status-pill {
-        background:#eee9ff;
-        color:#6242d7;
+        background:#eaf3ee;
+        color:#145a40;
     }
 
     .priority-pill {
-        background:#f1edf1;
+        background:#eef3f0;
         color:#6f6572;
     }
 
@@ -205,7 +205,7 @@
 
     .empty-state {
         padding:60px 25px;
-        color:#827988;
+        color:#71817a;
         text-align:center;
     }
 
@@ -216,8 +216,8 @@
         place-items:center;
         margin:0 auto 13px;
         border-radius:12px;
-        background:#eee9ff;
-        color:#7656e8;
+        background:#eaf3ee;
+        color:#145a40;
         font-size:22px;
         font-weight:bold;
     }

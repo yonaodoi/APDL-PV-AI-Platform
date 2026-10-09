@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard | APDL PV{% endblock %}
+{% block title %}Dashboard | {{ company.platform_name }}{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
 <section class="dashboard-page">
     <section class="welcome-panel">
         <div>
-            <p class="welcome-kicker">APDL PHARMACOVIGILANCE PLATFORM</p>
+            <p class="welcome-kicker">{{ company.short_name|upper }} PHARMACOVIGILANCE PLATFORM</p>
             <h2>Good day, {{ session.get("full_name", "User") }}</h2>
             <p>
                 Access the PV and regulatory workspaces below. Monitoring

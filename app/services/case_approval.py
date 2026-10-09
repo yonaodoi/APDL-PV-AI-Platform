@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from flask import current_app, url_for
 
 from app.db import get_db, query_all, query_one, transaction
+from app.services.company_profile import platform
 
 PENDING_REVIEW = "Pending review"
 PENDING_APPROVAL = "Pending approval"
@@ -403,7 +404,7 @@ def digest_body(name, stage, cases, link, settings=None):
         "",
         f"Open the approvals page: {link}",
         "",
-        "APDL PV platform (automatic message)",
+        f"{platform()} (automatic message)",
     ]
     return "\n".join(lines)
 
@@ -537,7 +538,7 @@ def notify_officer(app, case_id, stage, comment, actor_name, settings=None):
         text = f"{actor_name} approved {row['case_number']}. It can now be submitted to the regulator and marked as submitted."
     sent = False
     for name, email in recipients:
-        body = f"Dear {name},\n\n{text}\n\nOpen the case: {base}/cases/{case_id}\n\nAPDL PV platform (automatic message)"
+        body = f"Dear {name},\n\n{text}\n\nOpen the case: {base}/cases/{case_id}\n\n{platform()} (automatic message)"
         try:
             _send(app, email, subject, body)
             sent = True

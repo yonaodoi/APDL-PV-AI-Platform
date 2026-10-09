@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Report Templates | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Report Templates{% endblock %}
+
+{% block content %}
+<section class="ui-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        {% if session.get('role') == 'System Administrator' %}<a href="{{ url_for('administration.user_list') }}">Administration</a><span class="sep">›</span>{% endif %}
+        <span>Report templates</span>
+    </nav>
+
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Controlled documents</p>
+            <h1>Report templates</h1>
+            <p>Upload your approved Word templates. Every report is then printed in your layout, with empty lines, rows and sections removed automatically. A template is test-filled before it can go live; if it ever fails, the standard layout is used so no report is lost.</p>
+        </div>
+    </header>
+
+    {% for key, spec in report_types.items() %}
+        {% set group = by_type[key] %}
+        <article class="ui-card is-strong" id="type-{{ key }}">
+            <div class="rt-head">
+                <div>
+                    <h2>{{ spec.label }}</h2>
+                    <p class="sub">{{ spec.description }}</p>
+                </div>
+                <div class="rt-head-actions">
+                    {% if group.active %}
+                        <span class="ui-pill good">Using: {{ group.active.name }}{% if group.active.version %} v{{ group.active.version }}{% endif %}</span>
+                    {% else %}
+                        <span class="ui-pill muted">Using the standard layout</span>
+                    {% endif %}
+                    <a class="ui-btn small" href="{{ url_for('report_templates.marker_guide', report_type=key) }}">Marker guide</a>
+                </div>
+            </div>
+
+            {% set rows = ([group.active] if group.active else []) + group.others %}
+            {% if rows %}
+                <table class="ui-table rt-table">
+                    <thead><tr><th>Template</th><th>Uploaded</th><th>Check</th><th>Status</th><th class="rt-col-actions"><span class="visually-hidden">Actions</span></th></tr></thead>
+                    <tbody>
+                        {% for t in rows[:6] %}
+                            <tr>
+                                <td>
+                                    <a class="rt-name" href="{{ url_for('report_templates.template_detail', template_id=t.template_id) }}">{{ t.name }}{% if t.version %} <span>v{{ t.version }}</span>{% endif %}</a>
+                                    <div class="rt-sub">{{ t.original_filename }}{% if t.source == 'ai_mapped' %} · mapped by AI{% endif %}</div>
+                                </td>
+                                <td class="rt-sub">{{ t.created_at|when }}{% if t.uploaded_by_name %}<br>{{ t.uploaded_by_name }}{% endif %}</td>
+                                <td>
+                                    {% if t.source == 'ai_mapped' and not t.mapping_applied %}<span class="ui-pill warn">Mapping to confirm</span>
+                                    {% elif t.check_passed %}<span class="ui-pill good">Passed</span>
+                                    {% else %}<span class="ui-pill bad">{{ t.check_problems|length }} problem(s)</span>{% endif %}
+                                </td>
+                                <td>
+                                    {% if t.status == 'Active' %}<span class="ui-pill good">Active</span>
+                                    {% elif t.status == 'Draft' %}<span class="ui-pill warn">Draft</span>
+                                    {% else %}<span class="ui-pill muted">Historic</span>{% endif %}
+                                </td>
+                                <td class="rt-col-actions">
+                                    <a class="ui-btn small {% if t.status == 'Draft' and t.check_passed %}primary{% endif %}" href="{{ url_for('report_templates.template_detail', template_id=t.template_id) }}">{% if t.source == 'ai_mapped' and not t.mapping_applied %}Confirm mapping{% elif t.status == 'Draft' and t.check_passed %}Review &amp; activate{% else %}Open{% endif %}</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+
+            <details class="rt-upload">
+                <summary>+ Upload a template</summary>
+                <form method="post" action="{{ url_for('report_templates.upload_template') }}" enctype="multipart/form-data" class="rt-upload-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="report_type" value="{{ key }}">
+                    <div class="ui-grid">
+                        <div class="ui-field">
+                            <label for="file-{{ key }}">Word file (.docx)</label>
+                            <input id="file-{{ key }}" type="file" name="template_file" accept=".docx" required>
+                        </div>
+                        <div class="ui-field">
+                            <label for="name-{{ key }}">Name</label>
+                            <input id="name-{{ key }}" type="text" name="name" maxlength="200" placeholder="e.g. SF/RA/012 ADR form">
+                        </div>
+                        <div class="ui-field">
+                            <label for="version-{{ key }}">Version</label>
+                            <input id="version-{{ key }}" type="text" name="version" maxlength="40" placeholder="e.g. 02">
+                        </div>
+                    </div>
+                    <fieldset class="rt-mode">
+                        <legend>How should the system know where the data goes?</legend>
+                        <label><input type="radio" name="mode" value="markers" checked> The template already has markers such as <code>{{ '{{' }}case.case_number{{ '}}' }}</code></label>
+                        <label><input type="radio" name="mode" value="ai"> It is a plain form – map it for me (AI), I will check the result</label>
+                    </fieldset>
+                    <div class="ui-actions"><button class="ui-btn primary" type="submit">Upload and test</button></div>
+                </form>
+            </details>
+        </article>
+    {% endfor %}
+</section>
+
+<style>
+    .rt-head { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-start; justify-content: space-between; }
+    .rt-head-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .rt-table { margin: 6px 0 10px; }
+    .rt-name { color: #183d34; font-weight: 800; text-decoration: none; }
+    .rt-name span { color: #6b7d75; font-weight: 700; }
+    .rt-sub { color: #71817a; font-size: 12px; }
+    .rt-col-actions { width: 1%; text-align: right; white-space: nowrap; }
+    .rt-upload > summary { display: inline-block; color: #145a40; font-size: 13px; font-weight: 800; cursor: pointer; }
+    .rt-upload-form { margin-top: 12px; padding: 14px; border: 1px dashed #cfe0d6; border-radius: 10px; background: #fbfdfc; }
+    .rt-mode { margin: 12px 0 0; padding: 0; border: 0; display: grid; gap: 6px; font-size: 13px; color: #27483b; }
+    .rt-mode legend { margin-bottom: 6px; color: #526a5f; font-size: 11.5px; font-weight: 800; }
+    @media (max-width: 720px) {
+        .rt-table thead { display: none; }
+        .rt-table tr, .rt-table td { display: block; }
+        .rt-table td { border: 0; padding: 3px 0; }
+        .rt-table tr { padding: 10px 0; border-top: 1px solid #eef3f0; }
+        .rt-col-actions { text-align: left; }
+    }
+</style>
+<script>
+    document.querySelectorAll(".rt-upload-form").forEach(function (form) {
+        form.addEventListener("submit", function () {
+            var ai = form.querySelector('input[name="mode"][value="ai"]').checked;
+            var button = form.querySelector('button[type="submit"]');
+            setTimeout(function () { button.disabled = true; button.textContent = ai ? "AI is reading the form… (up to a minute)" : "Checking…"; }, 0);
+        });
+    });
+</script>
+{% endblock %}

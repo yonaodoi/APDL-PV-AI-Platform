@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Audit Trail | APDL PV{% endblock %}
+{% block title %}Audit Trail | {{ company.platform_name }}{% endblock %}
 
 {% block page_title %}Audit Trail{% endblock %}
 
@@ -21,22 +21,22 @@
 
     .audit-header h1 {
         margin: 0 0 7px;
-        color: #282037;
+        color: #183d34;
         font-size: 28px;
     }
 
     .audit-header p {
         margin: 0;
-        color: #746d7d;
+        color: #6b7d75;
         font-size: 14px;
     }
 
     .back-link {
         padding: 11px 15px;
-        border: 1px solid #e1d9e6;
+        border: 1px solid #d5e2d9;
         border-radius: 9px;
         background: white;
-        color: #6242d7;
+        color: #145a40;
         font-size: 13px;
         font-weight: bold;
         text-decoration: none;
@@ -45,7 +45,7 @@
 
     .audit-register {
         overflow: hidden;
-        border: 1px solid #e9e2e7;
+        border: 1px solid #dce8e1;
         border-radius: 14px;
         background: white;
         box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);
@@ -56,17 +56,17 @@
         justify-content: space-between;
         gap: 10px;
         padding: 17px 20px;
-        border-bottom: 1px solid #eee8ec;
+        border-bottom: 1px solid #e7efea;
     }
 
     .audit-register-header h2 {
         margin: 0;
-        color: #403748;
+        color: #244a3d;
         font-size: 15px;
     }
 
     .audit-register-header span {
-        color: #8a818f;
+        color: #71817a;
         font-size: 12px;
     }
 
@@ -77,8 +77,8 @@
 
     .audit-table th {
         padding: 13px 20px;
-        background: #fffdfe;
-        color: #918896;
+        background: #fbfdfc;
+        color: #7d8d86;
         font-size: 10px;
         letter-spacing: 0.6px;
         text-align: left;
@@ -87,8 +87,8 @@
 
     .audit-table td {
         padding: 15px 20px;
-        border-top: 1px solid #f0ebee;
-        color: #5d5365;
+        border-top: 1px solid #eef3f0;
+        color: #4b6158;
         font-size: 13px;
         vertical-align: top;
     }
@@ -110,12 +110,12 @@
     }
 
     .record-link {
-        color: #6242d7;
+        color: #145a40;
         text-decoration: none;
     }
 
     .record-ref {
-        color: #5d5365;
+        color: #4b6158;
     }
 
     .audit-action {
@@ -135,8 +135,8 @@
         display: inline-block;
         padding: 5px 9px;
         border-radius: 20px;
-        background: #eee9ff;
-        color: #6242d7;
+        background: #eaf3ee;
+        color: #145a40;
         font-size: 11px;
         font-weight: bold;
         text-transform: capitalize;
@@ -158,26 +158,83 @@
             margin-top: 15px;
         }
     }
+    .audit-filters { padding: 14px 16px; }
+    .audit-filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 12px; align-items: end; }
+    .audit-filter-grid .search { grid-column: span 2; }
+    .audit-filter-actions { display: flex; gap: 8px; align-items: center; }
+    @media (max-width: 640px) { .audit-filter-grid .search { grid-column: auto; } }
 </style>
 
 <section class="audit-page">
-    <header class="audit-header">
-        <div>
-            <h1>Audit trail</h1>
-            <p>Review recorded platform actions for pharmacovigilance traceability.</p>
-        </div>
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        {% if session.get('role') == 'System Administrator' %}<a href="{{ url_for('administration.user_list') }}">Administration</a><span class="sep">›</span>{% endif %}
+        <span>Audit trail</span>
+    </nav>
 
-        {% if session.get('role') == 'System Administrator' %}
-            <a class="back-link" href="{{ url_for('administration.user_list') }}">
-                ← Back to administration
-            </a>
-        {% endif %}
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Traceability</p>
+            <h1>Audit trail</h1>
+            <p>Every recorded action on cases, complaints, signals, PSURs, reference documents, users and settings.</p>
+        </div>
+        <div class="actions">
+            <a class="primary" href="{{ url_for('administration.audit_log', export='csv', limit=limit, **filters) }}">Download CSV</a>
+        </div>
     </header>
+
+    <form class="audit-filters ui-card" method="get" action="{{ url_for('administration.audit_log') }}" aria-label="Filter the audit trail">
+        <div class="audit-filter-grid">
+            <div class="ui-field search">
+                <label for="audit-q">Search</label>
+                <input id="audit-q" type="search" name="q" value="{{ filters.q }}" placeholder="Case number, words in the details, person…">
+            </div>
+            <div class="ui-field">
+                <label for="audit-type">Record type</label>
+                <select id="audit-type" name="record_type">
+                    <option value="">All records</option>
+                    {% for value, label in record_types %}<option value="{{ value }}" {% if filters.record_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="ui-field">
+                <label for="audit-action">Action</label>
+                <select id="audit-action" name="action">
+                    <option value="">All actions</option>
+                    {% for action in actions %}<option value="{{ action }}" {% if filters.action == action %}selected{% endif %}>{{ action }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="ui-field">
+                <label for="audit-user">Performed by</label>
+                <select id="audit-user" name="user">
+                    <option value="">Anyone</option>
+                    <option value="__system__" {% if filters.user == "__system__" %}selected{% endif %}>System (automatic)</option>
+                    {% for name in users %}<option value="{{ name }}" {% if filters.user == name %}selected{% endif %}>{{ name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="ui-field">
+                <label for="audit-start">From</label>
+                <input id="audit-start" type="date" name="start" value="{{ filters.start }}">
+            </div>
+            <div class="ui-field">
+                <label for="audit-end">To</label>
+                <input id="audit-end" type="date" name="end" value="{{ filters.end }}">
+            </div>
+            <div class="ui-field">
+                <label for="audit-limit">Show</label>
+                <select id="audit-limit" name="limit">
+                    {% for n in (250, 1000, 5000) %}<option value="{{ n }}" {% if limit == n %}selected{% endif %}>Latest {{ n }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="audit-filter-actions">
+                <button class="ui-btn primary" type="submit">Filter</button>
+                {% if any_filter %}<a class="ui-btn" href="{{ url_for('administration.audit_log') }}">Clear</a>{% endif %}
+            </div>
+        </div>
+    </form>
 
     <section class="audit-register">
         <div class="audit-register-header">
             <h2>Recorded activities</h2>
-            <span>{{ entries|length }} recent entry(s)</span>
+            <span>{{ entries|length }} {% if any_filter %}matching {% endif %}entr{{ "y" if entries|length == 1 else "ies" }}{% if entries|length >= limit %} (latest {{ limit }} shown){% endif %}</span>
         </div>
 
         {% if entries %}
@@ -219,7 +276,7 @@
             </table>
             </div>
         {% else %}
-            <div class="empty-state">No audit entries have been recorded yet.</div>
+            <div class="empty-state">{% if any_filter %}No entries match these filters. <a href="{{ url_for('administration.audit_log') }}">Clear the filters</a>.{% else %}No audit entries have been recorded yet.{% endif %}</div>
         {% endif %}
     </section>
 </section>

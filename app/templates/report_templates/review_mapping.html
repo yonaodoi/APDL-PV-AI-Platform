@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Confirm mapping | Report Templates | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Report Templates{% endblock %}
+
+{% block content %}
+<section class="ui-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('report_templates.template_list') }}">Report templates</a><span class="sep">›</span>
+        <a href="{{ url_for('report_templates.template_list') }}#type-{{ template.report_type }}">{{ spec.label }}</a><span class="sep">›</span>
+        <span>Confirm mapping</span>
+    </nav>
+
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">{{ spec.label }}</p>
+            <h1>Check where each field goes</h1>
+            <p>The AI read “{{ template.original_filename }}” and suggested a field for each label. Correct any field, untick anything wrong, then confirm. The system then writes markers into a copy of your form and test-fills it.</p>
+        </div>
+        <div class="actions">
+            <a href="{{ url_for('report_templates.download_template', template_id=template.template_id, original=1) }}">Open the original form</a>
+        </div>
+    </header>
+
+    <form method="post" class="ui-card is-strong">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <table class="ui-table rt-map">
+            <thead><tr><th>Use</th><th>In your form</th><th>Field printed there</th><th>How</th></tr></thead>
+            <tbody>
+                {% for item in placements %}
+                    {% set i = loop.index0 %}
+                    <tr>
+                        <td><input type="checkbox" name="keep_{{ i }}" checked aria-label="Use this placement"></td>
+                        <td>
+                            <strong>{{ item.form_text or item.label }}</strong>
+                            <div class="rt-sub">{{ item.ref }}</div>
+                        </td>
+                        <td>
+                            <select name="field_{{ i }}" aria-label="Field">
+                                {% for value, label in field_choices %}
+                                    <option value="{{ value }}" {% if value == item.field %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <select name="how_{{ i }}" aria-label="How">
+                                <option value="after" {% if item.how == 'after' %}selected{% endif %}>After the label</option>
+                                <option value="replace" {% if item.how == 'replace' %}selected{% endif %}>Fill the empty box</option>
+                                <option value="row" {% if item.how == 'row' %}selected{% endif %}>Table row, one per item</option>
+                            </select>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="ui-actions">
+            <button class="ui-btn primary" type="submit">Confirm and test-fill</button>
+            <a class="ui-btn" href="{{ url_for('report_templates.template_list') }}#type-{{ template.report_type }}">Back without saving</a>
+        </div>
+    </form>
+</section>
+<style>
+    .rt-map select { width: 100%; max-width: 360px; padding: 6px 8px; border: 1px solid #d5e2d9; border-radius: 7px; font: inherit; font-size: 12.5px; }
+    .rt-sub { color: #8a9a92; font-size: 11.5px; }
+    @media (max-width: 760px) {
+        .rt-map thead { display: none; }
+        .rt-map tr, .rt-map td { display: block; }
+        .rt-map td { border: 0; padding: 3px 0; }
+        .rt-map tr { padding: 10px 0; border-top: 1px solid #eef3f0; }
+    }
+</style>
+{% endblock %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Approvals | APDL PV{% endblock %}
+{% block title %}Approvals | {{ company.platform_name }}{% endblock %}
 {% block page_title %}Approvals{% endblock %}
 
 {% macro case_rows(cases, kind) %}
@@ -53,6 +53,9 @@
 
 {% block content %}
 <section class="approvals-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb" style="margin-bottom:12px;">
+        <a href="{{ url_for('cases.case_list') }}">Safety cases</a><span class="sep">›</span><span>Case approvals</span>
+    </nav>
     <header class="approvals-header">
         <div>
             <h2>Case approvals</h2>

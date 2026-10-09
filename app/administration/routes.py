@@ -17,6 +17,7 @@ from app.audit import write_audit_log
 from app.db import query_all, query_one, transaction
 from app.security import roles_required
 from app.services.approval_settings import valid_email
+from app.services import company_profile as company_profile_service
 
 
 bp = Blueprint("administration", __name__, url_prefix="/administration")
@@ -490,8 +491,59 @@ def audit_record_url(record_type, record_id):
 @bp.get("/audit-log")
 @roles_required("System Administrator", "Auditor", "Group Head RA & Quality")
 def audit_log():
+    filters = {
+        "q": request.args.get("q", "").strip(),
+        "record_type": request.args.get("record_type", "").strip(),
+        "user": request.args.get("user", "").strip(),
+        "action": request.args.get("action", "").strip(),
+        "start": request.args.get("start", "").strip(),
+        "end": request.args.get("end", "").strip(),
+    }
+    try:
+        limit = min(max(int(request.args.get("limit", 250)), 50), 5000)
+    except ValueError:
+        limit = 250
+    where, parameters = _audit_filters(filters)
     entries = query_all(
-        """
+        f"""
+        SELECT * FROM (
+{AUDIT_ENTRIES_SQL}
+        ) AS filtered
+        {where}
+        ORDER BY filtered.occurred_at DESC
+        LIMIT %s
+        """,
+        (*parameters, limit),
+    )
+
+    entries = [
+        {
+            **entry,
+            "record_label": audit_record_label(entry["record_type"]),
+            "record_url": audit_record_url(
+                entry["record_type"], entry["record_id"]
+            ),
+        }
+        for entry in entries
+    ]
+
+    if request.args.get("export") == "csv":
+        return _audit_csv(entries)
+
+    options = _audit_filter_options()
+    return render_template(
+        "administration/audit_log.html",
+        entries=entries,
+        filters=filters,
+        any_filter=any(filters.values()),
+        limit=limit,
+        record_types=options["record_types"],
+        users=options["users"],
+        actions=options["actions"],
+    )
+
+
+AUDIT_ENTRIES_SQL = """
         SELECT
             entries.*,
             CASE
@@ -546,25 +598,91 @@ def audit_log():
             LEFT JOIN pv.users AS users
                 ON users.user_id = case_audit_log.performed_by
         ) AS entries
-        ORDER BY entries.occurred_at DESC
-        LIMIT 250
-        """
-    )
+"""
 
-    entries = [
-        {
-            **entry,
-            "record_label": audit_record_label(entry["record_type"]),
-            "record_url": audit_record_url(
-                entry["record_type"], entry["record_id"]
-            ),
-        }
-        for entry in entries
-    ]
 
-    return render_template(
-        "administration/audit_log.html",
-        entries=entries,
+def _audit_filters(filters):
+    clauses, parameters = [], []
+    if filters["record_type"]:
+        types = ["case", "safety_case"] if filters["record_type"] == "case" else [filters["record_type"]]
+        clauses.append("filtered.record_type = ANY(%s)")
+        parameters.append(types)
+    if filters["user"]:
+        if filters["user"] == "__system__":
+            clauses.append("filtered.full_name IS NULL")
+        else:
+            clauses.append("filtered.full_name = %s")
+            parameters.append(filters["user"])
+    if filters["action"]:
+        clauses.append("filtered.action = %s")
+        parameters.append(filters["action"])
+    for key, op in (("start", ">="), ("end", "<")):
+        if filters[key]:
+            try:
+                day = datetime.strptime(filters[key], "%Y-%m-%d").date()
+            except ValueError:
+                filters[key] = ""
+                continue
+            if key == "end":
+                from datetime import timedelta
+
+                day = day + timedelta(days=1)
+            clauses.append(f"filtered.occurred_at {op} %s")
+            parameters.append(day)
+    if filters["q"]:
+        like = "%" + filters["q"].replace("%", r"\%").replace("_", r"\_") + "%"
+        clauses.append(
+            "(filtered.details ILIKE %s OR filtered.action ILIKE %s "
+            "OR COALESCE(filtered.record_reference, '') ILIKE %s "
+            "OR COALESCE(filtered.full_name, '') ILIKE %s)"
+        )
+        parameters.extend([like, like, like, like])
+    where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+    return where, parameters
+
+
+def _audit_filter_options():
+    try:
+        rows = query_all(
+            f"""
+            SELECT DISTINCT
+                CASE WHEN record_type = 'safety_case' THEN 'case' ELSE record_type END AS record_type,
+                full_name, action
+            FROM (
+{AUDIT_ENTRIES_SQL}
+            ) AS everything
+            """
+        )
+    except Exception:
+        return {"record_types": [], "users": [], "actions": []}
+    record_types = sorted({r["record_type"] for r in rows if r["record_type"]},
+                          key=lambda t: audit_record_label(t).lower())
+    return {
+        "record_types": [(t, audit_record_label(t)) for t in record_types],
+        "users": sorted({r["full_name"] for r in rows if r["full_name"]}, key=str.lower),
+        "actions": sorted({r["action"] for r in rows if r["action"]}, key=str.lower),
+    }
+
+
+def _audit_csv(entries):
+    import csv
+    from io import StringIO
+
+    from flask import Response
+
+    out = StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["Date and time", "Record type", "Record", "Action", "Performed by", "Details"])
+    for e in entries:
+        writer.writerow([
+            e["occurred_at"].strftime("%Y-%m-%d %H:%M:%S") if e.get("occurred_at") else "",
+            e["record_label"], e.get("record_reference") or (f"#{e['record_id']}" if e.get("record_id") else ""),
+            e.get("action") or "", e.get("full_name") or "System user", e.get("details") or "",
+        ])
+    return Response(
+        "\ufeff" + out.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={company_profile_service.file_prefix()}_audit_trail.csv"},
     )
 
 
@@ -758,3 +876,91 @@ def sign_off_settings():
         approvers=[p for p in people if p["role_name"] in settings["approver_roles"]],
         officers=[p for p in people if p["role_name"] in settings["officer_roles"]],
     )
+
+
+# --------------------------------------------------------------------------
+# Company profile: makes the platform reusable for another company
+# --------------------------------------------------------------------------
+
+def _company_labels():
+    from app.services.company_profile import FIELDS, PREFIX_FIELDS
+
+    labels = {key: label for key, label, _ in FIELDS}
+    labels.update({key: f"{label} number prefix" for key, label, _ in PREFIX_FIELDS})
+    labels.update({"brand_colour": "Brand colour", "logo_file": "Logo"})
+    return labels
+
+
+@bp.route("/company-profile", methods=["GET", "POST"])
+@roles_required("System Administrator")
+def company_profile():
+    """Company name, contacts, reference prefixes, logo and colour."""
+    from app.services import company_profile as cp
+
+    if request.method == "POST":
+        before = cp.load_profile()
+        values = {key: request.form.get(key, "") for key in cp.DEFAULTS if key != "logo_file"}
+        values["logo_file"] = before.get("logo_file", "")
+        problems = cp.problems(values)
+        upload = request.files.get("logo")
+        if not problems and upload and upload.filename:
+            try:
+                values["logo_file"] = cp.store_logo(upload)
+            except ValueError as error:
+                problems.append(str(error))
+        if request.form.get("remove_logo") == "on":
+            values["logo_file"] = ""
+        if problems:
+            for problem in problems:
+                flash(f"Nothing was saved. {problem}", "error")
+            return render_template(
+                "administration/company_profile.html",
+                profile={**before, **values},
+                fields=cp.FIELDS,
+                prefix_fields=cp.PREFIX_FIELDS,
+                defaults=cp.DEFAULTS,
+            )
+
+        after = cp.save_profile(values, session["user_id"])
+        labels = _company_labels()
+        changes = [
+            f"{labels.get(key, key)}: {before.get(key) or 'blank'} -> {after[key] or 'blank'}"
+            for key in after
+            if before.get(key) != after[key]
+        ]
+        write_audit_log(
+            record_type="settings",
+            record_id=0,
+            action="Company profile changed",
+            details="; ".join(changes) or "Saved with no changes.",
+            actor_user_id=session["user_id"],
+        )
+        if changes:
+            count = len(changes)
+            flash(f"Company profile saved ({count} change{'s' if count != 1 else ''}).", "success")
+        else:
+            flash("Company profile saved. Nothing had changed.", "success")
+        return redirect(url_for("administration.user_list"))
+
+    return render_template(
+        "administration/company_profile.html",
+        profile=cp.load_profile(),
+        fields=cp.FIELDS,
+        prefix_fields=cp.PREFIX_FIELDS,
+        defaults=cp.DEFAULTS,
+    )
+
+
+@bp.get("/company-logo")
+def company_logo():
+    """The uploaded logo (public: the sign-in page shows it)."""
+    from flask import send_file
+
+    from app.services.company_profile import LOGO_TYPES, logo_path
+
+    path = logo_path()
+    if not path:
+        abort(404)
+    response = send_file(path, mimetype=LOGO_TYPES.get(path.suffix.lower(), "application/octet-stream"))
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    return response

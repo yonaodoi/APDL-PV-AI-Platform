@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}PSUR Authoring | APDL PV{% endblock %}
+{% block title %}PSUR Authoring | {{ company.platform_name }}{% endblock %}
 {% block page_title %}PSUR Authoring{% endblock %}
 
 {% block content %}
@@ -25,7 +25,7 @@
         border:1px solid #ddd4e5;
         border-radius:8px;
         background:white;
-        color:#6242d7;
+        color:#145a40;
         font-size:12px;
         font-weight:bold;
         text-decoration:none;
@@ -33,13 +33,13 @@
 
     .home-header h2 {
         margin:0 0 7px;
-        color:#282037;
+        color:#183d34;
         font-size:27px;
     }
 
     .home-header p {
         margin:0;
-        color:#746d7d;
+        color:#6b7d75;
         font-size:14px;
         line-height:1.5;
     }
@@ -80,13 +80,13 @@
         padding:10px 12px;
         border:1px solid #e3d9ed;
         border-radius:9px;
-        background:#faf8ff;
+        background:#f8fbf9;
         color:#675b71;
         font-size:12px;
     }
 
     .summary-chip strong {
-        color:#5f3ed4;
+        color:#145a40;
     }
 
     .start-button,
@@ -102,13 +102,13 @@
     }
 
     .start-button {
-        background:#7656e8;
+        background:#145a40;
         box-shadow:0 7px 15px rgba(118,86,232,.2);
     }
 
     .preview-button {
         margin-right:10px;
-        background:#5f3ed4;
+        background:#145a40;
     }
 
     .download-button {
@@ -132,16 +132,16 @@
         border:1px solid #dcd2e5;
         border-radius:9px;
         background:white;
-        color:#5f3ed4;
+        color:#145a40;
         font-size:13px;
         font-weight:bold;
         text-decoration:none;
     }
 
     .category-button.active {
-        border-color:#7656e8;
-        background:#eee9ff;
-        color:#493273;
+        border-color:#145a40;
+        background:#eaf3ee;
+        color:#0b3d2c;
     }
 
     .section-group {
@@ -155,7 +155,7 @@
 
     .section-group-heading {
         padding:17px 20px;
-        border-bottom:1px solid #eee8ec;
+        border-bottom:1px solid #e7efea;
     }
 
     .section-group-heading h3 {
@@ -166,7 +166,7 @@
 
     .section-group-heading p {
         margin:0;
-        color:#746d7d;
+        color:#6b7d75;
         font-size:13px;
     }
 
@@ -176,7 +176,7 @@
         gap:14px;
         align-items:center;
         padding:14px 20px;
-        border-bottom:1px solid #f0ebee;
+        border-bottom:1px solid #eef3f0;
         color:#44394c;
         text-decoration:none;
     }
@@ -186,7 +186,7 @@
     }
 
     .section-row:hover {
-        background:#faf8ff;
+        background:#f8fbf9;
     }
 
     .section-row strong {
@@ -195,7 +195,7 @@
 
     .open-label {
         flex:none;
-        color:#6242d7;
+        color:#145a40;
         font-size:12px;
         font-weight:bold;
     }
@@ -252,7 +252,7 @@
         </h3>
 
         <p>
-            Each APDL template heading is completed one at a time. The response
+            Each {{ company.short_name }} template heading is completed one at a time. The response
             is saved before the next heading opens. Only saved responses are
             included in the final PSUR.
         </p>
@@ -343,7 +343,7 @@
             <h3>Ready for final review</h3>
             <p>
                 All template sections have saved content. Review the completed
-                PSUR, then download the Word document in the APDL format.
+                PSUR, then download the Word document in the {{ company.short_name }} format.
             </p>
 
             <div style="margin-top:18px;">

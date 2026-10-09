@@ -3,6 +3,7 @@ import re
 
 from app.services.llm import deidentify, describe_model, generate_text
 from app.services.reporting_clock import evaluate_reporting_clock
+from app.services.company_profile import platform as _co_platform, platform_name as _co_pv, short_name as _co_short
 
 
 SYSTEM_PROMPT = (
@@ -17,7 +18,7 @@ ASSESSMENT_SECTIONS = (
     "Case identification and validity",
     "Reported clinical event and chronology",
     "Suspected product and relevant medical context",
-    "Comparison with APDL Product Information",
+    "Comparison with {company} Product Information",
     "Comparison with innovator Reference Safety Information",
     "Reference safety assessment: listedness, expectedness and frequency",
     "Seriousness assessment",
@@ -200,7 +201,7 @@ def describe_assessment_progress(text_so_far):
         if 1 <= int(match.group(1)) <= len(ASSESSMENT_SECTIONS)
     ]
     section = max(numbers) if numbers else 0
-    title = ASSESSMENT_SECTIONS[section - 1] if section else ""
+    title = ASSESSMENT_SECTIONS[section - 1].replace("{company}", _co_short()) if section else ""
     return section, title, len((text_so_far or "").split())
 
 
@@ -259,7 +260,7 @@ clear English using exactly these headings:
 1. Case identification and validity
 2. Reported clinical event and chronology
 3. Suspected product and relevant medical context
-4. Comparison with APDL Product Information
+4. Comparison with {_co_short()} Product Information
 5. Comparison with innovator Reference Safety Information
 6. Reference safety assessment: listedness, expectedness and frequency
 7. Seriousness assessment

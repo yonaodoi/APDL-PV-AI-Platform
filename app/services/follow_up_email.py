@@ -26,7 +26,7 @@ def send_follow_up_email(app, recipient, subject, body, attachment, filename):
     message = EmailMessage()
     message["Subject"] = subject
     message["From"] = (
-        f"{app.config['SMTP_SENDER_NAME']} "
+        f"{_sender_name(app)} "
         f"<{app.config['SMTP_SENDER_EMAIL']}>"
     )
     message["To"] = recipient
@@ -75,3 +75,14 @@ def send_follow_up_email(app, recipient, subject, body, attachment, filename):
 def send_notification_email(app, recipient, subject, body):
     """Plain email without an attachment (approval notices)."""
     send_follow_up_email(app, recipient, subject, body, None, None)
+
+
+def _sender_name(app):
+    """Name shown on outgoing email: .env SMTP_SENDER_NAME, else the company's."""
+    configured = app.config.get("SMTP_SENDER_NAME")
+    if configured:
+        return configured
+    from app.services.company_profile import company
+
+    with app.app_context():
+        return f"{company()['short_name']} Pharmacovigilance"

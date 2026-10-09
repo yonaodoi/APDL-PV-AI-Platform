@@ -7,6 +7,7 @@ from app.services.llm import (
     generate_text,
 )
 from app.services.rsi_extraction import extract_reference_document_text
+from app.services.company_profile import platform as _co_platform, platform_name as _co_pv, short_name as _co_short
 
 
 MAX_DOCUMENT_BYTES = 20 * 1024 * 1024
@@ -112,7 +113,7 @@ Rules:
 - seriousness_criteria is the stated seriousness criterion, not your own
   assessment. Do not decide causality or seriousness.
 - product_name is the suspect product as reported. Do not assume a role.
-- Do not create an APDL ICSR Case ID. The user enters the assigned identifier.
+- Do not create an {_co_short()} ICSR Case ID. The user enters the assigned identifier.
 - For categorical fields, use these exact choices or null:
   source: Healthcare professional, Patient or consumer, Distributor,
   Literature, Regulatory authority, Other.

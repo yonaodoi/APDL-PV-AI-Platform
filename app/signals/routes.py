@@ -36,6 +36,7 @@ from app.services.signal_detection import (
 from app.services.safety_signal_assistance import (
     draft_safety_signal_assessment,
 )
+from app.services import company_profile as company_profile_service
 
 bp = Blueprint("signals", __name__, url_prefix="/signals")
 
@@ -791,16 +792,28 @@ def download_safety_signal_reporting_summary():
 
         editable_content = draft["report_content"]
 
-    report_file = build_safety_signal_reporting_docx(
-        signals=signals,
-        report_filters=report_filters,
-        editable_content=editable_content,
-    )
+    report_file = None
+    if not editable_content:
+        # An edited draft is printed as edited; otherwise use the template.
+        from app.services.report_fields import signal_summary_context
+        from app.services.report_templates import render_with_active
+
+        report_file, notice = render_with_active(
+            "signal_summary", lambda: signal_summary_context(signals, report_filters)
+        )
+        if notice:
+            flash(notice, "warning")
+    if report_file is None:
+        report_file = build_safety_signal_reporting_docx(
+            signals=signals,
+            report_filters=report_filters,
+            editable_content=editable_content,
+        )
 
     return send_file(
         report_file,
         as_attachment=True,
-        download_name="APDL_safety_signal_reporting_summary.docx",
+        download_name=f"{company_profile_service.file_prefix()}_safety_signal_reporting_summary.docx",
         mimetype=(
             "application/vnd.openxmlformats-officedocument."
             "wordprocessingml.document"

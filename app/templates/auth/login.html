@@ -8,7 +8,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Sign In | APDL PV AI Platform</title>
+    <title>Sign In | {{ company.platform_name }} AI Platform</title>
 
     <link
         rel="stylesheet"
@@ -20,10 +20,14 @@
     <main class="auth-card">
 
         <div class="brand">
-            <div class="brand-mark">+</div>
+            {% if company.logo_file %}
+                <img class="brand-mark" style="object-fit:contain;background:#fff;padding:4px;" src="{{ url_for('administration.company_logo', v=company.logo_file) }}" alt="{{ company.short_name }} logo">
+            {% else %}
+                <div class="brand-mark">+</div>
+            {% endif %}
 
             <div>
-                <div class="brand-name">APDL PV</div>
+                <div class="brand-name">{{ company.platform_name }}</div>
 
                 <div class="brand-subtitle">
                     Pharmacovigilance AI Platform
@@ -37,7 +41,7 @@
             <h1>Welcome back</h1>
 
             <p>
-                Sign in to access the APDL
+                Sign in to access the {{ company.short_name }}
                 Pharmacovigilance AI Platform.
             </p>
         </div>
@@ -104,7 +108,7 @@
         </form>
 
         <p class="auth-footer">
-            Authorised APDL users only
+            Authorised {{ company.short_name }} users only
         </p>
     </main>
 

@@ -1,4 +1,5 @@
 from app.db import query_all
+from app.services.company_profile import platform as _co_platform, platform_name as _co_pv, short_name as _co_short
 
 
 def _display_date(value):
@@ -12,7 +13,7 @@ def _case_lines(cases):
     if not cases:
         return (
             "No ADR cases for this product were recorded in the "
-            "APDL PV platform during the reporting interval."
+            f"{_co_platform()} during the reporting interval."
         )
 
     return "\n\n".join(
@@ -32,7 +33,7 @@ def _complaint_lines(complaints):
     if not complaints:
         return (
             "No product complaints for this product were recorded "
-            "in the APDL PV platform during the reporting interval."
+            f"in the {_co_platform()} during the reporting interval."
         )
 
     return "\n\n".join(
@@ -50,7 +51,7 @@ def _signal_lines(signals):
     if not signals:
         return (
             "No safety signals for this product were recorded in the "
-            "APDL PV platform during the reporting interval."
+            f"{_co_platform()} during the reporting interval."
         )
 
     return "\n\n".join(
@@ -75,7 +76,7 @@ def safety_action_lines(signals, product_name, period):
     if not decided:
         return (
             f"No actions taken for safety reasons for {product_name} were "
-            f"recorded in the APDL PV platform during {period}. No signal "
+            f"recorded in the {_co_platform()} during {period}. No signal "
             "evaluation in the interval recorded a decision or action."
         )
     lines = [
@@ -95,7 +96,7 @@ def _rsi_lines(rsi_documents):
     if not rsi_documents:
         return (
             "No change to the reference safety information for this "
-            "product was recorded in the APDL PV platform during the "
+            f"product was recorded in the {_co_platform()} during the "
             "reporting interval. The QPPV should confirm whether any "
             "approved product-information update, safety variation or "
             "other reference-document revision applies before the "
@@ -130,7 +131,7 @@ def rsi_appendix_text(product_name, current_documents):
     if not current_documents:
         return (
             f"No current reference safety information for {product_name} "
-            "is recorded in the APDL PV platform. Add the approved "
+            f"is recorded in the {_co_platform()}. Add the approved "
             "reference document under Reference Safety Information, or "
             "attach it to this PSUR manually, before the report is finalised."
         )
@@ -343,7 +344,7 @@ def build_psur_evidence_sections(report):
         f"This Periodic Benefit-Risk Evaluation Report covered "
         f"{product_name}, containing {active_substances}, for the "
         f"period {period}. {product_name} was recorded for "
-        f"{therapeutic_indication}. The APDL PV platform contained "
+        f"{therapeutic_indication}. The {_co_platform()} contained "
         f"{total_cases} ADR case(s), including {serious_cases} serious "
         f"case(s), {len(complaints)} market complaint(s), and "
         f"{len(signals)} safety signal(s). {automated_signals} signal(s) "
@@ -380,7 +381,7 @@ def build_psur_evidence_sections(report):
     exposure = (
         f"No validated patient-exposure, sales, distribution or "
         f"prescription denominator for {product_name} was available "
-        f"in the APDL PV platform for the period {period}. "
+        f"in the {_co_platform()} for the period {period}. "
         "Exposure-adjusted reporting rates and comparisons were "
         "therefore not calculated."
     )
@@ -392,7 +393,7 @@ def build_psur_evidence_sections(report):
         f"The product was recorded for {therapeutic_indication}, and "
         f"its mechanism of action was recorded as {mechanism_of_action}. "
         "No final integrated benefit-risk conclusion had been entered "
-        "in the APDL PV platform at the time this report was prepared."
+        f"in the {_co_platform()} at the time this report was prepared."
     )
 
     conclusion = (
@@ -401,7 +402,7 @@ def build_psur_evidence_sections(report):
         f"{len(complaints)} market complaint(s) and {len(signals)} "
         "safety signal(s). No final product-specific conclusion or "
         "documented risk-minimisation action had been entered in the "
-        "APDL PV platform at the time this report was prepared."
+        f"{_co_platform()} at the time this report was prepared."
     )
 
     from app.services.psur_tabulations import (
@@ -422,7 +423,7 @@ def build_psur_evidence_sections(report):
             f"{period}. The product was recorded for "
             f"{therapeutic_indication}. The evaluation incorporated "
             "ADR cases, market complaints, signal-screening outcomes "
-            "and reference safety information available in the APDL "
+            f"and reference safety information available in the {_co_short()} "
             "PV platform."
         ),
         "marketing_authorisation_status": (

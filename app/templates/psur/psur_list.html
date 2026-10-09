@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}PSURs | APDL PV{% endblock %}
+{% block title %}PSURs | {{ company.platform_name }}{% endblock %}
 
 {% block page_title %}PSURs{% endblock %}
 
@@ -16,21 +16,21 @@
 
     .psur-header h2 {
         margin: 0 0 7px;
-        color: #282037;
+        color: #183d34;
         font-size: 28px;
         letter-spacing: -0.5px;
     }
 
     .psur-header p {
         margin: 0;
-        color: #746d7d;
+        color: #6b7d75;
         font-size: 14px;
     }
 
     .new-psur-button {
         padding: 12px 17px;
         border-radius: 9px;
-        background: #7656e8;
+        background: #145a40;
         color: white;
         font-size: 14px;
         font-weight: bold;
@@ -50,18 +50,18 @@
         border: 1px solid #e6deeb;
         border-radius: 9px;
         background: white;
-        color: #655c6a;
+        color: #5c6f67;
         font-size: 12px;
     }
 
     .summary-chip strong {
         margin-right: 4px;
-        color: #5f3ed4;
+        color: #145a40;
     }
 
     .psur-register {
         overflow: hidden;
-        border: 1px solid #e9e2e7;
+        border: 1px solid #dce8e1;
         border-radius: 14px;
         background: white;
         box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);
@@ -73,17 +73,17 @@
         gap: 16px;
         align-items: center;
         padding: 16px 20px;
-        border-bottom: 1px solid #eee8ec;
+        border-bottom: 1px solid #e7efea;
     }
 
     .register-toolbar h3 {
         margin: 0;
-        color: #403748;
+        color: #244a3d;
         font-size: 15px;
     }
 
     .register-toolbar span {
-        color: #8a818f;
+        color: #71817a;
         font-size: 12px;
     }
 
@@ -94,8 +94,8 @@
 
     .psur-table th {
         padding: 13px 20px;
-        color: #918896;
-        background: #fffdfe;
+        color: #7d8d86;
+        background: #fbfdfc;
         font-size: 10px;
         letter-spacing: 0.6px;
         text-align: left;
@@ -104,15 +104,15 @@
 
     .psur-table td {
         padding: 16px 20px;
-        border-top: 1px solid #f0ebee;
-        color: #5c5365;
+        border-top: 1px solid #eef3f0;
+        color: #2f4b40;
         font-size: 13px;
         vertical-align: top;
     }
 
     .psur-number,
     .product-name {
-        color: #49366d;
+        color: #0b3d2c;
         font-weight: bold;
     }
 
@@ -125,15 +125,15 @@
         display: inline-block;
         padding: 5px 9px;
         border-radius: 20px;
-        background: #eee9ff;
-        color: #6242d7;
+        background: #eaf3ee;
+        color: #145a40;
         font-size: 11px;
         font-weight: bold;
     }
 
     .empty-state {
         padding: 60px 25px;
-        color: #827988;
+        color: #71817a;
         text-align: center;
     }
 
@@ -144,8 +144,8 @@
         place-items: center;
         margin: 0 auto 13px;
         border-radius: 12px;
-        background: #eee9ff;
-        color: #7656e8;
+        background: #eaf3ee;
+        color: #145a40;
         font-size: 22px;
         font-weight: bold;
     }
@@ -163,7 +163,7 @@
     .psur-filter {
         margin-bottom:20px;
         padding:17px;
-        border:1px solid #e9e2e7;
+        border:1px solid #dce8e1;
         border-radius:14px;
         background:white;
         box-shadow:0 5px 12px rgba(40,32,55,.025);
@@ -179,7 +179,7 @@
     .filter-field label {
         display:block;
         margin-bottom:6px;
-        color:#554d5d;
+        color:#4b6158;
         font-size:11px;
         font-weight:bold;
     }
@@ -188,10 +188,10 @@
         width:100%;
         box-sizing:border-box;
         padding:10px;
-        border:1px solid #ddd5dc;
+        border:1px solid #d5e2d9;
         border-radius:8px;
-        background:#fffeff;
-        color:#322a3b;
+        background:#fbfdfc;
+        color:#244a3d;
         font:inherit;
         font-size:13px;
     }
@@ -200,7 +200,7 @@
         padding:11px 15px;
         border:0;
         border-radius:8px;
-        background:#5f3ed4;
+        background:#145a40;
         color:white;
         font-size:13px;
         font-weight:bold;

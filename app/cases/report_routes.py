@@ -2,6 +2,7 @@ import json
 from flask import (
     Blueprint,
     abort,
+    flash,
     render_template,
     request,
     send_file,
@@ -15,6 +16,7 @@ from app.services.adr_report import generate_adr_report
 from app.services.safety_case_reporting_docx import (
     build_safety_case_reporting_docx,
 )
+from app.services import company_profile as company_profile_service
 
 
 bp = Blueprint("case_reports", __name__, url_prefix="/cases")
@@ -45,6 +47,20 @@ def download_adr_report(case_id):
         """,
         (case_id,),
     )
+
+    from app.services.report_fields import case_context
+    from app.services.report_templates import render_with_active
+
+    templated, notice = render_with_active("case_report", lambda: case_context(case_id))
+    if notice:
+        flash(notice, "warning")
+    if templated is not None:
+        return send_file(
+            templated,
+            as_attachment=True,
+            download_name=f"ICSR_{case['case_number']}.docx",
+            mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
 
     if product is None:
         abort(404)
@@ -192,16 +208,28 @@ def download_safety_case_reporting_summary():
 
         editable_content = draft["report_content"]
 
-    report_file = build_safety_case_reporting_docx(
-        cases=cases,
-        report_filters=report_filters,
-        editable_content=editable_content,
-    )
+    report_file = None
+    if not editable_content:
+        # An edited draft is printed as edited; otherwise use the template.
+        from app.services.report_fields import case_summary_context
+        from app.services.report_templates import render_with_active
+
+        report_file, notice = render_with_active(
+            "case_summary", lambda: case_summary_context(cases, report_filters)
+        )
+        if notice:
+            flash(notice, "warning")
+    if report_file is None:
+        report_file = build_safety_case_reporting_docx(
+            cases=cases,
+            report_filters=report_filters,
+            editable_content=editable_content,
+        )
 
     return send_file(
         report_file,
         as_attachment=True,
-        download_name="APDL_safety_case_reporting_summary.docx",
+        download_name=f"{company_profile_service.file_prefix()}_safety_case_reporting_summary.docx",
         mimetype=(
             "application/vnd.openxmlformats-officedocument."
             "wordprocessingml.document"

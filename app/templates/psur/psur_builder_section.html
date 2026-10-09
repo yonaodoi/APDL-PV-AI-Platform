@@ -25,7 +25,7 @@
         border:1px solid #ddd4e5;
         border-radius:8px;
         background:white;
-        color:#6242d7;
+        color:#145a40;
         font-size:12px;
         font-weight:bold;
         text-decoration:none;
@@ -33,22 +33,22 @@
 
     .authoring-header h2 {
         margin:0 0 6px;
-        color:#282037;
+        color:#183d34;
         font-size:25px;
     }
 
     .authoring-header p {
         margin:0;
-        color:#746d7d;
+        color:#6b7d75;
         font-size:13px;
     }
 
     .progress-card {
         margin-bottom:18px;
         padding:14px 16px;
-        border:1px solid #e3d9ef;
+        border:1px solid #cfe0d6;
         border-radius:12px;
-        background:#faf8ff;
+        background:#f8fbf9;
     }
 
     .progress-label {
@@ -72,7 +72,7 @@
         display:block;
         height:100%;
         border-radius:inherit;
-        background:#7656e8;
+        background:#145a40;
     }
 
     .section-card {
@@ -85,14 +85,14 @@
 
     .section-prompt {
         padding:20px 22px;
-        border-bottom:1px solid #eee8ec;
+        border-bottom:1px solid #e7efea;
         background:#f8f5ff;
     }
 
     .section-number {
         display:inline-block;
         margin-bottom:8px;
-        color:#7656e8;
+        color:#145a40;
         font-size:11px;
         font-weight:bold;
         letter-spacing:.8px;
@@ -120,7 +120,7 @@
     .field-label {
         display:block;
         margin-bottom:8px;
-        color:#554d5d;
+        color:#4b6158;
         font-size:12px;
         font-weight:bold;
         letter-spacing:.3px;
@@ -141,8 +141,8 @@
 
     .narrative-input:focus {
         outline:none;
-        border-color:#9f88ed;
-        box-shadow:0 0 0 3px #eee9ff;
+        border-color:#4f9c78;
+        box-shadow:0 0 0 3px #eaf3ee;
     }
 
     .response-note {
@@ -164,7 +164,7 @@
         padding:12px 18px;
         border:0;
         border-radius:9px;
-        background:#7656e8;
+        background:#145a40;
         color:white;
         font-size:13px;
         font-weight:bold;
@@ -177,12 +177,12 @@
         padding:17px;
         border:1px solid #dfd5fb;
         border-radius:11px;
-        background:#faf8ff;
+        background:#f8fbf9;
     }
 
     .ai-assistant h4 {
         margin:0 0 6px;
-        color:#493273;
+        color:#0b3d2c;
         font-size:14px;
     }
 
@@ -198,7 +198,7 @@
         padding:9px 12px;
         border:0;
         border-radius:8px;
-        background:#5f3ed4;
+        background:#145a40;
         color:white;
         font-size:12px;
         font-weight:bold;
@@ -215,7 +215,7 @@
 
     .proposal-card h4 {
         margin:0 0 10px;
-        color:#493273;
+        color:#0b3d2c;
         font-size:13px;
     }
 
@@ -277,6 +277,12 @@
 </style>
 
 <section class="authoring-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('psur.psur_list') }}">PSURs</a><span class="sep">›</span>
+        <a href="{{ url_for('psur.psur_detail', psur_id=report.psur_id) }}">{{ report.report_number }}</a><span class="sep">›</span>
+        <a href="{{ url_for('psur_builder.psur_builder_home', psur_id=report.psur_id) }}">Builder</a><span class="sep">›</span>
+        <span>{{ section.section_title }}</span>
+    </nav>
     <header class="authoring-header">
         <div>
             <h2>PSUR section authoring</h2>
@@ -308,7 +314,7 @@
     <section class="section-card">
         <div class="section-prompt">
             <span class="section-number">
-                APDL PSUR template section {{ section.section_order }}
+                {{ company.short_name }} PSUR template section {{ section.section_order }}
             </span>
             <h3>{{ section.section_title }}</h3>
             <p>
@@ -351,7 +357,7 @@
 
             <p class="response-note">
                 Saved content is inserted under this exact heading in the final
-                APDL PSUR template.
+                {{ company.short_name }} PSUR template.
             </p>
 
             <div class="navigation-row">
@@ -384,7 +390,7 @@
         <section class="ai-assistant">
             <h4>AI-assisted section authoring</h4>
             <p>
-                Start with an evidence-based proposal from APDL records, then
+                Start with an evidence-based proposal from {{ company.short_name }} records, then
                 use AI to improve your saved response. Proposed content is not
                 placed in the section unless you explicitly accept it. Verify
                 every statement against the source evidence before use.

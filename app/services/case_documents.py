@@ -22,13 +22,29 @@ from app.db import get_db, query_all, query_one, transaction
 DOCUMENT_TYPES = (
     ("rsi_innovator", "RSI – Innovator reference safety information"),
     ("rsi_smpc", "RSI – SmPC / product label"),
-    ("rsi_apdl", "RSI – APDL product information"),
+    ("rsi_apdl", "RSI – {company} product information"),
     ("source_report", "Source report (ADR form, CIOMS, email)"),
     ("follow_up", "Follow-up response"),
     ("clinical", "Lab results / medical records"),
     ("other", "Other"),
 )
 DOCUMENT_TYPE_LABELS = dict(DOCUMENT_TYPES)
+
+
+def document_types():
+    """Upload categories, with the company's own name filled in."""
+    from app.services.company_profile import short_name
+
+    return tuple((value, label.replace("{company}", short_name())) for value, label in DOCUMENT_TYPES)
+
+
+def rsi_document_type(category):
+    """Reference library document type for an RSI upload category."""
+    if category == "rsi_apdl":
+        from app.services.company_profile import short_name
+
+        return f"{short_name()} Product Information"
+    return RSI_DOCUMENT_TYPES[category]
 
 RSI_DOCUMENT_TYPES = {
     "rsi_innovator": "Innovator Reference Safety Information",
@@ -48,7 +64,7 @@ STATUS_RSI = "Added to reference library"
 
 
 def document_type_label(value):
-    return DOCUMENT_TYPE_LABELS.get(value or "other", "Other")
+    return dict(document_types()).get(value or "other", "Other")
 
 
 # --------------------------------------------------------------------------
@@ -344,7 +360,7 @@ def add_rsi_from_attachment(attachment, case_id, file_path, actor_user_id):
             "on this case first."
         )
 
-    document_type = RSI_DOCUMENT_TYPES[attachment["document_type"]]
+    document_type = rsi_document_type(attachment["document_type"])
     # Supersede the current document of the same type for this product by
     # reusing its market; otherwise use the case's country.
     same_type = query_one(

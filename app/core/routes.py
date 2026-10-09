@@ -8,6 +8,7 @@ from app.security import login_required
 from app.services.regulatory_reporting_docx import (
     build_regulatory_reporting_docx,
 )
+from app.services import company_profile as company_profile_service
 
 bp = flask.Blueprint("core", __name__)
 
@@ -56,7 +57,7 @@ def dashboard():
 def health():
     return flask.jsonify(
         status="ok",
-        service="APDL PV AI Platform",
+        service=f"{company_profile_service.company()['platform_name']} AI Platform",
     )
 
 
@@ -435,7 +436,7 @@ def regulatory_reporting():
         )
 
         filename = (
-            "APDL_regulatory_reporting_summary_"
+            f"{company_profile_service.file_prefix()}_regulatory_reporting_summary_"
             f"{start_date.strftime('%Y%m%d')}_"
             f"to_{end_date.strftime('%Y%m%d')}.docx"
         )
@@ -616,7 +617,7 @@ def download_regulatory_reporting_csv():
 
     writer.writerow(
         [
-            "APDL Regulatory Reporting Data Export",
+            f"{company_profile_service.short_name()} Regulatory Reporting Data Export",
             f"{start_date.isoformat()} to {end_date.isoformat()}",
             selected_product or "All products",
         ]
@@ -648,7 +649,7 @@ def download_regulatory_reporting_csv():
         )
 
     filename = (
-        "APDL_regulatory_reporting_"
+        f"{company_profile_service.file_prefix()}_regulatory_reporting_"
         f"{start_date.strftime('%Y%m%d')}_"
         f"to_{end_date.strftime('%Y%m%d')}.csv"
     )
@@ -731,7 +732,7 @@ def analytics_metric_detail(metric_key):
         "total-cases": {
             "title": "Total safety cases",
             "description": (
-                "All safety cases recorded in the APDL PV platform."
+                f"All safety cases recorded in the {company_profile_service.platform()}."
             ),
             "sql": """
                 SELECT

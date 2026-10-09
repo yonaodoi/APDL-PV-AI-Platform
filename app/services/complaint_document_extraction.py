@@ -7,6 +7,7 @@ from app.services.llm import (
     generate_text,
 )
 from app.services.rsi_extraction import extract_reference_document_text
+from app.services.company_profile import platform as _co_platform, platform_name as _co_pv, short_name as _co_short
 
 
 MAX_DOCUMENT_BYTES = 20 * 1024 * 1024
@@ -71,7 +72,7 @@ Rules:
   investigation findings.
 - Only extract severity if explicitly stated; do not infer severity.
 - Use ISO YYYY-MM-DD for dates.
-- Do not invent the APDL Complaint ID; it must be entered by the user.
+- Do not invent the {_co_short()} Complaint ID; it must be entered by the user.
 - complaint_category must be one of Product quality, Packaging, Labelling,
   Adverse event, Other, or null.
 - severity must be Non-serious, Serious, or null.

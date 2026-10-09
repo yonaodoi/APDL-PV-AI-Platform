@@ -23,6 +23,7 @@ from app.services.psur_builder_ai import (
 from app.services.psur_builder_docx import (
     build_psur_builder_docx,
 )
+from app.services import company_profile as company_profile_service
 bp = Blueprint("psur_builder", __name__, url_prefix="/psur")
 
 
@@ -668,13 +669,29 @@ def download_psur_builder_report(psur_id):
         (psur_builder_id,),
     )
 
-    report_file = build_psur_builder_docx(
-        report=report,
-        sections=sections,
-    )
+    def psur_template_context():
+        from app.services.psur_tabulations import build_report_tabulation
+        from app.services.report_fields import psur_context
+
+        try:
+            tabulation = build_report_tabulation(report)
+        except Exception:
+            tabulation = None
+        return psur_context(report, sections, tabulation)
+
+    from app.services.report_templates import render_with_active
+
+    report_file, notice = render_with_active("psur", psur_template_context)
+    if notice:
+        flash(notice, "warning")
+    if report_file is None:
+        report_file = build_psur_builder_docx(
+            report=report,
+            sections=sections,
+        )
 
     filename = (
-        "APDL_PBRER_"
+        f"{company_profile_service.file_prefix()}_PBRER_"
         f"{report['report_number']}.docx"
     )
 

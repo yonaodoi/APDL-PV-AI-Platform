@@ -1,4 +1,4 @@
-from flask import Blueprint, abort, render_template, send_file
+from flask import Blueprint, abort, flash, render_template, send_file
 
 from app.db import query_all, query_one
 from app.services.psur_report import generate_psur_report
@@ -67,6 +67,38 @@ def download_psur_report(psur_id):
 
     if not report:
         abort(404)
+
+    def psur_template_context():
+        from app.services.psur_tabulations import build_report_tabulation
+        from app.services.report_fields import psur_context
+
+        sections = query_all(
+            """
+            SELECT section_key AS section_title, content
+            FROM pv.psur_section_entries
+            WHERE psur_id = %s AND content IS NOT NULL AND BTRIM(content) <> ''
+            ORDER BY section_key
+            """,
+            (psur_id,),
+        )
+        try:
+            tabulation = build_report_tabulation(report)
+        except Exception:
+            tabulation = None
+        return psur_context(report, sections, tabulation)
+
+    from app.services.report_templates import render_with_active
+
+    templated, notice = render_with_active("psur", psur_template_context)
+    if notice:
+        flash(notice, "warning")
+    if templated is not None:
+        return send_file(
+            templated,
+            as_attachment=True,
+            download_name=f"PSUR_{report.get('report_number') or psur_id}.docx",
+            mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
 
     output_path = generate_psur_report(report)
 

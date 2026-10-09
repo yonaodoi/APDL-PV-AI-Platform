@@ -1,11 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Case Review Queue | APDL PV{% endblock %}
+{% block title %}Case Review Queue | {{ company.platform_name }}{% endblock %}
 
 {% block page_title %}Case Review Queue{% endblock %}
 
 {% block content %}
 <section class="review-queue-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb" style="margin-bottom:12px;">
+        <a href="{{ url_for('cases.case_list') }}">Safety cases</a><span class="sep">›</span><span>Review queue</span>
+    </nav>
 <header class="review-queue-header">
     <div>
         <h2>Case review queue</h2>

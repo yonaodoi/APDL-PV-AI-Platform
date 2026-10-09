@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Marker guide | Report Templates | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Report Templates{% endblock %}
+
+{% macro marker(name) %}<code class="ui-code" title="Click to copy" data-copy="{{ '{{' }}{{ name }}{{ '}}' }}">{{ '{{' }}{{ name }}{{ '}}' }}</code>{% endmacro %}
+
+{% block content %}
+<section class="ui-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('report_templates.template_list') }}">Report templates</a><span class="sep">›</span>
+        <span>Marker guide: {{ spec.label }}</span>
+    </nav>
+
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Marker guide</p>
+            <h1>{{ spec.label }}</h1>
+            <p>Type these markers in your Word template where the data should appear. Click a marker to copy it. Formatting (fonts, bold, tables, logos, headers and footers) is kept exactly as you design it.</p>
+        </div>
+        <div class="actions">
+            <a href="{{ url_for('report_templates.template_list') }}#type-{{ report_type }}">Back to templates</a>
+        </div>
+    </header>
+
+    <article class="ui-card">
+        <h2>How it works</h2>
+        <ul class="ui-list">
+            <li><strong>A value:</strong> “Patient initials: {{ marker('case.patient_initials') }}”. If the case has no initials, the whole line is removed.</li>
+            <li><strong>A table of several items:</strong> make a header row, then one row with markers such as {{ marker('products.product_name') }} in its cells. That row is repeated for each item; with no items the table is removed.</li>
+            <li><strong>A section that may be empty or repeat:</strong> put {{ marker('#events') }} alone on a line before it and {{ marker('/events') }} alone on a line after it. Inside, use {{ marker('events.term') }} or simply {{ marker('term') }}. Put the section heading inside the markers if the heading should disappear with it.</li>
+            <li><strong>Tidying is automatic:</strong> empty lines, empty table rows, and headings whose section has no data are removed; typed heading numbers (1., 2., 3.) are closed up.</li>
+            <li><strong>No markers?</strong> Upload the plain form and choose “Map it for me (AI)” – you check the suggested places before anything is used.</li>
+        </ul>
+    </article>
+
+    <article class="ui-card">
+        <h2>Single values</h2>
+        <table class="ui-table">
+            <thead><tr><th>Marker</th><th>Prints</th></tr></thead>
+            <tbody>
+                {% for name, label in spec.fields.items() %}
+                    <tr><td>{{ marker(name) }}</td><td>{{ label }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </article>
+
+    {% for list_name, info in spec.lists.items() %}
+        <article class="ui-card">
+            <h2>{{ info.label }}</h2>
+            <p class="sub">Use in a table row, or between {{ marker('#' ~ list_name) }} and {{ marker('/' ~ list_name) }}.</p>
+            <table class="ui-table">
+                <thead><tr><th>Marker</th><th>Prints</th></tr></thead>
+                <tbody>
+                    {% for sub, label in info.fields.items() %}
+                        <tr><td>{{ marker(list_name ~ '.' ~ sub) }}</td><td>{{ label }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </article>
+    {% endfor %}
+
+    <article class="ui-card">
+        <h2>Other reports</h2>
+        <div class="ui-actions" style="margin-top:4px;">
+            {% for key, other in report_types.items() if key != report_type %}
+                <a class="ui-btn small" href="{{ url_for('report_templates.marker_guide', report_type=key) }}">{{ other.label }}</a>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+<style>
+    code[data-copy] { cursor: pointer; }
+    code.copied { background: #e3f4ea; }
+</style>
+<script>
+    document.querySelectorAll("code[data-copy]").forEach(function (el) {
+        el.addEventListener("click", function () {
+            if (navigator.clipboard) navigator.clipboard.writeText(el.dataset.copy);
+            el.classList.add("copied");
+            setTimeout(function () { el.classList.remove("copied"); }, 900);
+        });
+    });
+</script>
+{% endblock %}

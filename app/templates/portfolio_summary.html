@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}PV Portfolio Summary | APDL PV{% endblock %}
+{% block title %}PV Portfolio Summary | {{ company.platform_name }}{% endblock %}
 
 {% block page_title %}PV Portfolio Summary{% endblock %}
 
@@ -21,22 +21,22 @@
 
     .summary-header h1 {
         margin: 0 0 7px;
-        color: #282037;
+        color: #183d34;
         font-size: 28px;
     }
 
     .summary-header p {
         margin: 0;
-        color: #746d7d;
+        color: #6b7d75;
         font-size: 14px;
     }
 
     .back-link {
         padding: 11px 15px;
-        border: 1px solid #e1d9e6;
+        border: 1px solid #d5e2d9;
         border-radius: 9px;
         background: white;
-        color: #6242d7;
+        color: #145a40;
         font-size: 13px;
         font-weight: bold;
         text-decoration: none;
@@ -51,7 +51,7 @@
 
     .summary-card {
         overflow: hidden;
-        border: 1px solid #e9e2e7;
+        border: 1px solid #dce8e1;
         border-radius: 14px;
         background: white;
         box-shadow: 0 5px 12px rgba(40, 32, 55, 0.035);
@@ -63,18 +63,18 @@
         gap: 15px;
         align-items: center;
         padding: 17px 20px;
-        border-bottom: 1px solid #eee8ec;
+        border-bottom: 1px solid #e7efea;
         background: #fdfbfe;
     }
 
     .summary-card-header h2 {
         margin: 0;
-        color: #3d3546;
+        color: #244a3d;
         font-size: 15px;
     }
 
     .summary-card-header a {
-        color: #7656e8;
+        color: #145a40;
         font-size: 12px;
         font-weight: bold;
         text-decoration: none;
@@ -90,7 +90,7 @@
         gap: 15px;
         align-items: center;
         padding: 14px 0;
-        border-bottom: 1px solid #f0ebee;
+        border-bottom: 1px solid #eef3f0;
     }
 
     .status-row:last-child {
@@ -98,7 +98,7 @@
     }
 
     .status-name {
-        color: #5c5365;
+        color: #2f4b40;
         font-size: 13px;
     }
 
@@ -106,8 +106,8 @@
         min-width: 31px;
         padding: 5px 9px;
         border-radius: 20px;
-        background: #eee9ff;
-        color: #6242d7;
+        background: #eaf3ee;
+        color: #145a40;
         font-size: 12px;
         font-weight: bold;
         text-align: center;

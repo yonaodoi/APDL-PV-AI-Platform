@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Product Quality Complaint | {{ complaint.complaint_number }} | APDL PV{% endblock %}
+{% block title %}Product Quality Complaint | {{ complaint.complaint_number }} | {{ company.platform_name }}{% endblock %}
 
 {% block page_title %}Product Quality Complaint{% endblock %}
 
@@ -23,7 +23,7 @@
     .back-link {
         display: inline-block;
         margin-bottom: 14px;
-        color: #7656e8;
+        color: #145a40;
         font-size: 13px;
         font-weight: 800;
         text-decoration: none;
@@ -31,14 +31,14 @@
 
     .detail-header h1 {
         margin: 0 0 7px;
-        color: #282037;
+        color: #183d34;
         font-size: 29px;
         letter-spacing: -0.6px;
     }
 
     .detail-header p {
         margin: 0;
-        color: #746d7d;
+        color: #6b7d75;
         font-size: 14px;
     }
 
@@ -60,7 +60,7 @@
     }
 
     .status-pill {
-        background: #eee9ff;
+        background: #eaf3ee;
         color: #6745dc;
     }
 
@@ -85,7 +85,7 @@
     .review-card,
     .status-card {
         overflow: hidden;
-        border: 1px solid #e9e2e8;
+        border: 1px solid #dce8e1;
         border-radius: 15px;
         background: #ffffff;
         box-shadow: 0 7px 18px rgba(50, 37, 67, 0.04);
@@ -100,7 +100,7 @@
         gap: 12px;
         align-items: flex-start;
         padding: 20px 22px 16px;
-        border-bottom: 1px solid #eee9ee;
+        border-bottom: 1px solid #e7efea;
     }
 
     .section-number {
@@ -110,8 +110,8 @@
         place-items: center;
         flex: 0 0 27px;
         border-radius: 8px;
-        background: #eee9ff;
-        color: #6847dc;
+        background: #eaf3ee;
+        color: #145a40;
         font-size: 12px;
         font-weight: 800;
     }
@@ -177,7 +177,7 @@
         margin: 0;
         padding: 17px 19px;
         border-bottom: 1px solid #eee8f1;
-        background: #faf8ff;
+        background: #f8fbf9;
         color: #493760;
         font-size: 14px;
     }
@@ -230,7 +230,7 @@
         padding: 12px 14px;
         border: 0;
         border-radius: 9px;
-        background: #7656e8;
+        background: #145a40;
         color: #ffffff;
         font-size: 13px;
         font-weight: 800;
@@ -244,7 +244,7 @@
 
     .status-row {
         padding: 14px 0;
-        border-bottom: 1px solid #eee9ee;
+        border-bottom: 1px solid #e7efea;
     }
 
     .status-row:last-child {
@@ -305,7 +305,7 @@
         margin-bottom: 6px;
     }
     .close-check li a {
-        color: #6242d7;
+        color: #145a40;
         font-weight: bold;
         text-decoration: none;
     }
@@ -347,7 +347,7 @@
     }
     .drafted-note p {
         margin: 0 0 8px;
-        color: #776e7d;
+        color: #6b7d75;
         font-size: 11px;
     }
     .drafted-note textarea {
@@ -364,9 +364,9 @@
         resize: vertical;
     }
     .drafted-note button {
-        border: 1px solid #ded6e5;
+        border: 1px solid #cfe0d6;
         background: white;
-        color: #6242d7;
+        color: #145a40;
     }
     .review-card button[disabled],
     .review-card input[type="submit"][disabled] {
@@ -406,11 +406,12 @@
 </style>
 
 <section class="complaint-detail-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('complaints.complaint_list') }}">Product quality complaints</a><span class="sep">›</span>
+        <span>{{ complaint.complaint_number }}</span>
+    </nav>
     <header class="detail-header">
         <div>
-            <a class="back-link" href="{{ url_for('complaints.complaint_list') }}">
-                ← Back to product quality complaints
-            </a>
 
             <h1>{{ complaint.complaint_number }}</h1>
             <p>
@@ -424,6 +425,19 @@
             <span class="severity-pill {% if complaint.severity in ('Serious', 'Critical') %}severity-serious{% endif %}">
                 {{ complaint.severity }}
             </span>
+            <div class="ui-actions" style="margin-top:0;">
+                <a class="ui-btn primary small" href="#investigation-panel">Investigation</a>
+                <details class="ui-menu">
+                    <summary aria-label="More actions for this complaint" title="More actions">⋯</summary>
+                    <div class="menu">
+                        <a href="{{ url_for('complaints.edit_complaint', complaint_id=complaint.complaint_id) }}">Edit complaint</a>
+                        {% if complaint.linked_case_id %}<a href="{{ url_for('cases.case_detail', case_id=complaint.linked_case_id) }}">Open the linked safety case</a>{% endif %}
+                        <a href="#attachments">Attachments</a>
+                        <hr>
+                        <a href="{{ url_for('complaints.complaint_list') }}">Back to all complaints</a>
+                    </div>
+                </details>
+            </div>
         </div>
     </header>
 

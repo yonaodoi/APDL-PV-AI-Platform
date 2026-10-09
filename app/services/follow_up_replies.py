@@ -32,8 +32,8 @@ from uuid import uuid4
 from flask import current_app
 
 from app.db import get_db, query_all, query_one, transaction
+from app.services.company_profile import case_number_pattern, platform
 
-CASE_NUMBER = re.compile(r"\bAPDL-ICSR-\d{2}-[A-Z0-9]+\b", re.IGNORECASE)
 MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024
 SAVED_EXTENSIONS = {".pdf", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".txt", ".png", ".jpg", ".jpeg"}
 FETCH_BATCH = 200
@@ -155,7 +155,7 @@ def reply_text(text):
 def find_case_numbers(*texts):
     found = []
     for text in texts:
-        for match in CASE_NUMBER.findall(text or ""):
+        for match in case_number_pattern().findall(text or ""):
             number = match.upper()
             if number not in found:
                 found.append(number)
@@ -519,7 +519,7 @@ def _notify_owner(app, case_id, reply, attachment_count):
                 "Nothing changes on the case until someone applies them. Reminders to the "
                 "reporter are paused.\n\n"
                 f"Open the follow-up page: {base}/cases/follow-up-tasks#case-{case_id}\n\n"
-                "APDL PV platform (automatic message)"
+                f"{platform()} (automatic message)"
             )
             try:
                 send_notification_email(app, address, f"Reply received for {row['case_number']}", body)

@@ -12,7 +12,7 @@ from wtforms.validators import DataRequired, Length, Optional, URL
 
 class ReferenceSafetyInformationForm(FlaskForm):
     product_name = StringField(
-        "APDL product name",
+        "Product name",
         validators=[DataRequired(), Length(max=255)],
     )
 
@@ -93,6 +93,17 @@ class ReferenceSafetyInformationForm(FlaskForm):
             return False
 
         return is_valid
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from app.services.company_profile import short_name
+
+        own = f"{short_name()} Product Information"
+        self.product_name.label.text = f"{short_name()} product name"
+        self.document_type.choices = [(own, own)] + [
+            choice for choice in self.document_type.choices
+            if choice[0] != "APDL Product Information"
+        ]
 
 
 class CaseSafetyAssessmentForm(FlaskForm):

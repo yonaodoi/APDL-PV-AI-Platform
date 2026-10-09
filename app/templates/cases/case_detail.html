@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ case.case_number }} | APDL PV{% endblock %}
+{% block title %}{{ case.case_number }} | {{ company.platform_name }}{% endblock %}
 
 {% block page_title %}Safety Case{% endblock %}
 
@@ -18,7 +18,7 @@
     .back-link {
         display: inline-block;
         margin-bottom: 13px;
-        color: #7656e8;
+        color: #145a40;
         font-size: 13px;
         font-weight: bold;
         text-decoration: none;
@@ -26,14 +26,14 @@
 
     .case-top h2 {
         margin: 0;
-        color: #282037;
+        color: #183d34;
         font-size: 28px;
         letter-spacing: -0.5px;
     }
 
     .case-subtitle {
         margin: 8px 0 0;
-        color: #776e7d;
+        color: #6b7d75;
         font-size: 14px;
     }
 
@@ -53,8 +53,8 @@
     }
 
     .badge-status {
-        background: #eee9ff;
-        color: #6242d7;
+        background: #eaf3ee;
+        color: #145a40;
     }
 
     .badge-serious {
@@ -77,7 +77,7 @@
     .detail-section {
         margin-bottom: 20px;
         overflow: hidden;
-        border: 1px solid #e9e2e7;
+        border: 1px solid #dce8e1;
         border-radius: 14px;
         background: white;
         box-shadow: 0 5px 12px rgba(40, 32, 55, 0.025);
@@ -88,8 +88,8 @@
         align-items: center;
         gap: 10px;
         padding: 17px 20px;
-        border-bottom: 1px solid #eee8ec;
-        color: #403748;
+        border-bottom: 1px solid #e7efea;
+        color: #244a3d;
         font-size: 15px;
         font-weight: bold;
     }
@@ -100,7 +100,7 @@
         display: grid;
         place-items: center;
         border-radius: 8px;
-        background: #eee9ff;
+        background: #eaf3ee;
         color: #6a4adc;
         font-size: 13px;
     }
@@ -138,7 +138,7 @@
     .product-card {
         margin-bottom: 12px;
         padding: 16px;
-        border: 1px solid #e9e2e7;
+        border: 1px solid #dce8e1;
         border-radius: 10px;
         background: #fefcff;
     }
@@ -172,7 +172,7 @@
 
     .side-panel {
         overflow: hidden;
-        border: 1px solid #e9e2e7;
+        border: 1px solid #dce8e1;
         border-radius: 14px;
         background: white;
         box-shadow: 0 5px 12px rgba(40, 32, 55, 0.025);
@@ -180,8 +180,8 @@
 
     .side-heading {
         padding: 17px 18px;
-        background: #f7f4ff;
-        color: #493273;
+        background: #f1f8f4;
+        color: #0b3d2c;
         font-size: 14px;
         font-weight: bold;
     }
@@ -208,7 +208,7 @@
         width: 9px;
         height: 9px;
         border-radius: 50%;
-        background: #7656e8;
+        background: #145a40;
         content: "";
         box-shadow: 0 0 0 4px #f1edff;
     }
@@ -236,12 +236,12 @@
     .case-meta {
         margin-top: 16px;
         padding-top: 16px;
-        border-top: 1px solid #eee8ec;
+        border-top: 1px solid #e7efea;
     }
 
     .case-meta-item {
         margin-bottom: 10px;
-        color: #776e7d;
+        color: #6b7d75;
         font-size: 12px;
     }
 
@@ -288,7 +288,7 @@
         gap: 8px;
         align-items: center;
         padding: 8px 14px;
-        border: 1px solid #e1d9e6;
+        border: 1px solid #d5e2d9;
         border-radius: 20px;
         background: white;
         font: inherit;
@@ -323,21 +323,21 @@
         font-size: 13px;
         transition: transform 0.15s ease;
     }
-    .collapsible-section[open] > summary { border-bottom: 1px solid #eee8ec; }
+    .collapsible-section[open] > summary { border-bottom: 1px solid #e7efea; }
     .collapsible-section[open] > summary::after { transform: rotate(90deg); }
     .collapsible-section > summary:hover { background: #fcfbfd; }
     .section-edit-link {
         margin-left: auto;
         padding: 5px 12px;
-        border: 1px solid #dcd1ee;
+        border: 1px solid #cfe0d6;
         border-radius: 8px;
-        background: #faf8ff;
-        color: #6242d7;
+        background: #f8fbf9;
+        color: #145a40;
         font-size: 12px;
         font-weight: bold;
         text-decoration: none;
     }
-    .section-edit-link:hover { background: #eee9ff; }
+    .section-edit-link:hover { background: #eaf3ee; }
     .collapsible-section > summary .section-edit-link + * { margin-left: 0; }
     .collapsible-section > summary::after { margin-left: 12px; }
 
@@ -392,11 +392,11 @@
     .workflow-readiness .ready { margin: 0; color: #176247; }
     .workflow-hint {
         margin: 0 0 12px 22px;
-        color: #776e7d;
+        color: #6b7d75;
         font-size: 11px;
         line-height: 1.4;
     }
-    .workflow-hint a { color: #6242d7; font-weight: bold; text-decoration: none; }
+    .workflow-hint a { color: #145a40; font-weight: bold; text-decoration: none; }
 
     .workflow-saved {
         margin: 12px 18px 0;
@@ -409,7 +409,7 @@
     }
     .workflow-last {
         margin: 10px 18px 0;
-        color: #776e7d;
+        color: #6b7d75;
         font-size: 11px;
         line-height: 1.45;
     }
@@ -464,33 +464,55 @@
     }
 </style>
 
-<section class="case-top">
-    <div>
-        <a class="back-link" href="{{ url_for('cases.case_list') }}">← Back to safety cases</a>
-        <h2>{{ case.case_number }}</h2>
-        <p class="case-subtitle">Received {{ case.received_date.strftime("%d %B %Y") }} from {{ case.country_name or "country not recorded" }}.</p>
-    </div>
+<nav class="ui-crumbs" aria-label="Breadcrumb">
+    <a href="{{ url_for('cases.case_list') }}">Safety cases</a><span class="sep">›</span>
+    <span>{{ case.case_number }}</span>
+</nav>
 
-    <div class="case-badges">
-        <span class="badge badge-status">{{ case.workflow_status }}</span>
-        {% if case.seriousness %}
-            <span class="badge badge-serious">Serious case</span>
-        {% else %}
-            <span class="badge badge-routine">Non-serious case</span>
-
-        {% endif %}
-        {% if reporting_clock %}
-            <span class="badge clock-badge clock-{{ reporting_clock.state }}" title="Due {{ reporting_clock.due_date.strftime('%d %b %Y') }}">{{ reporting_clock.label }}</span>
-        {% endif %}
-
-<a class="case-action-link" href="{{ url_for('cases.edit_case', case_id=case.case_id) }}">Edit safety case</a>
-
-
-<a class="case-action-link primary" href="{{ url_for('case_ai_reports.view_ai_case_assessment', case_id=case.case_id) }}">AI assessment report</a>
-
-<a class="case-action-link primary" href="{{ url_for('case_reports.download_adr_report', case_id=case.case_id) }}">Download ADR report</a>
+<section class="ui-record-head">
+    <div class="bar">
+        <div>
+            <h2>{{ case.case_number }}</h2>
+            <p class="subtitle">Received {{ case.received_date.strftime("%d %B %Y") }} from {{ case.country_name or "country not recorded" }}.</p>
+            <div class="labels">
+                <span class="badge badge-status">{{ case.workflow_status }}</span>
+                {% if case.seriousness %}
+                    <span class="badge badge-serious">Serious case</span>
+                {% else %}
+                    <span class="badge badge-routine">Non-serious case</span>
+                {% endif %}
+                {% if reporting_clock %}
+                    <span class="badge clock-badge clock-{{ reporting_clock.state }}" title="Due {{ reporting_clock.due_date.strftime('%d %b %Y') }}">{{ reporting_clock.label }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="ui-actions">
+            <a class="ui-btn primary" href="{{ url_for('cases.edit_case', case_id=case.case_id) }}">Edit case</a>
+            <a class="ui-btn" href="{{ url_for('case_ai_reports.view_ai_case_assessment', case_id=case.case_id) }}">AI assessment</a>
+            <details class="ui-menu">
+                <summary aria-label="More actions for this case" title="More actions">⋯</summary>
+                <div class="menu">
+                    <a href="{{ url_for('case_reports.download_adr_report', case_id=case.case_id) }}">Download case report (Word)</a>
+                    <a href="{{ url_for('case_review.follow_up_tasks') }}#case-{{ case.case_id }}">Follow-up for this case</a>
+                    <a href="{{ url_for('rsi.assess_case', case_id=case.case_id) }}">Listedness assessment</a>
+                    <a href="#attachments">Attachments</a>
+                    <hr>
+                    <a href="{{ url_for('cases.case_list') }}">Back to all safety cases</a>
+                </div>
+            </details>
+        </div>
     </div>
 </section>
+
+<nav class="ui-jump" aria-label="Jump to a part of this case">
+    <span>Go to</span>
+    {% if event_terms %}<a href="#event-coding">Event coding</a>{% endif %}
+    <a href="#listedness">Listedness</a>
+    <a href="#attachments">Attachments</a>
+    <a href="#case-receipt">Case details</a>
+    <a href="#workflow">Workflow</a>
+    {% if approval %}<a href="#approval">Sign-off</a>{% endif %}
+</nav>
 
 {% if duplicate_candidates %}
     <section class="detail-section" style="margin-bottom: 22px; border-color: #f1d5a6;">
@@ -502,8 +524,8 @@
                 Automated matching is advisory only. Review the case details; no cases are merged or modified automatically.
             </p>
             {% for candidate in duplicate_candidates %}
-                <article style="padding: 13px 0; border-top: 1px solid #f0ebee;">
-                    <a href="{{ url_for('cases.case_detail', case_id=candidate.case_id) }}" style="color: #49366d; font-weight: bold; text-decoration: none;">
+                <article style="padding: 13px 0; border-top: 1px solid #eef3f0;">
+                    <a href="{{ url_for('cases.case_detail', case_id=candidate.case_id) }}" style="color: #0b3d2c; font-weight: bold; text-decoration: none;">
                         {{ candidate.case_number }}
                     </a>
                     <span style="margin-left: 8px; color: #756c7a; font-size: 12px;">{{ candidate.workflow_status }} · {{ candidate.review_status }}</span>
@@ -515,8 +537,8 @@
                     <form method="post" action="{{ url_for('case_review.review_duplicate_candidate', case_id=case.case_id) }}" style="display: flex; flex-wrap: wrap; gap: 8px;">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="candidate_case_id" value="{{ candidate.case_id }}">
-                        <button name="review_status" value="Confirmed duplicate" type="submit" style="padding: 7px 10px; border: 0; border-radius: 7px; background: #7656e8; color: white; cursor: pointer; font-size: 12px; font-weight: bold;">Confirm duplicate</button>
-                        <button name="review_status" value="Not a duplicate" type="submit" style="padding: 7px 10px; border: 1px solid #d8caef; border-radius: 7px; background: white; color: #6242d7; cursor: pointer; font-size: 12px; font-weight: bold;">Not a duplicate</button>
+                        <button name="review_status" value="Confirmed duplicate" type="submit" style="padding: 7px 10px; border: 0; border-radius: 7px; background: #145a40; color: white; cursor: pointer; font-size: 12px; font-weight: bold;">Confirm duplicate</button>
+                        <button name="review_status" value="Not a duplicate" type="submit" style="padding: 7px 10px; border: 1px solid #d8caef; border-radius: 7px; background: white; color: #145a40; cursor: pointer; font-size: 12px; font-weight: bold;">Not a duplicate</button>
                     </form>
                 </article>
             {% endfor %}
@@ -617,7 +639,7 @@
                 </tbody>
             </table>
             </div>
-            <p class="event-coding-note">Coded with the APDL event term dictionary. Signal detection groups cases by preferred term.</p>
+            <p class="event-coding-note">Coded with the {{ company.short_name }} event term dictionary. Signal detection groups cases by preferred term.</p>
         </div>
     </section>
 {% endif %}
@@ -639,9 +661,9 @@
     }
     .listedness-listed { background: #e7f6ef; color: #28805f; }
     .listedness-not-listed { background: #fdecec; color: #a33a3a; }
-    .listedness-insufficient { background: #f1edf1; color: #5f5566; }
+    .listedness-insufficient { background: #eef3f0; color: #5f5566; }
     .listedness-provisional { background: #fff3df; color: #8a5a12; }
-    .listedness-source-tag { background: #eee9ff; color: #5a3fc4; }
+    .listedness-source-tag { background: #eaf3ee; color: #5a3fc4; }
     .listedness-meta {
         margin: 0 0 10px;
         color: #6d6475;
@@ -691,10 +713,10 @@
     .listedness-actions button,
     .listedness-actions a {
         padding: 8px 12px;
-        border: 1px solid #dcd1ee;
+        border: 1px solid #cfe0d6;
         border-radius: 8px;
-        background: #faf8ff;
-        color: #6242d7;
+        background: #f8fbf9;
+        color: #145a40;
         font: inherit;
         font-size: 12.5px;
         font-weight: bold;
@@ -851,10 +873,10 @@
         gap: 4px 12px;
         align-items: baseline;
         padding: 8px 0;
-        border-bottom: 1px solid #f0ebee;
+        border-bottom: 1px solid #eef3f0;
     }
     .attachment-list a {
-        color: #6242d7;
+        color: #145a40;
         font-weight: bold;
         text-decoration: none;
         overflow-wrap: anywhere;
@@ -876,10 +898,10 @@
     }
     .attachment-upload button {
         padding: 8px 14px;
-        border: 1px solid #dcd1ee;
+        border: 1px solid #cfe0d6;
         border-radius: 8px;
-        background: #faf8ff;
-        color: #6242d7;
+        background: #f8fbf9;
+        color: #145a40;
         font: inherit;
         font-size: 12.5px;
         font-weight: bold;
@@ -901,7 +923,7 @@
     .attachment-type {
         padding: 2px 8px;
         border-radius: 20px;
-        background: #eee9ff;
+        background: #eaf3ee;
         color: #5a3fc4;
         font-size: 11px;
         font-weight: bold;
@@ -911,7 +933,7 @@
         padding: 8px 10px;
         border-radius: 8px;
         background: #faf9fb;
-        color: #5d5365;
+        color: #4b6158;
         font-size: 12px;
         line-height: 1.5;
     }
@@ -922,19 +944,19 @@
     .review-suggestions {
         display: inline-block;
         margin-left: 6px;
-        color: #6242d7;
+        color: #145a40;
         font-weight: bold;
         text-decoration: none;
     }
     .attachment-upload label {
-        color: #554d5d;
+        color: #4b6158;
         font-size: 12px;
         font-weight: bold;
     }
     .attachment-upload select {
         max-width: 100%;
         padding: 7px 9px;
-        border: 1px solid #ddd5dc;
+        border: 1px solid #d5e2d9;
         border-radius: 8px;
         background: white;
         font: inherit;
@@ -964,10 +986,10 @@
                 {% for group_id, group_checks, empty_text in (("checklist-pass", passed, "No checks have passed yet."), ("checklist-review", to_review, "Nothing needs review.")) %}
                     <div class="checklist-group" id="{{ group_id }}" hidden>
                         {% for check in group_checks %}
-                            <div style="display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #f0ebee;">
+                            <div style="display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #eef3f0;">
                                 <div>
                                     <div style="color: #453c4d; font-size: 13px; font-weight: bold;">{{ check.label }}</div>
-                                    <div style="margin-top: 3px; color: #776e7d; font-size: 12px;">{{ check.message }}</div>
+                                    <div style="margin-top: 3px; color: #6b7d75; font-size: 12px;">{{ check.message }}</div>
                                 </div>
                                 <span style="padding: 4px 8px; border-radius: 20px; background: {% if check.status == 'Pass' %}#e7f6ef; color: #176247{% else %}#fff3df; color: #966018{% endif %}; font-size: 10px; font-weight: bold;">{{ check.status }}</span>
                             </div>
@@ -976,7 +998,7 @@
                         {% endfor %}
                     </div>
                 {% endfor %}
-                <a href="{{ url_for('cases.review_queue') }}" style="display: inline-block; margin-top: 14px; color: #6242d7; font-size: 12px; font-weight: bold; text-decoration: none;">Open case review queue →</a>
+                <a href="{{ url_for('cases.review_queue') }}" style="display: inline-block; margin-top: 14px; color: #145a40; font-size: 12px; font-weight: bold; text-decoration: none;">Open case review queue →</a>
             </div>
         </section>
 
@@ -1369,11 +1391,11 @@
             <p class="submitted-on">✓ Submitted to the regulator on {{ case.regulatory_submitted_date.strftime("%d %b %Y") }}.</p>
         {% endif %}
 
-        <form method="post" action="{{ url_for('case_review.review_case', case_id=case.case_id) }}" style="padding: 16px 18px; border-bottom: 1px solid #eee8ec;">
+        <form method="post" action="{{ url_for('case_review.review_case', case_id=case.case_id) }}" style="padding: 16px 18px; border-bottom: 1px solid #e7efea;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-            <label style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Workflow status</label>
-            <select name="workflow_status" style="width: 100%; margin-bottom: 13px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px; background: white;">
+            <label style="display: block; margin-bottom: 6px; color: #4b6158; font-size: 11px; font-weight: bold;">Workflow status</label>
+            <select name="workflow_status" style="width: 100%; margin-bottom: 13px; padding: 9px; border: 1px solid #d5e2d9; border-radius: 8px; background: white;">
                 {% set manual = ["New", "Triage", "Follow-up requested", "Assessment", "Closed"] %}
                 {% if current_stage not in manual %}
                     <option value="{{ current_stage }}" selected>{{ current_stage }} (set by sign-off)</option>
@@ -1384,21 +1406,21 @@
                 {% endif %}
             </select>
 
-            <label style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Causality assessment</label>
-            <select name="causality_assessment" style="width: 100%; margin-bottom: 13px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px; background: white;">
+            <label style="display: block; margin-bottom: 6px; color: #4b6158; font-size: 11px; font-weight: bold;">Causality assessment</label>
+            <select name="causality_assessment" style="width: 100%; margin-bottom: 13px; padding: 9px; border: 1px solid #d5e2d9; border-radius: 8px; background: white;">
                 <option value="">Not assessed</option>
                 {% for assessment in ["Certain", "Probable / Likely", "Possible", "Unlikely", "Unassessable / Unclassifiable"] %}
                     <option value="{{ assessment }}" {% if case.causality_assessment == assessment %}selected{% endif %}>{{ assessment }}</option>
                 {% endfor %}
             </select>
 
-            <label for="review_notes" style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Review notes</label>
-            <textarea id="review_notes" name="review_notes" style="width: 100%; min-height: 120px; margin-bottom: 4px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px; font: inherit; font-size: 12px; line-height: 1.45; resize: vertical;">{{ workflow.draft_note if workflow else "" }}</textarea>
+            <label for="review_notes" style="display: block; margin-bottom: 6px; color: #4b6158; font-size: 11px; font-weight: bold;">Review notes</label>
+            <textarea id="review_notes" name="review_notes" style="width: 100%; min-height: 120px; margin-bottom: 4px; padding: 9px; border: 1px solid #d5e2d9; border-radius: 8px; font: inherit; font-size: 12px; line-height: 1.45; resize: vertical;">{{ workflow.draft_note if workflow else "" }}</textarea>
             {% if workflow %}
                 <p class="workflow-hint" style="margin-left: 0;">Drafted automatically from the case. Edit or add to it before saving; it is recorded in the case history.</p>
             {% endif %}
 
-            <label style="display: flex; gap: 7px; align-items: center; margin-bottom: 4px; color: #554d5d; font-size: 12px;">
+            <label style="display: flex; gap: 7px; align-items: center; margin-bottom: 4px; color: #4b6158; font-size: 12px;">
                 <input type="checkbox" name="follow_up_required" {% if case.follow_up_required or (workflow and workflow.open_tasks) %}checked{% endif %}>
                 Follow-up required
             </label>
@@ -1408,14 +1430,14 @@
                 <p class="workflow-hint">Ticked automatically when the checklist creates follow-up tasks.</p>
             {% endif %}
 
-            <label style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Follow-up due date</label>
+            <label style="display: block; margin-bottom: 6px; color: #4b6158; font-size: 11px; font-weight: bold;">Follow-up due date</label>
             {% set due = case.follow_up_due_date or (workflow.earliest_due if workflow else None) %}
-            <input type="date" name="follow_up_due_date" value="{{ due.strftime('%Y-%m-%d') if due else '' }}" style="width: 100%; margin-bottom: 14px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px;">
+            <input type="date" name="follow_up_due_date" value="{{ due.strftime('%Y-%m-%d') if due else '' }}" style="width: 100%; margin-bottom: 14px; padding: 9px; border: 1px solid #d5e2d9; border-radius: 8px;">
 
             {% if case.regulatory_submitted_date or case.workflow_status in ("Submitted", "Closed") %}
-                <label for="regulatory_submitted_date" style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Regulatory submission date</label>
-                <input type="date" id="regulatory_submitted_date" name="regulatory_submitted_date" value="{{ case.regulatory_submitted_date.strftime('%Y-%m-%d') if case.regulatory_submitted_date else '' }}" max="{{ today_iso }}" style="width: 100%; margin-bottom: 4px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px;">
-                <p style="margin: 0 0 14px; color: #776e7d; font-size: 11px;">The date the report was sent to the regulator. Correct it here if needed.</p>
+                <label for="regulatory_submitted_date" style="display: block; margin-bottom: 6px; color: #4b6158; font-size: 11px; font-weight: bold;">Regulatory submission date</label>
+                <input type="date" id="regulatory_submitted_date" name="regulatory_submitted_date" value="{{ case.regulatory_submitted_date.strftime('%Y-%m-%d') if case.regulatory_submitted_date else '' }}" max="{{ today_iso }}" style="width: 100%; margin-bottom: 4px; padding: 9px; border: 1px solid #d5e2d9; border-radius: 8px;">
+                <p style="margin: 0 0 14px; color: #6b7d75; font-size: 11px;">The date the report was sent to the regulator. Correct it here if needed.</p>
             {% endif %}
 
             {% if workflow and workflow.blockers and workflow.can_override %}
@@ -1424,11 +1446,11 @@
                         <input type="checkbox" name="override">
                         Override the readiness check
                     </label>
-                    <textarea name="override_reason" placeholder="Reason for proceeding with outstanding items (recorded in the audit trail)" style="width: 100%; min-height: 60px; margin-bottom: 13px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px; font: inherit; font-size: 12px;"></textarea>
+                    <textarea name="override_reason" placeholder="Reason for proceeding with outstanding items (recorded in the audit trail)" style="width: 100%; min-height: 60px; margin-bottom: 13px; padding: 9px; border: 1px solid #d5e2d9; border-radius: 8px; font: inherit; font-size: 12px;"></textarea>
                 </div>
             {% endif %}
 
-            <button type="submit" style="width: 100%; padding: 10px; border: 0; border-radius: 8px; background: #7656e8; color: white; cursor: pointer; font-size: 12px; font-weight: bold;">Save review</button>
+            <button type="submit" style="width: 100%; padding: 10px; border: 0; border-radius: 8px; background: #145a40; color: white; cursor: pointer; font-size: 12px; font-weight: bold;">Save review</button>
         </form>
 
         <div class="side-heading">Case activity</div>

@@ -3,7 +3,7 @@
 Rules:
 * Use the most appropriate current document: innovator / reference safety
   information first, then an SmPC or label, then anything else, and the
-  APDL local product information last.
+  company's own local product information last.
 * Never conclude "Not listed" from an empty term list. If the chosen
   document has no extracted reaction terms, report that the event cannot
   be assessed yet.
@@ -16,13 +16,21 @@ import re
 
 INNOVATOR_WORDS = ("innovator", "reference safety", "core safety", "ccsi", "rsi")
 LABEL_WORDS = ("smpc", "summary of product characteristics", "label", "prescribing information")
-APDL_WORDS = ("apdl", "local product information")
+APDL_WORDS = ("apdl", "local product information", "company product information")
+
+
+def own_document_words():
+    """Words that mark the company's own product information."""
+    from app.services.company_profile import short_name
+
+    own = f"{short_name().lower()} product information"
+    return APDL_WORDS + ((own,) if own not in APDL_WORDS else ())
 
 
 def rsi_document_rank(document):
     """Lower is preferred for listedness assessment."""
     document_type = (document.get("document_type") or "").lower()
-    if any(word in document_type for word in APDL_WORDS):
+    if any(word in document_type for word in own_document_words()):
         return 3
     if any(word in document_type for word in INNOVATOR_WORDS):
         return 0

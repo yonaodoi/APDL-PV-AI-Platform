@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}{{ template.name }} | Report Templates | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Report Templates{% endblock %}
+
+{% block content %}
+<section class="ui-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('report_templates.template_list') }}">Report templates</a><span class="sep">›</span>
+        <a href="{{ url_for('report_templates.template_list') }}#type-{{ template.report_type }}">{{ spec.label }}</a><span class="sep">›</span>
+        <span>{{ template.name }}</span>
+    </nav>
+
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">{{ spec.label }}</p>
+            <h1>{{ template.name }}{% if template.version %} · v{{ template.version }}{% endif %}</h1>
+            <p>{{ template.original_filename }} · uploaded {{ template.created_at|when }}{% if template.uploaded_by_name %} by {{ template.uploaded_by_name }}{% endif %}{% if template.source == 'ai_mapped' %} · fields placed by AI and confirmed{% endif %}</p>
+        </div>
+        <div class="actions">
+            {% if template.status == 'Active' %}<span class="ui-pill good">Active{% if template.activated_at %} since {{ template.activated_at|when }}{% endif %}</span>
+            {% elif template.status == 'Draft' %}<span class="ui-pill warn">Draft</span>
+            {% else %}<span class="ui-pill muted">Historic</span>{% endif %}
+        </div>
+    </header>
+
+    <article class="ui-card">
+        <h2>Test fill</h2>
+        {% if template.check_passed %}
+            <p class="ui-note">✓ The template was filled with sample data without problems. {{ (template.check_notes or [])|join(" ") }}</p>
+            <p class="sub" style="margin-top:10px;">Open the test output in Word and check it looks right: sample values appear where your data will go, and empty sample fields (patient phone, laboratory results) are removed with their labels.</p>
+        {% else %}
+            <div class="ui-note bad">
+                <strong>Problems to fix before this template can be used:</strong>
+                <ul class="ui-list">
+                    {% for problem in template.check_problems %}<li>{{ problem }}</li>{% endfor %}
+                </ul>
+            </div>
+            <p class="sub" style="margin-top:10px;">Download the template, correct it in Word (see the <a href="{{ url_for('report_templates.marker_guide', report_type=template.report_type) }}">marker guide</a>), then upload it again.</p>
+        {% endif %}
+
+        <div class="ui-actions">
+            {% if template.check_passed %}
+                <a class="ui-btn" href="{{ url_for('report_templates.test_output', template_id=template.template_id) }}">Download test output</a>
+            {% endif %}
+            {% if template.status != 'Active' and template.check_passed %}
+                <form method="post" action="{{ url_for('report_templates.activate_template', template_id=template.template_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="ui-btn primary" type="submit">Make active</button>
+                </form>
+            {% endif %}
+            <details class="ui-menu">
+                <summary aria-label="More actions" title="More actions">⋯</summary>
+                <div class="menu">
+                    <a href="{{ url_for('report_templates.download_template', template_id=template.template_id) }}">Download the template{% if template.source == 'ai_mapped' %} (with markers){% endif %}</a>
+                    {% if template.source_filename %}
+                        <a href="{{ url_for('report_templates.download_template', template_id=template.template_id, original=1) }}">Download the original form</a>
+                        <a href="{{ url_for('report_templates.review_mapping', template_id=template.template_id) }}">Change the field mapping</a>
+                    {% endif %}
+                    <a href="{{ url_for('report_templates.marker_guide', report_type=template.report_type) }}">Marker guide</a>
+                    {% if template.status == 'Active' %}
+                        <hr>
+                        <form method="post" action="{{ url_for('report_templates.retire_template', template_id=template.template_id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="danger" type="submit">Stop using it (make historic)</button>
+                        </form>
+                    {% elif template.status == 'Draft' %}
+                        <hr>
+                        <form method="post" action="{{ url_for('report_templates.delete_template', template_id=template.template_id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="danger" type="submit">Delete this draft</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </details>
+        </div>
+    </article>
+
+    {% if template.markers %}
+        <article class="ui-card">
+            <h2>Fields in this template ({{ template.markers|length }})</h2>
+            <p class="sub">What the system will print into it.</p>
+            <div class="rt-markers">
+                {% for marker in template.markers %}<code class="ui-code">{{ '{{' }}{{ marker }}{{ '}}' }}</code>{% endfor %}
+            </div>
+        </article>
+    {% endif %}
+</section>
+<style>
+    .rt-markers { display: flex; flex-wrap: wrap; gap: 6px; }
+</style>
+{% endblock %}
