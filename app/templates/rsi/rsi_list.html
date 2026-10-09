@@ -259,6 +259,141 @@
             margin-top: 16px;
         }
     }
+    .rsi-coverage-warning {
+        margin-bottom: 16px;
+        padding: 13px 16px;
+        border: 1px solid #f0d9a8;
+        border-radius: 12px;
+        background: #fff8e8;
+        color: #6b4a0c;
+        font-size: 13px;
+    }
+    .rsi-coverage-warning ul { margin: 8px 0 0; padding-left: 18px; }
+    .rsi-coverage-warning a { color: #145a40; font-weight: 800; }
+    .rsi-filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 10px 12px;
+        align-items: end;
+        margin-bottom: 16px;
+        padding: 14px 16px;
+        border: 1px solid #dce8e1;
+        border-radius: 12px;
+        background: #ffffff;
+    }
+    .rsi-filter.search { grid-column: span 2; }
+    .rsi-filter label { display: block; margin-bottom: 4px; color: #526a5f; font-size: 11.5px; font-weight: 800; }
+    .rsi-filter input, .rsi-filter select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 7px 9px;
+        border: 1px solid #d5e2d9;
+        border-radius: 8px;
+        background: #ffffff;
+        font: inherit;
+        font-size: 13px;
+    }
+    .rsi-filter-actions { display: flex; gap: 10px; align-items: center; }
+    .rsi-filter-actions button {
+        padding: 8px 16px;
+        border: 0;
+        border-radius: 8px;
+        background: #145a40;
+        color: #ffffff;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+    .rsi-filter-actions a { color: #145a40; font-size: 13px; font-weight: 800; }
+    .term-counts { display: block; margin-top: 8px; color: #526a5f; font-size: 12px; }
+    .term-counts strong { color: #8a5a12; }
+    @media (max-width: 640px) { .rsi-filter.search { grid-column: auto; } }
+    .rsi-table-compact td { vertical-align: middle; }
+    .rsi-table-compact tr.is-historic td { opacity: 0.72; }
+    .rsi-table-compact .doc-type { display: block; color: #27483b; font-weight: 700; }
+    .rsi-table-compact .doc-meta { display: block; margin-top: 3px; color: #71817a; font-size: 12px; }
+    .rsi-table-compact .term-counts { display: block; margin: 0; color: #3f544d; font-size: 12.5px; white-space: nowrap; }
+    .rsi-table-compact .term-counts.muted { color: #8a9a92; }
+    .rsi-table-compact .extraction-failed,
+    .rsi-table-compact .extraction-status { display: block; margin-top: 4px; font-size: 11.5px; line-height: 1.35; }
+    .rsi-actions-col { width: 1%; text-align: right; white-space: nowrap; }
+    .rsi-table-compact .row-actions { display: inline-flex; gap: 6px; align-items: center; }
+    .rsi-table-compact .row-actions form { margin: 0; }
+    .btn-primary-small {
+        display: inline-block;
+        padding: 6px 12px;
+        border: 0;
+        border-radius: 8px;
+        background: #145a40;
+        color: #ffffff;
+        font: inherit;
+        font-size: 12.5px;
+        font-weight: 800;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    .rsi-table-compact .more-menu { position: relative; }
+    .rsi-table-compact .more-menu > summary {
+        list-style: none;
+        width: 32px;
+        height: 30px;
+        border: 1px solid #dce8e1;
+        border-radius: 8px;
+        color: #4b6158;
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 26px;
+        text-align: center;
+        cursor: pointer;
+    }
+    .rsi-table-compact .more-menu > summary::-webkit-details-marker { display: none; }
+    .rsi-table-compact .more-menu[open] > summary { background: #f1f8f4; }
+    .rsi-table-compact .more-menu .menu {
+        position: absolute;
+        z-index: 20;
+        right: 0;
+        top: calc(100% + 4px);
+        min-width: 230px;
+        padding: 6px;
+        border: 1px solid #dce8e1;
+        border-radius: 10px;
+        background: #ffffff;
+        box-shadow: 0 12px 26px rgba(24, 61, 52, 0.14);
+        text-align: left;
+        white-space: normal;
+    }
+    .rsi-table-compact .more-menu .menu a,
+    .rsi-table-compact .more-menu .menu button {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: #27483b;
+        font: inherit;
+        font-size: 13px;
+        text-align: left;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    .rsi-table-compact .more-menu .menu a span { display: block; color: #8a9a92; font-size: 11.5px; }
+    .rsi-table-compact .more-menu .menu a:hover,
+    .rsi-table-compact .more-menu .menu button:hover { background: #f1f8f4; }
+    .rsi-table-compact .more-menu .menu button.danger { color: #a3392b; }
+    /* Let the ⋯ menu show over the table instead of being clipped. */
+    .rsi-table-scroll { overflow: visible; }
+    .rsi-table-compact { min-width: 0; }
+    @media (max-width: 860px) {
+        .rsi-table-compact thead { display: none; }
+        .rsi-table-compact, .rsi-table-compact tbody, .rsi-table-compact tr, .rsi-table-compact td { display: block; width: auto; }
+        .rsi-table-compact tr { padding: 12px 16px; border-top: 1px solid #eef3f0; }
+        .rsi-table-compact td { padding: 3px 0; border: 0; }
+        .rsi-actions-col { text-align: left; padding-top: 8px !important; }
+        .rsi-table-compact .more-menu .menu { right: auto; left: 0; }
+    }
 </style>
 
 <section class="rsi-page">
@@ -298,106 +433,175 @@
         </div>
     {% endif %}
 
+    {% if uncovered_products %}
+        <div class="rsi-coverage-warning" role="alert">
+            <strong>No current reference document for {{ uncovered_products|length }} product(s) on open cases.</strong>
+            These cases cannot be checked for listedness automatically until a document is added.
+            <ul>
+                {% for item in uncovered_products %}
+                    <li>
+                        {{ item.product_name }}{% if item.generic_name and item.generic_name|lower != item.product_name|lower %} ({{ item.generic_name }}){% endif %}
+                        · {{ item.cases }} open case(s)
+                        · <a href="{{ url_for('rsi.create_rsi', product=item.product_name, return_to=url_for('rsi.rsi_list')) }}">Add a document</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <form class="rsi-filters" method="get" action="{{ url_for('rsi.rsi_list') }}" aria-label="Filter reference documents">
+        <div class="rsi-filter search">
+            <label for="rsi-q">Search</label>
+            <input id="rsi-q" type="search" name="q" value="{{ filters.q }}" placeholder="Product, substance, version, file…">
+        </div>
+        <div class="rsi-filter">
+            <label for="rsi-product">APDL product</label>
+            <select id="rsi-product" name="product">
+                <option value="">All products</option>
+                {% for option in product_options %}<option value="{{ option }}" {% if filters.product == option %}selected{% endif %}>{{ option }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="rsi-filter">
+            <label for="rsi-type">Document type</label>
+            <select id="rsi-type" name="doc_type">
+                <option value="">All types</option>
+                {% for option in type_options %}<option value="{{ option }}" {% if filters.doc_type == option %}selected{% endif %}>{{ option }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="rsi-filter">
+            <label for="rsi-market">Market</label>
+            <select id="rsi-market" name="market">
+                <option value="">All markets</option>
+                {% for option in market_options %}<option value="{{ option }}" {% if filters.market == option %}selected{% endif %}>{{ option }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="rsi-filter">
+            <label for="rsi-status">Status</label>
+            <select id="rsi-status" name="status">
+                <option value="">Current and historic</option>
+                <option value="current" {% if filters.status == "current" %}selected{% endif %}>Current only</option>
+                <option value="historic" {% if filters.status == "historic" %}selected{% endif %}>Historic only</option>
+            </select>
+        </div>
+        <div class="rsi-filter">
+            <label for="rsi-terms">Reaction terms</label>
+            <select id="rsi-terms" name="terms">
+                <option value="">Any</option>
+                <option value="none" {% if filters.terms == "none" %}selected{% endif %}>No terms yet</option>
+                <option value="to_check" {% if filters.terms == "to_check" %}selected{% endif %}>Terms to check</option>
+                <option value="verified" {% if filters.terms == "verified" %}selected{% endif %}>Has verified terms</option>
+            </select>
+        </div>
+        <div class="rsi-filter-actions">
+            <button type="submit">Filter</button>
+            {% if any_filter %}<a href="{{ url_for('rsi.rsi_list') }}">Clear</a>{% endif %}
+        </div>
+    </form>
+
     <section class="rsi-register">
         <div class="rsi-register-heading">
             <h2>Available reference documents</h2>
-            <span>{{ documents|length }} document(s)</span>
+            <span>{% if any_filter %}{{ documents|length }} of {{ total_documents }}{% else %}{{ documents|length }}{% endif %} document(s)</span>
         </div>
 
         {% if documents %}
             <div class="rsi-table-scroll">
-            <table class="rsi-table">
+            <table class="rsi-table rsi-table-compact">
                 <thead>
                     <tr>
                         <th>APDL product</th>
-                        <th>Reference information</th>
-                        <th>Market</th>
-                        <th>Version</th>
+                        <th>Reference document</th>
                         <th>Status</th>
-                        <th>Source</th>
-                        <th>Terms</th>
+                        <th>Reaction terms</th>
+                        <th class="rsi-actions-col"><span class="visually-hidden">Actions</span></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for document in documents %}
-                        <tr>
+                        <tr class="{% if not document.is_current %}is-historic{% endif %}">
                             <td>
                                 <span class="product-name">{{ document.product_name }}</span>
-                                {% if document.active_substance %}
-                                    <span class="reference-name">{{ document.active_substance }}</span>
-                                {% endif %}
+                                {% if document.active_substance %}<span class="reference-name">{{ document.active_substance }}</span>{% endif %}
                             </td>
                             <td>
-                                {{ document.reference_product_name or "Reference product not recorded" }}
-                                <span class="reference-name">{{ document.document_type }}</span>
+                                <span class="doc-type">{{ document.document_type }}</span>
+                                <span class="reference-name">
+                                    {{ document.reference_product_name or "Reference product not recorded" }}
+                                </span>
+                                <span class="doc-meta">
+                                    {{ document.market or "Market not recorded" }}
+                                    · {% if document.document_version %}v{{ document.document_version }}{% else %}version not recorded{% endif %}
+                                    {% if document.effective_date %} · {{ document.effective_date.strftime("%d %b %Y") }}{% endif %}
+                                </span>
                             </td>
-                            <td>{{ document.market or "Not recorded" }}</td>
                             <td>
-                                {{ document.document_version or "Not recorded" }}
-                                {% if document.effective_date %}
-                                    <span class="reference-name">{{ document.effective_date.strftime("%d %b %Y") }}</span>
-                                {% endif %}
+                                {% if document.is_current %}<span class="current-tag">Current</span>{% else %}<span class="historic-tag">Historic</span>{% endif %}
                             </td>
                             <td>
-                                {% if document.is_current %}
-                                    <span class="current-tag">Current</span>
-                                    <form method="post" action="{{ url_for('rsi.make_rsi_historic', rsi_id=document.rsi_id) }}" class="status-form">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="status-change-button">Mark historic</button>
-                                    </form>
+                                {% if document.verified_terms or document.proposed_terms %}
+                                    <span class="term-counts">{{ document.verified_terms }} verified{% if document.proposed_terms %} · <strong>{{ document.proposed_terms }} to check</strong>{% endif %}</span>
                                 {% else %}
-                                    <span class="historic-tag">Historic</span>
-                                    <form method="post" action="{{ url_for('rsi.make_rsi_current', rsi_id=document.rsi_id) }}" class="status-form">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="status-change-button">Make current</button>
-                                    </form>
+                                    <span class="term-counts muted">No terms yet</span>
+                                {% endif %}
+                                {% if document.extraction_status == "Extraction failed" %}
+                                    <span class="extraction-failed" title="It may be a scanned or image-only PDF, or password protected. Upload a text-based PDF or a Word (.docx) copy.">File text unreadable – upload a text PDF or Word copy</span>
+                                {% elif document.extraction_status and document.extraction_status != "Not extracted" %}
+                                    <span class="extraction-status">{{ document.extraction_status }}</span>
                                 {% endif %}
                             </td>
-
-
-                            <td>
-                                {% if document.stored_filename %}
-                                    <a class="source-link" href="{{ url_for('rsi.download_rsi', rsi_id=document.rsi_id) }}">Download file</a>
-                                    <span class="reference-name">{{ document.original_filename }}</span>
-                                {% endif %}
-                                {% if document.source_url %}
-                                    <a class="source-link" style="display:block; margin-top:6px;" href="{{ document.source_url }}" target="_blank" rel="noopener">Open source link</a>
-                                {% endif %}
-                                {% if not document.stored_filename and not document.source_url %}
-                                    Not recorded
-                                {% endif %}
-                            </td>
-
-                            <td>
-                                {% if document.stored_filename %}
-                                    <div class="rsi-actions">
-                                        <form method="post" action="{{ url_for('rsi.extract_rsi_text', rsi_id=document.rsi_id) }}">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="rsi-action-button">Extract SmPC text</button>
-                                        </form>
+                            <td class="rsi-actions-col">
+                                <div class="row-actions">
+                                    {% if document.verified_terms or document.proposed_terms or not document.stored_filename %}
+                                        <a class="btn-primary-small" href="{{ url_for('rsi.review_reactions', rsi_id=document.rsi_id) }}">{% if document.proposed_terms %}Check terms{% else %}View terms{% endif %}</a>
+                                    {% else %}
                                         <form method="post" action="{{ url_for('rsi.extract_reactions', rsi_id=document.rsi_id) }}">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="rsi-action-button">Extract terms</button>
+                                            <button type="submit" class="btn-primary-small">Extract terms</button>
                                         </form>
-                                    </div>
-                                    {% if document.extraction_status == "Extraction failed" %}
-                                        <span class="extraction-failed">
-                                            Text could not be read from this file. It may be a scanned
-                                            or image-only PDF, or password protected. Upload a text-based
-                                            PDF or a Word (.docx) copy.
-                                        </span>
-                                    {% elif document.extraction_status %}
-                                        <span class="extraction-status">{{ document.extraction_status }}</span>
                                     {% endif %}
-                                {% endif %}
-                                <a class="source-link" style="display:block; margin-top:8px;" href="{{ url_for('rsi.review_reactions', rsi_id=document.rsi_id) }}">Verify terms</a>
+                                    <details class="more-menu">
+                                        <summary aria-label="More actions for {{ document.product_name }}" title="More actions">⋯</summary>
+                                        <div class="menu">
+                                            {% if document.stored_filename %}
+                                                <a href="{{ url_for('rsi.download_rsi', rsi_id=document.rsi_id) }}">Download file{% if document.original_filename %} <span>{{ document.original_filename }}</span>{% endif %}</a>
+                                            {% endif %}
+                                            {% if document.source_url %}
+                                                <a href="{{ document.source_url }}" target="_blank" rel="noopener">Open source link</a>
+                                            {% endif %}
+                                            <a href="{{ url_for('rsi.review_reactions', rsi_id=document.rsi_id) }}">Verify, edit or add terms</a>
+                                            {% if document.stored_filename %}
+                                                <form method="post" action="{{ url_for('rsi.extract_reactions', rsi_id=document.rsi_id) }}">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <button type="submit">Extract terms again</button>
+                                                </form>
+                                                <form method="post" action="{{ url_for('rsi.extract_rsi_text', rsi_id=document.rsi_id) }}">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <button type="submit">Extract SmPC text</button>
+                                                </form>
+                                            {% endif %}
+                                            {% if document.is_current %}
+                                                <form method="post" action="{{ url_for('rsi.make_rsi_historic', rsi_id=document.rsi_id) }}">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <button type="submit" class="danger">Mark historic</button>
+                                                </form>
+                                            {% else %}
+                                                <form method="post" action="{{ url_for('rsi.make_rsi_current', rsi_id=document.rsi_id) }}">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <button type="submit">Make current</button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
+                                    </details>
+                                </div>
                             </td>
                         </tr>
-
-
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
+        {% elif any_filter %}
+            <div class="empty-state">
+                No document matches these filters. <a href="{{ url_for('rsi.rsi_list') }}">Clear the filters</a>.
             </div>
         {% else %}
             <div class="empty-state">
@@ -406,4 +610,17 @@
         {% endif %}
     </section>
 </section>
+<script>
+    (function () {
+        var menus = document.querySelectorAll(".rsi-table-compact .more-menu");
+        document.addEventListener("click", function (event) {
+            menus.forEach(function (menu) { if (menu.open && !menu.contains(event.target)) menu.open = false; });
+        });
+        menus.forEach(function (menu) {
+            menu.addEventListener("toggle", function () {
+                if (menu.open) menus.forEach(function (other) { if (other !== menu) other.open = false; });
+            });
+        });
+    })();
+</script>
 {% endblock %}

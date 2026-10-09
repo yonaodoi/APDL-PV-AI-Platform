@@ -82,14 +82,23 @@ def rsi_file_path(stored_filename):
 @bp.get("/")
 @roles_required(*REVIEWER_ROLES)
 def rsi_list():
-    documents = query_all(
+    all_documents = query_all(
         """
         SELECT
             rsi.*,
-            users.full_name AS uploaded_by_name
+            users.full_name AS uploaded_by_name,
+            COALESCE(terms.verified, 0) AS verified_terms,
+            COALESCE(terms.proposed, 0) AS proposed_terms
         FROM pv.reference_safety_information AS rsi
         LEFT JOIN pv.users AS users
             ON users.user_id = rsi.uploaded_by
+        LEFT JOIN (
+            SELECT rsi_id,
+                   COUNT(*) FILTER (WHERE review_status = 'Verified') AS verified,
+                   COUNT(*) FILTER (WHERE review_status = 'Proposed') AS proposed
+            FROM pv.rsi_reactions
+            GROUP BY rsi_id
+        ) AS terms ON terms.rsi_id = rsi.rsi_id
         ORDER BY
             rsi.is_current DESC,
             rsi.product_name,
@@ -97,11 +106,104 @@ def rsi_list():
         """
     )
 
+    filters = {
+        "q": request.args.get("q", "").strip(),
+        "product": request.args.get("product", "").strip(),
+        "doc_type": request.args.get("doc_type", "").strip(),
+        "market": request.args.get("market", "").strip(),
+        "status": request.args.get("status", "").strip(),
+        "terms": request.args.get("terms", "").strip(),
+    }
+    documents = filter_rsi_documents(all_documents, filters)
+
+    def options(key):
+        return sorted({(d.get(key) or "").strip() for d in all_documents if (d.get(key) or "").strip()},
+                      key=str.casefold)
+
     return render_template(
         "rsi/rsi_list.html",
         documents=documents,
-        duplicate_groups=duplicate_current_groups(documents),
+        total_documents=len(all_documents),
+        filters=filters,
+        any_filter=any(filters.values()),
+        product_options=options("product_name"),
+        type_options=options("document_type"),
+        market_options=options("market"),
+        uncovered_products=_products_without_reference(all_documents),
+        duplicate_groups=duplicate_current_groups(all_documents),
     )
+
+
+def filter_rsi_documents(documents, filters):
+    """Apply the library filters (all optional) to the document rows."""
+    q = (filters.get("q") or "").casefold()
+    out = []
+    for d in documents:
+        if q:
+            haystack = " ".join(
+                str(d.get(k) or "") for k in (
+                    "product_name", "active_substance", "reference_product_name",
+                    "document_type", "document_version", "market", "original_filename",
+                )
+            ).casefold()
+            if q not in haystack:
+                continue
+        if filters.get("product") and (d.get("product_name") or "") != filters["product"]:
+            continue
+        if filters.get("doc_type") and (d.get("document_type") or "") != filters["doc_type"]:
+            continue
+        if filters.get("market") and (d.get("market") or "") != filters["market"]:
+            continue
+        if filters.get("status") == "current" and not d.get("is_current"):
+            continue
+        if filters.get("status") == "historic" and d.get("is_current"):
+            continue
+        verified, proposed = d.get("verified_terms") or 0, d.get("proposed_terms") or 0
+        if filters.get("terms") == "none" and (verified or proposed):
+            continue
+        if filters.get("terms") == "to_check" and not proposed:
+            continue
+        if filters.get("terms") == "verified" and not verified:
+            continue
+        out.append(d)
+    return out
+
+
+def _products_without_reference(documents):
+    """Suspect products on open cases that no current document covers."""
+    covered = set()
+    for d in documents:
+        if d.get("is_current"):
+            for key in ("product_name", "active_substance"):
+                if (d.get(key) or "").strip():
+                    covered.add(d[key].strip().casefold())
+    try:
+        rows = query_all(
+            """
+            SELECT p.product_name, p.generic_name, COUNT(DISTINCT c.case_id) AS cases
+            FROM pv.case_products AS p
+            JOIN pv.safety_cases AS c ON c.case_id = p.case_id
+            WHERE c.workflow_status NOT IN ('Submitted', 'Closed')
+              AND COALESCE(TRIM(p.product_name), '') <> ''
+            GROUP BY p.product_name, p.generic_name
+            ORDER BY cases DESC, p.product_name
+            """
+        )
+    except Exception:
+        try:
+            from app.db import get_db
+
+            get_db().rollback()
+        except Exception:
+            pass
+        return []
+    missing = []
+    for row in rows:
+        names = {(row.get("product_name") or "").strip().casefold(),
+                 (row.get("generic_name") or "").strip().casefold()} - {""}
+        if not names & covered:
+            missing.append(row)
+    return missing
 
 
 def _load_rsi_or_404(rsi_id):
@@ -195,6 +297,11 @@ def create_rsi():
 
     if return_to and not return_to.startswith("/"):
         return_to = ""
+
+    # "Add one" from the library's missing-products list fills the product.
+    prefill_product = request.args.get("product", "").strip()
+    if request.method == "GET" and prefill_product and not form.product_name.data:
+        form.product_name.data = prefill_product[:255]
 
     if form.validate_on_submit():
         source_file = form.source_file.data

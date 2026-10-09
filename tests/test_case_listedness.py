@@ -67,7 +67,7 @@ def _patch_case_data(monkeypatch, documents, terms, event_terms=EVENT_TERMS):
     monkeypatch.setattr(listedness, "_load_case", lambda case_id: dict(CASE))
     monkeypatch.setattr(listedness, "_suspect_product", lambda case_id: dict(PRODUCT))
     monkeypatch.setattr(
-        listedness, "current_documents_for_product", lambda product: documents
+        listedness, "current_documents_for_product", lambda product, country=None: (documents, None)
     )
     monkeypatch.setattr(listedness, "_reaction_terms", lambda rsi_id: terms)
     monkeypatch.setattr(
@@ -115,7 +115,7 @@ def test_case_without_any_reference_document(monkeypatch):
         result = listedness.assess_case(9, allow_online=False)
 
     assert result["listedness_status"] == "Insufficient information"
-    assert "No current reference safety information is uploaded for ABPARA" in result["evidence"]
+    assert "No current reference safety information is in the library for ABPARA" in result["evidence"]
 
 
 def test_reviewer_confirmed_assessment_is_never_overwritten(monkeypatch):
@@ -306,3 +306,70 @@ def test_replacing_a_reviewer_conclusion_forces_the_check_and_is_audited(monkeyp
     assert calls == [True]
     assert audits[0]["action"] == "Reviewer listedness conclusion replaced by automatic check"
     assert "Not listed / Unexpected, saved 16 Sep 2026 by Henry Okedi" in audits[0]["details"]
+
+
+def test_product_names_match_ignoring_strength_and_form():
+    doc = {"product_name": "ABPARA", "active_substance": "Paracetamol"}
+    assert listedness.core_name("ABPARA 500mg Film-coated Tablets") == "abpara"
+    assert listedness.product_matches(doc, {"product_name": "ABPARA 500 mg tablets"})
+    assert listedness.product_matches(doc, {"product_name": "Panadol", "generic_name": "paracetamol 500mg"})
+    assert listedness.product_matches(doc, {"product_name": "ABPARA Junior syrup"})
+    assert not listedness.product_matches(doc, {"product_name": "ABPARACOL"})
+    assert not listedness.product_matches(doc, {"product_name": "AMOXIL 250mg"})
+
+
+def test_document_for_the_case_country_is_preferred():
+    uganda = {"rsi_id": 1, "market": "Uganda"}
+    kenya = {"rsi_id": 2, "market": "Kenya"}
+    assert listedness.prefer_market([uganda, kenya], "Uganda") == ([uganda], None)
+    docs, note = listedness.prefer_market([kenya], "Malawi")
+    assert docs == [kenya] and "No reference document for Malawi" in note and "Kenya" in note
+
+
+def test_terms_are_extracted_automatically_when_the_document_has_none(monkeypatch):
+    document = dict(INNOVATOR, stored_filename="abpara.pdf", extraction_status=None)
+    terms_after = [{"reaction_term": "Urticaria", "source_excerpt": "Urticaria: common", "review_status": "Proposed"}]
+    calls = {"n": 0}
+
+    def terms(rsi_id):
+        calls["n"] += 1
+        return [] if calls["n"] == 1 else terms_after
+
+    _patch_case_data(monkeypatch, [document], [])
+    monkeypatch.setattr(listedness, "_reaction_terms", terms)
+    extracted = []
+    monkeypatch.setattr("app.rsi.routes.extract_terms_for_document",
+                        lambda rsi_id, stored, actor, source_name=None: extracted.append(rsi_id) or (1, None))
+
+    class Cursor:
+        def execute(self, sql, parameters=()):
+            extracted.append(parameters)
+
+    class Txn:
+        def __enter__(self):
+            return Cursor()
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(listedness, "transaction", lambda: Txn())
+    app = create_app(TestingConfig)
+    with app.app_context():
+        result = listedness.assess_case(9, allow_online=False)
+
+    assert extracted[0] == 3
+    assert extracted[1] == ("Terms extracted", 3)
+    # The new terms were used straight away (provisional until verified).
+    assert result["listedness_status"] != "Insufficient information"
+    assert result["provisional"] is True
+
+
+def test_a_document_that_could_not_be_read_is_not_retried(monkeypatch):
+    document = dict(INNOVATOR, stored_filename="scan.pdf", extraction_status="Extraction failed")
+    _patch_case_data(monkeypatch, [document], [])
+    monkeypatch.setattr("app.rsi.routes.extract_terms_for_document",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not run")))
+    app = create_app(TestingConfig)
+    with app.app_context():
+        result = listedness.assess_case(9, allow_online=False)
+    assert result["listedness_status"] == "Insufficient information"

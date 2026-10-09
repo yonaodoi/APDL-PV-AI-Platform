@@ -132,6 +132,13 @@ class Config:
     FOLLOW_UP_MAX_REMINDERS = int(os.environ.get("FOLLOW_UP_MAX_REMINDERS", "2"))
     FOLLOW_UP_CHECK_MINUTES = int(os.environ.get("FOLLOW_UP_CHECK_MINUTES", "60"))
 
+    # Listedness: when no reference document in the library matches a case's
+    # product, also try the US DailyMed online label. Off by default so cases
+    # are only checked against your own approved documents.
+    RSI_ONLINE_FALLBACK = (
+        os.environ.get("RSI_ONLINE_FALLBACK", "false").lower() == "true"
+    )
+
     # Reading reporters' replies. The inbox of the sending account is checked
     # (read-only) for answers to follow-up emails. It uses the same Gmail App
     # password as sending. Set FOLLOW_UP_READ_REPLIES=false to switch it off.

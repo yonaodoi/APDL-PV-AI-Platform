@@ -7,10 +7,18 @@ then confirms. A reviewer-confirmed assessment is never overwritten.
 
 Order of sources:
 1. Uploaded current reference document for the product (innovator RSI
-   first), using its extracted reaction terms.
-2. If none is uploaded, the online DailyMed label (US), marked provisional.
+   first), using its extracted reaction terms. Product names are matched
+   ignoring strength and dosage form ("ABPARA 500mg tablets" = "ABPARA"),
+   or by active substance. A document for the case's country is preferred;
+   otherwise one for any market is used and the result says so.
+   If the chosen document has no reaction terms yet, they are extracted
+   from its file automatically first.
+2. Only if switched on (RSI_ONLINE_FALLBACK), the online DailyMed label (US),
+   marked provisional.
 3. Otherwise the event is recorded as not assessable, with the reason.
 """
+
+import re
 
 from flask import current_app
 
@@ -115,10 +123,11 @@ def summary_evidence(source_title, event_results, provisional):
 def _load_case(case_id):
     return query_one(
         """
-        SELECT case_id, case_number, event_description, seriousness,
-               seriousness_criteria
-        FROM pv.safety_cases
-        WHERE case_id = %s
+        SELECT c.case_id, c.case_number, c.event_description, c.seriousness,
+               c.seriousness_criteria, c.created_by, co.country_name
+        FROM pv.safety_cases AS c
+        LEFT JOIN pv.countries AS co ON co.country_id = c.country_id
+        WHERE c.case_id = %s
         """,
         (case_id,),
     )
@@ -137,25 +146,111 @@ def _suspect_product(case_id):
     )
 
 
-def current_documents_for_product(product):
-    names = [
-        name
-        for name in (product.get("product_name"), product.get("generic_name"))
-        if name
-    ] or [""]
-    return query_all(
+# Strength, dosage-form and packaging words dropped when comparing names.
+_FORM_WORDS = {
+    "tablet", "tablets", "tab", "tabs", "capsule", "capsules", "cap", "caps",
+    "syrup", "suspension", "susp", "injection", "inj", "infusion", "solution",
+    "oral", "cream", "ointment", "gel", "drops", "suppository", "suppositories",
+    "powder", "for", "film", "coated", "fc", "dispersible", "chewable", "sr",
+    "er", "xr", "mr", "forte", "plus", "iv", "im", "vial", "ampoule", "sachet",
+}
+_STRENGTH = re.compile(r"^\d+(\.\d+)?(mg|g|mcg|µg|ug|ml|iu|%|mg/ml|mg/5ml)?$")
+
+
+def core_name(value):
+    """'ABPARA 500mg Tablets' -> 'abpara'; '' if nothing is left."""
+    words = re.sub(r"[^a-z0-9.%/µ]+", " ", (value or "").lower()).split()
+    kept = [w for w in words if w not in _FORM_WORDS and not _STRENGTH.match(w)
+            and not re.fullmatch(r"\d+(\.\d+)?", w) and w not in ("mg", "g", "ml", "mcg")]
+    return " ".join(kept)
+
+
+def product_matches(document, product):
+    """True if a reference document is for the case's suspect product."""
+    case_names = {core_name(product.get("product_name")), core_name(product.get("generic_name"))} - {""}
+    if not case_names:
+        return False
+    doc_names = {core_name(document.get("product_name")), core_name(document.get("active_substance"))} - {""}
+    if case_names & doc_names:
+        return True
+    # "ABPARA" on the document, "ABPARA Junior" on the case: the document's
+    # whole name starts the case's name.
+    for doc_name in doc_names:
+        for case_name in case_names:
+            if case_name.startswith(doc_name + " "):
+                return True
+    return False
+
+
+def prefer_market(documents, country):
+    """Documents for the case's country if there are any, else all.
+
+    Returns (documents, note) where note explains a fallback.
+    """
+    if not documents:
+        return documents, None
+    country_key = (country or "").strip().casefold()
+    if country_key:
+        local = [d for d in documents if (d.get("market") or "").strip().casefold() == country_key]
+        if local:
+            return local, None
+        markets = sorted({(d.get("market") or "unspecified market") for d in documents})
+        return documents, (
+            f"No reference document for {country}; used the one for "
+            f"{', '.join(markets)}."
+        )
+    return documents, None
+
+
+def current_documents_for_product(product, country=None):
+    """Current reference documents for the suspect product (best market first).
+
+    Returns (documents, market_note).
+    """
+    if not product:
+        return [], None
+    rows = query_all(
         """
         SELECT rsi_id, product_name, active_substance, document_type,
-               document_version, effective_date
+               document_version, effective_date, market, stored_filename,
+               extraction_status
         FROM pv.reference_safety_information
         WHERE is_current = TRUE
-          AND (
-              LOWER(product_name) = ANY(%s)
-              OR LOWER(COALESCE(active_substance, '')) = ANY(%s)
-          )
-        """,
-        ([n.lower() for n in names], [n.lower() for n in names]),
+        """
     )
+    matched = [row for row in rows if product_matches(row, product)]
+    return prefer_market(matched, country)
+
+
+AUTO_EXTRACT_SKIP = {"Extraction failed", "No reaction terms found"}
+
+
+def _extract_terms_automatically(document, actor_user_id):
+    """Extract reaction terms from the document's file if it has none yet.
+
+    Records the outcome on the document so a failure is not retried on
+    every case. Returns True when terms were added.
+    """
+    if not document.get("stored_filename") or document.get("extraction_status") in AUTO_EXTRACT_SKIP:
+        return False
+    from app.rsi.routes import IMAGE_ONLY_MESSAGE, extract_terms_for_document
+
+    count, error = extract_terms_for_document(
+        document["rsi_id"], document["stored_filename"], actor_user_id,
+        source_name="the document file (automatic, when a case was linked)",
+    )
+    if error == IMAGE_ONLY_MESSAGE:
+        status = "Extraction failed"
+    elif error or not count:
+        status = "No reaction terms found"
+    else:
+        status = "Terms extracted"
+    with transaction() as cursor:
+        cursor.execute(
+            "UPDATE pv.reference_safety_information SET extraction_status = %s WHERE rsi_id = %s",
+            (status, document["rsi_id"]),
+        )
+    return bool(count)
 
 
 def _reaction_terms(rsi_id):
@@ -234,10 +329,28 @@ def assess_case(case_id, allow_online=True):
         source_title = "no reported event recorded"
         event_results = []
     else:
-        document = choose_rsi_document(current_documents_for_product(product))
+        documents, market_note = current_documents_for_product(product, case.get("country_name"))
+        document = choose_rsi_document(documents)
         if document:
             source_title = rsi_document_title(document)
+            if document.get("market"):
+                source_title += f" ({document['market']})"
+            if market_note:
+                source_title += f". {market_note}"
             terms = _reaction_terms(document["rsi_id"])
+            if not terms:
+                try:
+                    if _extract_terms_automatically(document, case.get("created_by")):
+                        terms = _reaction_terms(document["rsi_id"])
+                except Exception:
+                    current_app.logger.warning(
+                        "Automatic term extraction failed for RSI %s",
+                        document["rsi_id"], exc_info=True,
+                    )
+                    try:
+                        get_db().rollback()
+                    except Exception:
+                        pass
             event_results = [
                 event_result_from_rsi(
                     label, assess_event_against_rsi(document, terms, text)
@@ -246,7 +359,7 @@ def assess_case(case_id, allow_online=True):
             ]
         else:
             source_title, event_results = (None, None)
-            if allow_online and product:
+            if allow_online and product and current_app.config.get("RSI_ONLINE_FALLBACK"):
                 source_title, event_results = _assess_with_online_label(
                     product, events
                 )
@@ -262,10 +375,10 @@ def assess_case(case_id, allow_online=True):
                         "provisional": True,
                         "evidence": (
                             f"No current reference safety information is "
-                            f"uploaded for {product_label}, and no online "
-                            "label was found. Upload the reference document "
-                            "under Reference Safety Information; this case "
-                            "will then be re-checked automatically."
+                            f"in the library for {product_label}. Add the "
+                            "reference document under Reference Safety "
+                            "Information; this case will then be re-checked "
+                            "automatically."
                         ),
                         "matches": [],
                     }
@@ -466,27 +579,25 @@ def listedness_message(outcome):
 def reassess_product_cases(product_names, actor_user_id=None):
     """Re-run automatic (not reviewer-confirmed) checks for a product's cases
     after its reference information changes. Uses uploaded documents only."""
-    names = [n.lower() for n in product_names if n]
+    names = [n for n in product_names if n]
     if not names:
         return 0
+    document = {"product_name": names[0], "active_substance": names[1] if len(names) > 1 else None}
     try:
-        cases = query_all(
+        rows = query_all(
             """
-            SELECT DISTINCT case_products.case_id
+            SELECT DISTINCT ON (case_products.case_id)
+                   case_products.case_id, case_products.product_name, case_products.generic_name
             FROM pv.case_products AS case_products
             LEFT JOIN pv.case_safety_assessments AS assessments
                 ON assessments.case_id = case_products.case_id
-            WHERE (
-                LOWER(case_products.product_name) = ANY(%s)
-                OR LOWER(COALESCE(case_products.generic_name, '')) = ANY(%s)
-            )
-              AND (
-                  assessments.case_id IS NULL
-                  OR assessments.assessment_source = 'automatic'
-              )
-            """,
-            (names, names),
+            WHERE assessments.case_id IS NULL
+               OR assessments.assessment_source = 'automatic'
+            ORDER BY case_products.case_id, case_products.case_product_id
+            """
         )
+        # Same matching as the case check: strength and form are ignored.
+        cases = [row for row in rows if product_matches(document, row)]
     except Exception:
         current_app.logger.exception("Could not find cases to re-check")
         try:
