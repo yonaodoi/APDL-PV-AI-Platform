@@ -5,6 +5,9 @@ PV Officer prepares the case and sends it for review
   -> Group Head RA & Quality approves it (or returns it with a comment)
   -> only an approved case can be marked as submitted.
 
+Each step sets the case status: Assessment -> QPPV review -> Group Head
+approval -> Approved; a return puts the case back at Assessment.
+
 The same person cannot send, review and approve the same case. Editing a
 case after review sends it back for review. Reviewers and the Group Head get
 one summary email a day listing what is waiting for them, plus an immediate
@@ -22,6 +25,14 @@ PENDING_REVIEW = "Pending review"
 PENDING_APPROVAL = "Pending approval"
 APPROVED = "Approved"
 RETURNED = "Returned"
+
+# Each sign-off stage puts the case at the matching status.
+STATUS_FOR_STAGE = {
+    PENDING_REVIEW: "QPPV review",
+    PENDING_APPROVAL: "Case approval",
+    APPROVED: "Approved",
+    RETURNED: "Assessment",
+}
 
 # Defaults; an administrator can change them under Administration ->
 # Sign-off settings (see app.services.approval_settings).
@@ -126,7 +137,8 @@ def approval_history(case_id):
     )
 
 
-def take_step(case_id, action, user_id, role, designated_qppv=False, comment=""):
+def take_step(case_id, action, user_id, role, designated_qppv=False, comment="",
+              override_reason=""):
     """Record one sign-off step. Returns the new stage. Raises ApprovalError."""
     case = query_one(
         """
@@ -143,10 +155,37 @@ def take_step(case_id, action, user_id, role, designated_qppv=False, comment="")
     comment = (comment or "").strip()
     if action.startswith("return") and not comment:
         raise ApprovalError("Say what needs to change before returning the case.")
-    if action == "send" and case["workflow_status"] != "Ready for submission":
-        raise ApprovalError(
-            "Move the case to Ready for submission before sending it for review."
+    override_note = ""
+    if action == "send":
+        from app.services.case_workflow import (
+            LEGACY_STATUSES,
+            can_override,
+            load_workflow_inputs,
+            readiness_blockers,
         )
+
+        status = LEGACY_STATUSES.get(case["workflow_status"], case["workflow_status"])
+        if status != "Assessment":
+            raise ApprovalError(
+                "Only a case at Assessment can be sent for review. "
+                f"This case is at {case['workflow_status']}."
+            )
+        checks, assessment, _ = load_workflow_inputs(case_id)
+        full = query_one(
+            "SELECT causality_assessment FROM pv.safety_cases WHERE case_id = %s", (case_id,)
+        ) or {}
+        blockers = readiness_blockers(checks, assessment, full.get("causality_assessment"))
+        if blockers:
+            reason = (override_reason or "").strip()
+            if not (reason and can_override(role, designated_qppv)):
+                raise ApprovalError(
+                    "Not ready to send for review: " + " ".join(blockers)
+                    + (" Tick Override and give a reason to send it anyway."
+                       if can_override(role, designated_qppv) else "")
+                )
+            override_note = (
+                f" Readiness check overridden. Reason: {reason}. Outstanding: {' '.join(blockers)}"
+            )
 
     history = approval_history(case_id)
     check_step(case["approval_stage"], action, user_id, role, designated_qppv, history)
@@ -157,10 +196,11 @@ def take_step(case_id, action, user_id, role, designated_qppv=False, comment="")
             """
             UPDATE pv.safety_cases
             SET approval_stage = %s, approval_updated_at = CURRENT_TIMESTAMP,
+                workflow_status = %s,
                 updated_at = CURRENT_TIMESTAMP
             WHERE case_id = %s
             """,
-            (stage, case_id),
+            (stage, STATUS_FOR_STAGE[stage], case_id),
         )
         cursor.execute(
             """
@@ -177,18 +217,11 @@ def take_step(case_id, action, user_id, role, designated_qppv=False, comment="")
             (
                 case_id,
                 f"Sign-off: {step}",
-                f"Approval stage is now {stage}." + (f" Comment: {comment}" if comment else ""),
+                f"Status is now {STATUS_FOR_STAGE[stage]}." + (f" Comment: {comment}" if comment else "")
+                + override_note,
                 user_id,
             ),
         )
-        if action.startswith("return"):
-            cursor.execute(
-                """
-                UPDATE pv.safety_cases SET workflow_status = 'Medical review'
-                WHERE case_id = %s AND workflow_status = 'Ready for submission'
-                """,
-                (case_id,),
-            )
     return stage
 
 
@@ -197,11 +230,13 @@ def reset_after_edit(cursor, case_id, user_id):
     cursor.execute(
         """
         UPDATE pv.safety_cases
-        SET approval_stage = %s, approval_updated_at = CURRENT_TIMESTAMP
+        SET approval_stage = %s, approval_updated_at = CURRENT_TIMESTAMP,
+            workflow_status = %s
         WHERE case_id = %s AND approval_stage IN (%s, %s)
+          AND regulatory_submitted_date IS NULL
         RETURNING case_id
         """,
-        (PENDING_REVIEW, case_id, PENDING_APPROVAL, APPROVED),
+        (PENDING_REVIEW, STATUS_FOR_STAGE[PENDING_REVIEW], case_id, PENDING_APPROVAL, APPROVED),
     )
     if cursor.fetchone() is None:
         return False

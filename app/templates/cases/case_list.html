@@ -362,13 +362,18 @@
 </div>
 
 <section class="case-summary" aria-label="Filtered safety case totals">
+    {% if waiting_for_me %}
+        <a class="summary-chip summary-chip-link mine-chip is-on" href="{{ url_for('cases.case_list') }}"><strong>✓</strong><span>Waiting for me · show all</span></a>
+    {% else %}
+        <a class="summary-chip summary-chip-link mine-chip" href="{{ url_for('cases.case_list', mine='1') }}"><strong>→</strong><span>Waiting for me</span></a>
+    {% endif %}
     <div class="summary-chip"><strong>{{ cases|length }}</strong><span>Matching cases</span></div>
     <div class="summary-chip"><strong>{{ cases|selectattr("workflow_status", "equalto", "New")|list|length }}</strong><span>New cases</span></div>
     <div class="summary-chip"><strong>{{ cases|selectattr("seriousness")|list|length }}</strong><span>Serious cases</span></div>
     <a class="summary-chip summary-chip-link{% if overdue_count %} summary-chip-alert{% endif %}" href="{{ url_for('cases.case_list', deadline='overdue') }}"><strong>{{ overdue_count }}</strong><span>Overdue for reporting</span></a>
 </section>
 
-{% set any_filter = selected_product or selected_country or selected_status or selected_priority or selected_deadline or start_date or end_date %}
+{% set any_filter = selected_product or selected_country or selected_status or selected_priority or selected_deadline or start_date or end_date or waiting_for_me %}
 <details class="case-register fold-card register-fold" id="all-cases" {% if any_filter or not cases %}open{% endif %}>
     <summary class="register-toolbar">
         <h3>All safety cases</h3>
@@ -385,6 +390,7 @@
                     <th scope="col">Country</th>
                     <th scope="col">Event</th>
                     <th scope="col">Status</th>
+                    <th scope="col">With</th>
                     <th scope="col">Received</th>
                     <th scope="col">Seriousness</th>
                     <th scope="col">Reporting clock</th>
@@ -398,6 +404,7 @@
                         <td>{{ case.country_name or "Not recorded" }}</td>
                         <td class="event-description" title="{{ case.event_description }}">{{ case.event_description }}</td>
                         <td><span class="status-pill">{{ case.workflow_status }}</span></td>
+                        <td class="case-holder-cell">{{ case.holder or "—" }}</td>
                         <td>{{ case.received_date.strftime("%d %b %Y") }}</td>
                         <td>
                             {% if case.seriousness %}

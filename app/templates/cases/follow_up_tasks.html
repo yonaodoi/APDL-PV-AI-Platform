@@ -195,6 +195,7 @@
                 <div class="task-actions">
                     <a class="task-download" href="{{ url_for('case_review.download_follow_up_request', case_id=group.case_id) }}">Download request (Word)</a>
                     {% if group.can_email %}
+                        <a class="task-download" href="{{ url_for('case_review.preview_follow_up_request', case_id=group.case_id) }}">Preview and edit email</a>
                         <form method="post" action="{{ url_for('case_review.send_follow_up_request', case_id=group.case_id) }}" class="send-request-form">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button class="task-complete" type="submit">{% if group.last_request %}Email again{% elif automation.active %}Send now{% else %}Email request to reporter{% endif %}</button>

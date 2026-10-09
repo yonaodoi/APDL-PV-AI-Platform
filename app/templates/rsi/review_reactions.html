@@ -160,6 +160,38 @@
         color: #746879;
     }
 
+    .term-edit summary {
+        display: inline-block;
+        margin-top: 4px;
+        color: #145a40;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+    .term-edit form, .add-term form { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .term-edit input, .add-term input {
+        flex: 1 1 220px;
+        padding: 7px 10px;
+        border: 1px solid #d5e2d9;
+        border-radius: 8px;
+        font: inherit;
+        font-size: 13px;
+    }
+    .save-term-button {
+        padding: 7px 12px;
+        border: 0;
+        border-radius: 8px;
+        background: #145a40;
+        color: #ffffff;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+    .add-term { padding: 14px 18px; border-bottom: 1px solid #eee8ec; }
+    .add-term label { color: #526a5f; font-size: 12px; font-weight: 800; }
+    .term-hint { margin-top: 4px; color: #71817a; font-size: 11.5px; }
+
     .empty-state {
         padding: 48px 20px;
         color: #817786;
@@ -200,13 +232,22 @@
     </header>
 
     <div class="review-note">
-        These terms were extracted automatically from the uploaded document. Verify only genuine adverse-reaction terms. Only <strong>Verified</strong> terms should be used for automated listedness suggestions.
+        These terms were extracted automatically from the uploaded document. Check each one: <strong>Verify</strong> it if it is right, <strong>Edit</strong> it if the wording needs correcting (saving an edit verifies it), or <strong>Exclude</strong> it. Add any reaction the extraction missed. Only <strong>Verified</strong> terms are relied on for listedness.
     </div>
 
     <section class="reaction-register">
         <div class="reaction-register-heading">
             <h2>Extracted terms</h2>
             <span>{{ reactions|length }} term(s)</span>
+        </div>
+
+        <div class="add-term">
+            <form method="post" action="{{ url_for('rsi.add_reaction', rsi_id=document.rsi_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label for="new-term" style="flex-basis:100%;">Add a reaction term the extraction missed</label>
+                <input id="new-term" type="text" name="reaction_term" maxlength="255" placeholder="e.g. Anaphylactic reaction" required>
+                <button class="save-term-button" type="submit">Add and verify</button>
+            </form>
         </div>
 
         {% if reactions %}
@@ -220,8 +261,19 @@
                 </thead>
                 <tbody>
                     {% for reaction in reactions %}
-                        <tr>
-                            <td class="reaction-term">{{ reaction.reaction_term }}</td>
+                        <tr id="reaction-{{ reaction.reaction_id }}">
+                            <td class="reaction-term">
+                                {{ reaction.reaction_term }}
+                                <details class="term-edit">
+                                    <summary>Edit</summary>
+                                    <form method="post" action="{{ url_for('rsi.edit_reaction', reaction_id=reaction.reaction_id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="text" name="reaction_term" value="{{ reaction.reaction_term }}" maxlength="255" required aria-label="Corrected term">
+                                        <button class="save-term-button" type="submit">Save and verify</button>
+                                    </form>
+                                    {% if reaction.source_excerpt %}<div class="term-hint">From the document: “{{ reaction.source_excerpt[:160] }}{% if reaction.source_excerpt|length > 160 %}…{% endif %}”</div>{% endif %}
+                                </details>
+                            </td>
                             <td>
                                 {% if reaction.review_status == "Verified" %}
                                     <span class="verified-tag">Verified</span>

@@ -56,7 +56,7 @@
 {% endif %}
 
 <div class="layout">
-    <form id="safety-case-form" method="post" {% if not editing %}data-guided-voice="true"{% endif %}>
+    <form id="safety-case-form" method="post" {% if extraction_filename is defined and extraction_filename %}action="{{ url_for('cases.create_case') }}"{% endif %} {% if not editing %}data-guided-voice="true"{% endif %}>
         {{ form.hidden_tag() }}
         {% if editing and return_section %}
             <input type="hidden" name="return_section" value="{{ return_section }}">

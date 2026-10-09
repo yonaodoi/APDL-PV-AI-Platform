@@ -1122,9 +1122,16 @@ def review_document_suggestions(complaint_id, attachment_id):
         back_url=url_for("complaints.complaint_detail", complaint_id=complaint_id)
         + "#attachments",
         attachment=attachment,
-        suggestions=attachment.get("suggested_updates") or [],
+        suggestions=_editable_complaint_suggestions(attachment),
         document_type_label=complaint_document_type_label,
     )
+
+
+def _editable_complaint_suggestions(attachment):
+    from app.services.complaint_documents import APPEND_FIELDS, CHOICES, DATE_FIELDS
+    from app.services.suggestion_edits import annotate
+
+    return annotate(attachment.get("suggested_updates") or [], DATE_FIELDS, CHOICES, APPEND_FIELDS)
 
 
 @bp.post("/<int:complaint_id>/attachments/<int:attachment_id>/suggestions")
@@ -1167,6 +1174,27 @@ def apply_document_suggestions(complaint_id, attachment_id):
     if not selected:
         flash("Tick at least one update to apply, or dismiss the suggestions.", "error")
         return redirect(review_url)
+
+    from app.services.complaint_documents import normalise_complaint_extract
+    from app.services.suggestion_edits import apply_edits
+
+    country_cache = []
+
+    def check_value(values):
+        # Countries are only needed when a reviewer changed a value.
+        if not country_cache:
+            country_cache.append(query_all("SELECT country_id, country_name FROM pv.countries"))
+        return normalise_complaint_extract(values, country_cache[0])
+
+    edited, edit_errors = apply_edits(
+        attachment.get("suggested_updates") or [], request.form, check_value, selected,
+    )
+    if edit_errors:
+        for error in edit_errors:
+            flash(error, "error")
+        flash("Nothing was applied. Correct the value or untick that row.", "error")
+        return redirect(review_url)
+    attachment = {**attachment, "suggested_updates": edited}
 
     # Check the dates still make sense with the chosen values applied.
     complaint = query_one(

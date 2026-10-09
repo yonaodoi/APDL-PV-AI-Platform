@@ -79,15 +79,12 @@ def gmail_callback():
     return redirect(url_for("case_review.follow_up_tasks"))
 
 
-VALID_STATUSES = {
-    "New",
-    "Triage",
-    "Follow-up requested",
-    "Medical review",
-    "Ready for submission",
-    "Submitted",
-    "Closed",
-}
+from app.services.case_workflow import (  # noqa: E402
+    LEGACY_STATUSES,
+    MANUAL_STATUSES,
+    SIGN_OFF_STATUSES,
+    STATUSES as VALID_STATUSES,
+)
 
 
 @bp.post("/<int:case_id>/review")
@@ -119,8 +116,33 @@ def review_case(case_id):
         "regulatory_submitted_date", ""
     ).strip()
 
+    workflow_status = LEGACY_STATUSES.get(workflow_status, workflow_status)
+    current_status = LEGACY_STATUSES.get(case.get("workflow_status"), case.get("workflow_status"))
     if workflow_status not in VALID_STATUSES:
         abort(400)
+    if workflow_status != current_status:
+        if current_status in SIGN_OFF_STATUSES:
+            flash(
+                f"This case is at {current_status}. Use the sign-off box to "
+                "review, approve or return it; the status follows those steps.",
+                "error",
+            )
+            return redirect(url_for("cases.case_detail", case_id=case_id) + "#approval")
+        if workflow_status in SIGN_OFF_STATUSES:
+            flash(
+                "Use “Send for QPPV review” in the sign-off box; the review and "
+                "approval stages follow the sign-off steps.",
+                "error",
+            )
+            return redirect(url_for("cases.case_detail", case_id=case_id) + "#approval")
+        if workflow_status == "Submitted":
+            flash(
+                "Use “Mark as submitted” once the case is approved.",
+                "error",
+            )
+            return redirect(url_for("cases.case_detail", case_id=case_id) + "#workflow")
+        if workflow_status not in MANUAL_STATUSES:
+            abort(400)
 
     try:
         submitted_date = (
@@ -314,9 +336,9 @@ def mark_submitted(case_id):
     if submitted_on < case["received_date"]:
         flash("The submission date cannot be before the case was received.", "error")
         return redirect(back)
-    if case["workflow_status"] != "Ready for submission":
+    if case["workflow_status"] != "Approved":
         flash(
-            "Only a case that is Ready for submission can be marked as submitted.",
+            "Only an approved case can be marked as submitted.",
             "error",
         )
         return redirect(back)
@@ -735,7 +757,7 @@ def complete_follow_up_task(task_id):
                 cursor,
                 task["case_id"],
                 ("Follow-up requested",),
-                "Medical review",
+                "Assessment",
                 "all follow-up tasks are completed.",
                 session["user_id"],
             )
@@ -745,7 +767,7 @@ def complete_follow_up_task(task_id):
     if moved:
         flash(
             "All follow-up tasks for this case are done, so it moved to "
-            "Medical review.",
+            "Assessment.",
             "info",
         )
     return redirect(url_for("case_review.follow_up_tasks"))
@@ -841,6 +863,8 @@ def send_follow_up_request(case_id):
         session["user_id"],
         kind=kind,
         prepared_by=session.get("full_name"),
+        subject_override=request.form.get("subject") or None,
+        body_override=request.form.get("body") or None,
     )
     if not result["sent"]:
         flash(result["message"], "error" if result["items"] else "info")
@@ -851,8 +875,21 @@ def send_follow_up_request(case_id):
     return redirect(back)
 
 
+@bp.get("/<int:case_id>/follow-up-request/preview")
+@login_required
+def preview_follow_up_request(case_id):
+    """Show the follow-up email as it would be sent, editable before sending."""
+    from app.services.follow_up_automation import preview_case_request
+
+    kind = "Reminder" if previously_sent(case_id) else "Request"
+    preview = preview_case_request(case_id, kind)
+    if preview is None:
+        abort(404)
+    return render_template("cases/follow_up_email_preview.html", preview=preview)
+
+
 # --------------------------------------------------------------------------
-# Sign-off: PV Officer -> QPPV / Deputy QPPV review -> Group Head approval
+# Sign-off: PV Officer -> QPPV / Deputy QPPV review -> Case approval
 # --------------------------------------------------------------------------
 
 @bp.post("/<int:case_id>/sign-off")
@@ -867,6 +904,9 @@ def case_sign_off(case_id):
     )
     action = request.form.get("action", "")
     comment = request.form.get("comment", "")
+    override_reason = (
+        request.form.get("override_reason", "") if request.form.get("override") == "on" else ""
+    )
     try:
         stage = take_step(
             case_id,
@@ -875,6 +915,7 @@ def case_sign_off(case_id):
             session.get("role"),
             is_designated_qppv(session["user_id"]),
             comment,
+            override_reason,
         )
     except ApprovalError as error:
         flash(str(error), "error")
@@ -887,7 +928,7 @@ def case_sign_off(case_id):
         "Pending review": f"Sent for {titles['review_title']}.",
         "Pending approval": f"Reviewed. Sent for {titles['approval_title']}.",
         "Approved": "Approved. The case can now be submitted to the regulator.",
-        "Returned": "Returned to the PV officer with your comment.",
+        "Returned": "Returned to the PV officer with your comment. The case is back at Assessment.",
     }
     flash(messages.get(stage, "Saved."), "success")
     if stage in ("Returned", "Approved"):

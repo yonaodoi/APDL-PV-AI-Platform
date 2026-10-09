@@ -1213,6 +1213,44 @@
         {% elif request.args.get("workflow_saved") == "review" %}
             <div class="workflow-saved" role="status">✓ Review saved. Status: <strong>{{ case.workflow_status }}</strong>.</div>
         {% endif %}
+        {% set stage_names = ["New", "Triage", "Follow-up requested", "Assessment", "QPPV review", "Case approval", "Approved", "Submitted"] %}
+        {% set legacy = {"Medical review": "Assessment", "Ready for submission": "Assessment", "Group Head approval": "Case approval"} %}
+        {% set current_stage = legacy.get(case.workflow_status, case.workflow_status) %}
+        <div class="stage-track" aria-label="Case stages">
+            <ol>
+                {% set ns = namespace(passed=true) %}
+                {% for name in stage_names %}
+                    {% if name == current_stage %}{% set ns.passed = false %}{% endif %}
+                    <li class="{% if name == current_stage %}is-current{% elif ns.passed and current_stage in stage_names %}is-done{% endif %}">
+                        {% if name == "QPPV review" %}{{ signoff.review_title }}{% elif name == "Case approval" %}{{ signoff.approval_title }}{% else %}{{ name }}{% endif %}
+                    </li>
+                {% endfor %}
+                {% if current_stage == "Closed" %}<li class="is-current">Closed</li>{% endif %}
+            </ol>
+        </div>
+        {% if workflow and workflow.holder %}
+            <div class="case-holder">
+                <span class="case-holder-label">With:</span> <strong>{{ workflow.holder }}</strong>
+                {% if workflow.can_reassign and workflow.officers and current_stage not in ("Submitted", "Closed") %}
+                    <details class="reassign">
+                        <summary>Reassign</summary>
+                        <form method="post" action="{{ url_for('cases.assign_case', case_id=case.case_id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <select name="assigned_to" aria-label="New owner">
+                                {% for person in workflow.officers %}
+                                    <option value="{{ person.user_id }}" {% if person.user_id == case.assigned_to %}selected{% endif %}>{{ person.full_name }} ({{ person.role_name }})</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit">Save owner</button>
+                        </form>
+                    </details>
+                {% endif %}
+                {% if case.assigned_to_name and current_stage in ("QPPV review", "Case approval") %}
+                    <div class="case-owner-note">Case owner: {{ case.assigned_to_name }}</div>
+                {% endif %}
+            </div>
+        {% endif %}
+
         {% if workflow and workflow.last_review %}
             <p class="workflow-last">
                 Last review: {{ workflow.last_review.performed_at.strftime("%d %b %Y, %H:%M") }}{% if workflow.last_review.full_name %} · {{ workflow.last_review.full_name }}{% endif %}
@@ -1241,9 +1279,9 @@
             </div>
         {% endif %}
 
-        {% if workflow and case.workflow_status not in ("Ready for submission", "Submitted", "Closed") %}
+        {% if workflow and current_stage in ("New", "Triage", "Follow-up requested", "Assessment") %}
             <div class="workflow-readiness">
-                <div class="workflow-readiness-title">Ready for submission?</div>
+                <div class="workflow-readiness-title">Ready to send for {{ signoff.review_title }}?</div>
                 {% if workflow.blockers %}
                     <ul>
                         {% for blocker in workflow.blockers %}
@@ -1264,7 +1302,7 @@
                     {% if stage == "Pending review" %}waiting for {{ signoff.review_title }}
                     {% elif stage == "Pending approval" %}waiting for {{ signoff.approval_title }}
                     {% elif stage == "Approved" %}approved for submission
-                    {% elif stage == "Returned" %}returned to the PV officer
+                    {% elif stage == "Returned" %}returned to Assessment
                     {% else %}not started{% endif %}
                 </div>
                 {% if approval.history %}
@@ -1277,15 +1315,24 @@
                 {% endif %}
 
                 {% if stage in (None, "", "Returned") %}
-                    {% if case.workflow_status == "Ready for submission" %}
+                    {% if current_stage == "Assessment" and (not workflow or not workflow.blockers or workflow.can_override) %}
                         <form method="post" action="{{ url_for('case_review.case_sign_off', case_id=case.case_id) }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="action" value="send">
                             <textarea name="comment" rows="2" placeholder="Note for the reviewer (optional)"></textarea>
+                            {% if workflow and workflow.blockers %}
+                                <div class="signoff-override">
+                                    <p>Not everything is ready (see the list above).</p>
+                                    <label><input type="checkbox" name="override"> Send anyway (override)</label>
+                                    <textarea name="override_reason" rows="2" placeholder="Reason for sending with outstanding items (recorded in the audit trail)"></textarea>
+                                </div>
+                            {% endif %}
                             <div class="approval-buttons"><button class="approve" type="submit">Send for {{ signoff.review_title }}</button></div>
                         </form>
+                    {% elif current_stage == "Assessment" %}
+                        <p>Finish the items listed above, then send the case for {{ signoff.review_title }}.</p>
                     {% else %}
-                        <p>When the case is Ready for submission, send it for {{ signoff.review_title }}.</p>
+                        <p>When the case reaches Assessment with everything complete, the PV officer sends it for {{ signoff.review_title }}.</p>
                     {% endif %}
                 {% elif stage == "Pending review" and approval.can_review %}
                     <form method="post" action="{{ url_for('case_review.case_sign_off', case_id=case.case_id) }}">
@@ -1309,7 +1356,7 @@
             </div>
         {% endif %}
 
-        {% if case.workflow_status == "Ready for submission" and not case.regulatory_submitted_date and (not approval or approval.stage == "Approved") %}
+        {% if current_stage == "Approved" and not case.regulatory_submitted_date %}
             <form class="mark-submitted" method="post" action="{{ url_for('case_review.mark_submitted', case_id=case.case_id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mark-submitted-title">Sent to the regulator?</div>
@@ -1327,9 +1374,14 @@
 
             <label style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Workflow status</label>
             <select name="workflow_status" style="width: 100%; margin-bottom: 13px; padding: 9px; border: 1px solid #ddd5dc; border-radius: 8px; background: white;">
-                {% for status in ["New", "Triage", "Follow-up requested", "Medical review", "Ready for submission", "Submitted", "Closed"] %}
-                    <option value="{{ status }}" {% if case.workflow_status == status %}selected{% endif %}>{{ status }}</option>
-                {% endfor %}
+                {% set manual = ["New", "Triage", "Follow-up requested", "Assessment", "Closed"] %}
+                {% if current_stage not in manual %}
+                    <option value="{{ current_stage }}" selected>{{ current_stage }} (set by sign-off)</option>
+                {% else %}
+                    {% for status in manual %}
+                        <option value="{{ status }}" {% if current_stage == status %}selected{% endif %}>{{ status }}</option>
+                    {% endfor %}
+                {% endif %}
             </select>
 
             <label style="display: block; margin-bottom: 6px; color: #554d5d; font-size: 11px; font-weight: bold;">Causality assessment</label>
@@ -1453,7 +1505,7 @@
         if (!box || !select) { return; }
         var current = select.value;
         function update() {
-            var gated = select.value === "Ready for submission" || select.value === "Submitted";
+            var gated = false;  // sending for review has its own override in the sign-off box
             box.hidden = !(gated && select.value !== current);
         }
         select.addEventListener("change", update);

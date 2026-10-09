@@ -32,7 +32,7 @@ def test_full_chain_with_three_different_people():
 
 def test_roles_are_enforced():
     assert "can do the QPPV review" in raises("Pending review", "review", 7, "PV Officer", HISTORY_SENT_BY_5)
-    assert "Group Head approval" in raises("Pending approval", "approve", 9, "QPPV", HISTORY_REVIEWED_BY_7)
+    assert "Case approval" in raises("Pending approval", "approve", 9, "QPPV", HISTORY_REVIEWED_BY_7)
     # The designated QPPV can review whatever their system role.
     assert raises("Pending review", "review", 7, "System Administrator", HISTORY_SENT_BY_5, designated=True) is None
 
@@ -119,7 +119,7 @@ def test_approvals_page_shows_review_actions_to_the_qppv(monkeypatch):
     page = client.get("/cases/approvals?tab=review").get_data(as_text=True)
 
     assert "APDL-ICSR-26-003" in page
-    assert "Reviewed – send for Group Head approval" in page
+    assert "Reviewed – send for Case approval" in page
     assert "Return to PV officer" in page
     assert "To review <span>1</span>" in page
 
@@ -136,7 +136,7 @@ def test_approvals_page_hides_actions_from_other_roles(monkeypatch):
 
     assert "APDL-ICSR-26-003" in page
     assert ">Approve<" not in page
-    assert "can give the Group Head approval" in page
+    assert "can give the Case approval" in page
 
 
 def test_sign_off_route_records_the_step_and_tells_the_officer(monkeypatch):
@@ -144,7 +144,7 @@ def test_sign_off_route_records_the_step_and_tells_the_officer(monkeypatch):
     calls, told = [], []
     monkeypatch.setattr(
         approval, "take_step",
-        lambda case_id, action, user, role, designated, comment: calls.append((case_id, action, user, role, comment)) or "Approved",
+        lambda case_id, action, user, role, designated, comment, override_reason="": calls.append((case_id, action, user, role, comment)) or "Approved",
     )
     monkeypatch.setattr(approval, "notify_officer", lambda app, case_id, stage, comment, name: told.append(stage))
 
@@ -242,7 +242,7 @@ def _settings_post(monkeypatch, people, form):
 
     monkeypatch.setattr(admin_routes, "transaction", lambda: Txn())
     monkeypatch.setattr(admin_routes, "write_audit_log", lambda **kw: audits.append(kw))
-    data = {"review_title": "QPPV review", "approval_title": "Group Head approval",
+    data = {"review_title": "QPPV review", "approval_title": "Case approval",
             "reviewer_roles": "QPPV", "approver_roles": "Group Head RA & Quality"}
     data.update(form)
     response = client.post("/administration/sign-off-settings", data=data)
@@ -310,3 +310,81 @@ def test_returned_case_emails_officer_and_extra_addresses(monkeypatch):
     quiet = normalise({"notify_officer": False, "officer_extra_emails": "pv.box@example.com"})
     approval.notify_officer(app, 3, approval.APPROVED, "", "Keith", quiet)
     assert [s[0] for s in sent] == ["pv.box@example.com"]
+
+
+def _take_step_db(monkeypatch, case, blockers_inputs, can_override_role=False):
+    import app.services.case_workflow as workflow
+
+    executed = []
+
+    class Cursor:
+        def execute(self, sql, parameters=()):
+            executed.append((sql, parameters))
+
+    class Txn:
+        def __enter__(self):
+            return Cursor()
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(approval, "query_one", lambda sql, parameters=(): case)
+    monkeypatch.setattr(approval, "approval_history", lambda case_id: [])
+    monkeypatch.setattr(approval, "transaction", lambda: Txn())
+    monkeypatch.setattr(approval, "_settings", lambda settings=None: SETTINGS)
+    monkeypatch.setattr(workflow, "load_workflow_inputs", lambda case_id: blockers_inputs)
+    return executed
+
+
+READY = ([{"label": "x", "status": "Pass"}], {"assessment_source": "reviewer", "listedness_status": "Listed"}, {})
+NOT_READY = ([{"label": "Onset date", "status": "Review"}], None, {})
+
+
+def test_sending_for_review_moves_the_case_to_qppv_review(monkeypatch):
+    case = {"case_id": 3, "case_number": "26-003", "approval_stage": None, "workflow_status": "Assessment",
+            "regulatory_submitted_date": None, "causality_assessment": "Possible"}
+    executed = _take_step_db(monkeypatch, case, READY)
+
+    assert approval.take_step(3, "send", 5, "PV Officer") == "Pending review"
+    update = executed[0]
+    assert "workflow_status = %s" in update[0]
+    assert update[1] == ("Pending review", "QPPV review", 3)
+
+
+def test_only_assessment_cases_can_be_sent(monkeypatch):
+    case = {"case_id": 3, "case_number": "26-003", "approval_stage": None, "workflow_status": "Triage",
+            "regulatory_submitted_date": None, "causality_assessment": "Possible"}
+    _take_step_db(monkeypatch, case, READY)
+    try:
+        approval.take_step(3, "send", 5, "PV Officer")
+    except approval.ApprovalError as error:
+        assert "Only a case at Assessment" in str(error)
+    else:
+        raise AssertionError("expected an error")
+
+
+def test_not_ready_case_needs_an_override_with_reason(monkeypatch):
+    case = {"case_id": 3, "case_number": "26-003", "approval_stage": None, "workflow_status": "Assessment",
+            "regulatory_submitted_date": None, "causality_assessment": ""}
+    executed = _take_step_db(monkeypatch, case, NOT_READY)
+    for role, reason in (("PV Officer", "deadline"), ("QPPV", "")):
+        try:
+            approval.take_step(3, "send", 5, role, False, "", reason)
+        except approval.ApprovalError as error:
+            assert "Not ready to send for review" in str(error)
+        else:
+            raise AssertionError("expected an error")
+    assert executed == []
+
+    assert approval.take_step(3, "send", 5, "QPPV", False, "", "Deadline today") == "Pending review"
+    audit = [e for e in executed if "case_audit_log" in e[0]][0]
+    assert "Readiness check overridden. Reason: Deadline today" in audit[1][2]
+
+
+def test_returning_a_case_puts_it_back_at_assessment(monkeypatch):
+    case = {"case_id": 3, "case_number": "26-003", "approval_stage": "Pending approval",
+            "workflow_status": "Case approval", "regulatory_submitted_date": None}
+    executed = _take_step_db(monkeypatch, case, READY)
+
+    assert approval.take_step(3, "return_approval", 9, "Group Head RA & Quality", False, "Fix dates") == "Returned"
+    assert executed[0][1] == ("Returned", "Assessment", 3)

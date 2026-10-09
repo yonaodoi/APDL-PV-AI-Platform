@@ -7,12 +7,32 @@ STATUSES = (
     "New",
     "Triage",
     "Follow-up requested",
-    "Medical review",
-    "Ready for submission",
+    "Assessment",
+    "QPPV review",
+    "Case approval",
+    "Approved",
     "Submitted",
     "Closed",
 )
-GATED_STATUSES = ("Ready for submission", "Submitted")
+# Stages a user can choose in the status box. The sign-off stages are only
+# reached through the sign-off buttons, and Submitted through
+# "Mark as submitted".
+MANUAL_STATUSES = ("New", "Triage", "Follow-up requested", "Assessment", "Closed")
+SIGN_OFF_STATUSES = ("QPPV review", "Case approval", "Approved")
+# Sign-off stage (pv.safety_cases.approval_stage) -> case status.
+STATUS_FOR_APPROVAL = {
+    "Pending review": "QPPV review",
+    "Pending approval": "Case approval",
+    "Approved": "Approved",
+    "Returned": "Assessment",
+}
+# Older names, for records and links made before the stages were renamed.
+LEGACY_STATUSES = {
+    "Medical review": "Assessment",
+    "Ready for submission": "Assessment",
+    "Group Head approval": "Case approval",
+}
+GATED_STATUSES = ()
 OVERRIDE_ROLES = (
     "System Administrator",
     "QPPV",
@@ -53,16 +73,24 @@ def readiness_blockers(checks, assessment, causality):
 
 def suggest_status(case, checks, assessment, open_task_count, follow_up_sent):
     """Suggested next status with reasons, or None for closed cases."""
-    current = case.get("workflow_status")
+    current = LEGACY_STATUSES.get(case.get("workflow_status"), case.get("workflow_status"))
     if current == "Closed":
         return None
 
     submitted = case.get("regulatory_submitted_date")
     to_review = [c for c in checks or [] if c.get("status") != "Pass"]
+    signoff = STATUS_FOR_APPROVAL.get(case.get("approval_stage") or "")
 
     if submitted:
         status = "Submitted"
         reasons = [f"Submitted to the regulator on {submitted:%d %b %Y}."]
+    elif signoff and signoff != "Assessment":
+        status = signoff
+        reasons = {
+            "QPPV review": ["Sent for QPPV review. Waiting for the QPPV or Deputy QPPV."],
+            "Case approval": ["Reviewed. Waiting for case approval by the Group Head."],
+            "Approved": ["Approved. Submit to the regulator, then record the date with “Mark as submitted”."],
+        }[signoff]
     elif open_task_count and follow_up_sent:
         status = "Follow-up requested"
         reasons = [
@@ -76,22 +104,37 @@ def suggest_status(case, checks, assessment, open_task_count, follow_up_sent):
             "case or send follow-up requests."
         ]
     else:
+        status = "Assessment"
         blockers = readiness_blockers(checks, assessment, case.get("causality_assessment"))
-        if blockers:
-            status = "Medical review"
-            reasons = blockers
-        else:
-            status = "Ready for submission"
-            reasons = [
-                "Checklist complete, listedness confirmed "
-                f"({assessment.get('listedness_status')}) and causality "
-                f"recorded ({case.get('causality_assessment')})."
-            ]
+        reasons = blockers or [
+            "Checklist complete, listedness confirmed "
+            f"({assessment.get('listedness_status')}) and causality recorded "
+            f"({case.get('causality_assessment')}). Send it for QPPV review."
+        ]
 
     if current == "Submitted" and status != "Submitted":
         # Never suggest moving a submitted case backwards.
         return {"status": current, "reasons": ["Case has been submitted."], "same": True}
     return {"status": status, "reasons": reasons, "same": status == current}
+
+
+def case_holder(case, reviewers=(), approvers=()):
+    """Who has the case now, as a short label for the page and lists."""
+    status = LEGACY_STATUSES.get(case.get("workflow_status"), case.get("workflow_status"))
+    owner = case.get("assigned_to_name") or "the PV officer"
+    if status == "QPPV review":
+        names = ", ".join(reviewers) if reviewers else "QPPV / Deputy QPPV"
+        return f"QPPV review ({names})"
+    if status == "Case approval":
+        names = ", ".join(approvers) if approvers else "Group Head"
+        return f"Case approval ({names})"
+    if status == "Follow-up requested":
+        return f"{owner} · waiting for the reporter"
+    if status == "Approved":
+        return f"{owner} · to submit to the regulator"
+    if status in ("Submitted", "Closed"):
+        return None
+    return owner
 
 
 def draft_review_note(case, checks, assessment, open_tasks, earliest_due, follow_up_sent, suggestion, today=None):

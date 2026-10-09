@@ -39,10 +39,22 @@ def test_ready_only_when_checklist_listedness_and_causality_are_done():
 def test_suggestions_follow_the_case_through_its_steps():
     assert workflow.suggest_status(_case(), [REVIEW], None, 1, False)["status"] == "Triage"
     assert workflow.suggest_status(_case(), [REVIEW], None, 1, True)["status"] == "Follow-up requested"
-    assert workflow.suggest_status(_case(), [PASS], AUTOMATIC, 0, False)["status"] == "Medical review"
+    not_ready = workflow.suggest_status(_case(), [PASS], AUTOMATIC, 0, False)
+    assert not_ready["status"] == "Assessment"
+    assert "reviewer must confirm" in " ".join(not_ready["reasons"])
     ready = workflow.suggest_status(_case(), [PASS], CONFIRMED, 0, False)
-    assert ready["status"] == "Ready for submission"
+    assert ready["status"] == "Assessment"
+    assert "Send it for QPPV review" in ready["reasons"][0]
     assert ready["same"] is False
+    # Sign-off stages are followed, not suggested by hand.
+    for stage, status in (("Pending review", "QPPV review"), ("Pending approval", "Case approval"),
+                          ("Approved", "Approved")):
+        result = workflow.suggest_status(_case(workflow_status=status, approval_stage=stage), [PASS], CONFIRMED, 0, False)
+        assert result["status"] == status and result["same"] is True
+    returned = workflow.suggest_status(_case(workflow_status="Assessment", approval_stage="Returned"), [PASS], CONFIRMED, 0, False)
+    assert returned["status"] == "Assessment"
+    # Old names are read as Assessment.
+    assert workflow.suggest_status(_case(workflow_status="Medical review"), [PASS], AUTOMATIC, 0, False)["same"] is True
     submitted = workflow.suggest_status(
         _case(regulatory_submitted_date=date(2026, 10, 1)), [REVIEW], None, 0, False
     )
@@ -62,9 +74,8 @@ def test_suggestion_matching_current_status_is_marked_same():
 
 
 def test_override_rules():
-    assert workflow.needs_override("Ready for submission", ["x"]) is True
-    assert workflow.needs_override("Medical review", ["x"]) is False
-    assert workflow.needs_override("Submitted", []) is False
+    # Overriding now happens when sending for QPPV review, not in the status box.
+    assert workflow.needs_override("Assessment", ["x"]) is False
     assert workflow.can_override("Medical Reviewer") is True
     assert workflow.can_override("Regulatory Affairs Officer") is False
     assert workflow.can_override("Regulatory Affairs Officer", designated_qppv=True) is True
@@ -139,7 +150,7 @@ def _patch_review(monkeypatch, blockers_inputs):
             "case_number": "APDL-ICSR-26-016",
             "received_date": date(2026, 9, 8),
             "regulatory_submitted_date": None,
-            "workflow_status": "Medical review",
+            "workflow_status": "Assessment",
         },
     )
     monkeypatch.setattr(workflow, "load_workflow_inputs", lambda case_id: blockers_inputs)
@@ -160,53 +171,33 @@ def _patch_review(monkeypatch, blockers_inputs):
     return saved, audits
 
 
-def test_not_ready_case_cannot_be_marked_ready(monkeypatch):
-    saved, _ = _patch_review(monkeypatch, ([REVIEW], AUTOMATIC, {}))
+def test_sign_off_stages_cannot_be_chosen_by_hand(monkeypatch):
+    saved, _ = _patch_review(monkeypatch, ([PASS], CONFIRMED, {}))
     client = _client(monkeypatch)
 
-    response = client.post(
-        "/cases/9/review",
-        data={"workflow_status": "Ready for submission", "causality_assessment": "Possible"},
-    )
-
-    assert response.status_code == 302
-    assert saved == []
-
-
-def test_officer_cannot_override(monkeypatch):
-    saved, _ = _patch_review(monkeypatch, ([REVIEW], AUTOMATIC, {}))
-    client = _client(monkeypatch)
-
-    client.post(
-        "/cases/9/review",
-        data={
-            "workflow_status": "Ready for submission",
-            "causality_assessment": "Possible",
-            "override": "on",
-            "override_reason": "Deadline today",
-        },
-    )
+    for status in ("QPPV review", "Case approval", "Approved", "Submitted"):
+        response = client.post(
+            "/cases/9/review",
+            data={"workflow_status": status, "causality_assessment": "Possible"},
+        )
+        assert response.status_code == 302
 
     assert saved == []
 
 
-def test_medical_reviewer_can_override_with_reason_and_it_is_audited(monkeypatch):
-    saved, audits = _patch_review(monkeypatch, ([REVIEW], AUTOMATIC, {}))
-    client = _client(monkeypatch, role="Medical Reviewer")
+def test_case_in_sign_off_keeps_its_stage_when_review_saved(monkeypatch):
+    import app.cases.review_routes as review_routes
 
-    client.post(
-        "/cases/9/review",
-        data={
-            "workflow_status": "Ready for submission",
-            "causality_assessment": "Possible",
-            "override": "on",
-            "override_reason": "Regulator deadline today; follow-up continues",
-        },
-    )
+    saved, _ = _patch_review(monkeypatch, ([PASS], CONFIRMED, {}))
+    monkeypatch.setattr(review_routes, "query_one", lambda sql, params=(): {
+        "case_id": 9, "case_number": "APDL-ICSR-26-016", "received_date": date(2026, 9, 8),
+        "regulatory_submitted_date": None, "workflow_status": "QPPV review"})
+    client = _client(monkeypatch)
 
+    client.post("/cases/9/review", data={"workflow_status": "Triage", "causality_assessment": "Possible"})
+    assert saved == []
+    client.post("/cases/9/review", data={"workflow_status": "QPPV review", "causality_assessment": "Possible"})
     assert saved
-    assert audits[0]["action"] == "Readiness check overridden"
-    assert "Regulator deadline today" in audits[0]["details"]
 
 
 def test_override_without_reason_is_refused(monkeypatch):
@@ -227,7 +218,7 @@ def test_ready_case_saves_without_override(monkeypatch):
 
     client.post(
         "/cases/9/review",
-        data={"workflow_status": "Ready for submission", "causality_assessment": "Possible"},
+        data={"workflow_status": "Assessment", "causality_assessment": "Possible"},
     )
 
     assert saved
@@ -282,13 +273,13 @@ def test_saved_review_returns_to_panel_with_confirmation(monkeypatch):
 
     response = client.post(
         "/cases/9/review",
-        data={"workflow_status": "Medical review", "causality_assessment": "Possible"},
+        data={"workflow_status": "Assessment", "causality_assessment": "Possible"},
     )
 
     assert response.headers["Location"].endswith("/cases/9?workflow_saved=review#workflow")
 
 
-def _patch_submit(monkeypatch, status="Ready for submission"):
+def _patch_submit(monkeypatch, status="Approved"):
     import app.cases.review_routes as review_routes
 
     executed, audits = [], []

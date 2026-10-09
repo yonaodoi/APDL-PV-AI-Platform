@@ -29,6 +29,7 @@ from app.services.follow_up_request import (
     build_request_items,
     email_body,
     email_subject,
+    format_sent,
     request_filename,
 )
 
@@ -109,8 +110,57 @@ def reply_due(tasks, case, today=None, days=7):
     return max(earliest, floor) if earliest else floor
 
 
+def preview_case_request(case_id, kind="Request", app=None, today=None):
+    """The email exactly as it would go now, for the preview page.
+
+    Returns {"case_number", "recipient", "subject", "body", "items", "due",
+    "problem"}; "problem" explains why it cannot be sent, if so.
+    """
+    app = app or current_app._get_current_object()
+    today = today or date.today()
+    loaded = load_case_request(case_id)
+    if loaded is None:
+        return None
+    case, product, checks, tasks = loaded
+    items = request_items(case, product, checks, automatic=False)
+    recipient = (case.get("reporter_email") or "").strip()
+    due = reply_due(tasks, case, today, app.config.get("FOLLOW_UP_REMINDER_DAYS", 7))
+    reminder_of = None
+    if kind == "Reminder":
+        first = query_one(
+            """
+            SELECT MIN(sent_at) AS sent_at
+            FROM pv.case_follow_up_email_deliveries
+            WHERE case_id = %s AND status = 'Sent' AND kind = 'Request'
+            """,
+            (case_id,),
+        )
+        reminder_of = (first or {}).get("sent_at")
+    subject = email_subject(case)
+    if kind == "Reminder":
+        subject = "Reminder: " + subject
+    problem = None
+    if not items:
+        problem = "This case has nothing to ask the reporter."
+    elif not valid_email(recipient):
+        problem = "This case has no valid reporter email address. Add it on the case first."
+    return {
+        "case_id": case_id,
+        "case_number": case["case_number"],
+        "recipient": recipient,
+        "subject": subject,
+        "body": email_body(case, product, items, due, reminder_of=reminder_of,
+                           phone=app.config.get("PV_CONTACT_PHONE")) if items else "",
+        "items": items,
+        "due": due,
+        "kind": kind,
+        "problem": problem,
+    }
+
+
 def send_case_request(case_id, actor_user_id, *, automatic=False, kind="Request",
-                      prepared_by=None, app=None, today=None):
+                      prepared_by=None, app=None, today=None,
+                      subject_override=None, body_override=None):
     """Email one case's follow-up request (or a reminder).
 
     Returns a dict: sent (bool), message, items, moved (status changed).
@@ -161,11 +211,20 @@ def send_case_request(case_id, actor_user_id, *, automatic=False, kind="Request"
     subject = email_subject(case)
     if kind == "Reminder":
         subject = "Reminder: " + subject
+    body = email_body(case, product, items, due, reminder_of=reminder_of,
+                      sent_at=sent_at, phone=phone)
+    edited = False
+    if subject_override and subject_override.strip():
+        edited = edited or subject_override.strip() != subject
+        subject = " ".join(subject_override.split())[:250]
+    if body_override and body_override.strip():
+        # The reviewed text from the preview; the send time is added now.
+        text = body_override.replace("\r\n", "\n").rstrip()
+        edited = True
+        body = f"{text}\n\nSent on {format_sent(sent_at)}."
     try:
         send_follow_up_email(
-            app, recipient, subject,
-            email_body(case, product, items, due, reminder_of=reminder_of,
-                       sent_at=sent_at, phone=phone),
+            app, recipient, subject, body,
             document, request_filename(case),
         )
     except FollowUpEmailError as exc:
@@ -221,13 +280,14 @@ def send_case_request(case_id, actor_user_id, *, automatic=False, kind="Request"
                 case_id,
                 action + (" automatically" if automatic else ""),
                 f"{kind} with {len(items)} question(s) sent {who} to {recipient}, "
-                f"reply requested by {due:%d %b %Y}: "
-                + "; ".join(item["label"] for item in items),
+                f"reply requested by {due:%d %b %Y}"
+                + (" (email text reviewed and edited before sending)" if edited else "")
+                + ": " + "; ".join(item["label"] for item in items),
                 actor_user_id,
             ),
         )
         moved = auto_move_status(
-            cursor, case_id, ("New", "Triage", "Medical review"),
+            cursor, case_id, ("New", "Triage", "Assessment", "Medical review"),
             "Follow-up requested", f"follow-up request sent to {recipient}.",
             actor_user_id,
         )

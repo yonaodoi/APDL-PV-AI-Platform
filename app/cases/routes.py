@@ -221,9 +221,26 @@ def case_list():
     selected_deadline = request.args.get("deadline", "").strip()
     start_date = request.args.get("start_date", "").strip()
     end_date = request.args.get("end_date", "").strip()
+    waiting_for_me = request.args.get("mine") == "1"
 
     filters = []
     parameters = []
+
+    if waiting_for_me:
+        from app.services.case_approval import can_approve, can_review
+        from app.services.case_workflow import is_designated_qppv
+
+        role = session.get("role")
+        mine = [
+            "(safety_cases.assigned_to = %s AND safety_cases.workflow_status IN "
+            "('New', 'Triage', 'Follow-up requested', 'Assessment', 'Approved'))"
+        ]
+        parameters.append(session.get("user_id"))
+        if can_review(role, is_designated_qppv(session.get("user_id"))):
+            mine.append("safety_cases.workflow_status = 'QPPV review'")
+        if can_approve(role):
+            mine.append("safety_cases.workflow_status = 'Case approval'")
+        filters.append("(" + " OR ".join(mine) + ")")
 
     if selected_product:
         filters.append("case_products.product_name = %s")
@@ -266,20 +283,30 @@ def case_list():
             safety_cases.event_description,
             safety_cases.regulatory_submitted_date,
             countries.country_name,
-            case_products.product_name
+            case_products.product_name,
+            owners.full_name AS assigned_to_name
         FROM pv.safety_cases AS safety_cases
         LEFT JOIN pv.countries AS countries
             ON countries.country_id = safety_cases.country_id
         LEFT JOIN pv.case_products AS case_products
             ON case_products.case_id = safety_cases.case_id
+        LEFT JOIN pv.users AS owners
+            ON owners.user_id = safety_cases.assigned_to
         {where_clause}
         ORDER BY safety_cases.created_at DESC
         """,
         tuple(parameters),
     )
 
+    from app.services.case_workflow import case_holder
+
+    team = _sign_off_people()
     cases = [
-        {**case, "reporting_clock": evaluate_reporting_clock(case)}
+        {
+            **case,
+            "reporting_clock": evaluate_reporting_clock(case),
+            "holder": case_holder(case, team["reviewers"], team["approvers"]),
+        }
         for case in cases
     ]
     overdue_count = len(
@@ -317,14 +344,9 @@ def case_list():
         """
     )
 
-    statuses = query_all(
-        """
-        SELECT DISTINCT workflow_status
-        FROM pv.safety_cases
-        WHERE workflow_status IS NOT NULL
-        ORDER BY workflow_status
-        """
-    )
+    from app.services.case_workflow import STATUSES
+
+    statuses = [{"workflow_status": status} for status in STATUSES]
 
     return render_template(
         "cases/case_list.html",
@@ -337,6 +359,7 @@ def case_list():
         selected_status=selected_status,
         selected_priority=selected_priority,
         selected_deadline=selected_deadline,
+        waiting_for_me=waiting_for_me,
         overdue_count=overdue_count,
         start_date=start_date,
         end_date=end_date,
@@ -350,12 +373,15 @@ def case_detail(case_id):
         SELECT
             safety_cases.*,
             countries.country_name,
-            users.full_name AS created_by_name
+            users.full_name AS created_by_name,
+            owners.full_name AS assigned_to_name
         FROM pv.safety_cases AS safety_cases
         LEFT JOIN pv.countries AS countries
             ON countries.country_id = safety_cases.country_id
         LEFT JOIN pv.users AS users
             ON users.user_id = safety_cases.created_by
+        LEFT JOIN pv.users AS owners
+            ON owners.user_id = safety_cases.assigned_to
         WHERE safety_cases.case_id = %s
         """,
         (case_id,),
@@ -507,6 +533,32 @@ def _last_review(case_id):
         return None
 
 
+def _sign_off_people():
+    """First names of who can review and approve now, for "With: ..." labels."""
+    from app.services.approval_settings import load_settings
+
+    try:
+        settings = load_settings()
+        rows = query_all(
+            """
+            SELECT u.full_name, r.role_name, u.is_designated_qppv
+            FROM pv.users AS u JOIN pv.roles AS r ON r.role_id = u.role_id
+            WHERE u.is_active
+            ORDER BY u.full_name
+            """
+        )
+        return {
+            "reviewers": [
+                r["full_name"] for r in rows
+                if r["role_name"] in settings["reviewer_roles"] or r.get("is_designated_qppv")
+            ],
+            "approvers": [r["full_name"] for r in rows if r["role_name"] in settings["approver_roles"]],
+        }
+    except Exception:
+        _rollback_quietly()
+        return {"reviewers": [], "approvers": []}
+
+
 def _approval_panel(case):
     """Sign-off stage, history and what the signed-in user may do."""
     from app.services.case_approval import approval_history, can_approve, can_review
@@ -578,7 +630,40 @@ def _workflow_panel(case, completeness_checks):
         "can_override": can_override(
             session.get("role"), is_designated_qppv(session.get("user_id"))
         ),
+        "holder": _holder_for(case),
+        "officers": _assignable_officers(),
+        "can_reassign": (
+            case.get("assigned_to") == session.get("user_id")
+            or can_override(session.get("role"), is_designated_qppv(session.get("user_id")))
+        ),
     }
+
+
+def _holder_for(case):
+    from app.services.case_workflow import case_holder
+
+    team = _sign_off_people()
+    return case_holder(case, team["reviewers"], team["approvers"])
+
+
+def _assignable_officers():
+    """Active users on the PV team (roles ticked in Sign-off settings)."""
+    from app.services.approval_settings import load_settings
+
+    try:
+        roles = list(load_settings().get("officer_roles") or ["PV Officer"])
+        return query_all(
+            """
+            SELECT u.user_id, u.full_name, r.role_name
+            FROM pv.users AS u JOIN pv.roles AS r ON r.role_id = u.role_id
+            WHERE u.is_active AND r.role_name = ANY(%s)
+            ORDER BY (r.role_name = 'PV Officer') DESC, u.full_name
+            """,
+            (roles,),
+        )
+    except Exception:
+        _rollback_quietly()
+        return []
 
 
 def _load_safety_assessment(case_id):
@@ -644,8 +729,18 @@ def review_document_suggestions(case_id, attachment_id):
         record_noun="case",
         back_url=url_for("cases.case_detail", case_id=case_id) + "#attachments",
         attachment=attachment,
-        suggestions=attachment.get("suggested_updates") or [],
+        suggestions=_editable_case_suggestions(attachment),
         document_type_label=document_type_label,
+    )
+
+
+def _editable_case_suggestions(attachment):
+    from app.services.case_documents import APPEND_FIELDS, CHOICES, DATE_FIELDS
+    from app.services.suggestion_edits import annotate
+
+    return annotate(
+        attachment.get("suggested_updates") or [], DATE_FIELDS, CHOICES,
+        APPEND_FIELDS, time_fields={"event_onset_time"},
     )
 
 
@@ -693,6 +788,33 @@ def apply_document_suggestions(case_id, attachment_id):
             )
         )
 
+    from app.services.case_documents import normalise_extracted
+    from app.services.suggestion_edits import apply_edits
+
+    country_cache = []
+
+    def check_value(values):
+        # Countries are only needed when a reviewer changed a value.
+        if not country_cache:
+            country_cache.append(query_all("SELECT country_id, country_name FROM pv.countries"))
+        return normalise_extracted(values, country_cache[0])
+
+    edited, edit_errors = apply_edits(
+        attachment.get("suggested_updates") or [], request.form, check_value, selected,
+    )
+    if edit_errors:
+        for error in edit_errors:
+            flash(error, "error")
+        flash("Nothing was applied. Correct the value or untick that row.", "error")
+        return redirect(
+            url_for(
+                "cases.review_document_suggestions",
+                case_id=case_id,
+                attachment_id=attachment_id,
+            )
+        )
+    attachment = {**attachment, "suggested_updates": edited}
+
     try:
         applied = apply_suggestions(
             case_id, attachment, selected, session["user_id"]
@@ -732,12 +854,12 @@ def apply_document_suggestions(case_id, attachment_id):
                 cursor,
                 case_id,
                 ("Follow-up requested",),
-                "Medical review",
+                "Assessment",
                 f"follow-up response {attachment['original_filename']} was applied.",
                 session["user_id"],
             )
         if moved:
-            flash("The follow-up response was applied, so the case moved to Medical review.", "info")
+            flash("The follow-up response was applied, so the case moved to Assessment.", "info")
 
     listedness_flash = listedness_message(
         run_automatic_listedness(case_id, actor_user_id=session["user_id"])
@@ -1623,3 +1745,57 @@ def edit_case(case_id):
         return_anchor=_case_page_anchor(section),
         next_url=safe_next_path(request.values.get("next")),
     )
+
+
+@bp.post("/<int:case_id>/assign")
+@login_required
+def assign_case(case_id):
+    from app.services.case_workflow import can_override, is_designated_qppv
+
+    case = query_one(
+        """
+        SELECT c.case_id, c.case_number, c.assigned_to, u.full_name AS owner_name
+        FROM pv.safety_cases AS c LEFT JOIN pv.users AS u ON u.user_id = c.assigned_to
+        WHERE c.case_id = %s
+        """,
+        (case_id,),
+    )
+    if case is None:
+        abort(404)
+    back = url_for("cases.case_detail", case_id=case_id) + "#workflow"
+    allowed = case["assigned_to"] == session.get("user_id") or can_override(
+        session.get("role"), is_designated_qppv(session.get("user_id"))
+    )
+    if not allowed:
+        flash("Only the case owner, the QPPV or the Deputy QPPV can reassign a case.", "error")
+        return redirect(back)
+    new_owner = request.form.get("assigned_to", type=int)
+    person = query_one(
+        "SELECT user_id, full_name FROM pv.users WHERE user_id = %s AND is_active",
+        (new_owner,),
+    ) if new_owner else None
+    if not person:
+        flash("Choose who should own the case.", "error")
+        return redirect(back)
+    if person["user_id"] == case["assigned_to"]:
+        flash(f"{person['full_name']} already owns this case.", "info")
+        return redirect(back)
+    with transaction() as cursor:
+        cursor.execute(
+            "UPDATE pv.safety_cases SET assigned_to = %s, updated_at = CURRENT_TIMESTAMP WHERE case_id = %s",
+            (person["user_id"], case_id),
+        )
+        cursor.execute(
+            """
+            INSERT INTO pv.case_audit_log (case_id, action, details, performed_by)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (
+                case_id,
+                "Case reassigned",
+                f"Owner changed from {case.get('owner_name') or 'nobody'} to {person['full_name']}.",
+                session["user_id"],
+            ),
+        )
+    flash(f"{case['case_number']} now belongs to {person['full_name']}.", "success")
+    return redirect(back)

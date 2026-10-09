@@ -296,6 +296,19 @@
         .signal-detail-page .signal-badges { margin-top:14px; }
         .signal-detail-page .detail-grid { grid-template-columns:1fr; }
     }
+    .ai-use-button {
+        margin-top: 8px;
+        padding: 7px 12px;
+        border: 1px solid #d9b86a;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #76521c;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+    .ai-use-button:disabled { opacity: 0.75; cursor: default; }
 </style>
 
 <header class="signal-header">
@@ -449,8 +462,9 @@
             {% if ai_assistance %}
                 <section style="margin:0 18px 18px; padding:14px; border:1px solid #ead6a8; border-radius:9px; background:#fff9ed; color:#76521c;">
                     <strong style="font-size:12px;">AI-generated draft — verify before use</strong>
-                    <p style="margin:6px 0 10px; font-size:12px; line-height:1.5;">This is a suggested factual summary, not an assessment or decision. Copy and edit it only if supported by the evidence.</p>
-                    <textarea readonly aria-label="AI-generated draft assessment" class="input" rows="7">{{ ai_assistance.draft_assessment }}</textarea>
+                    <p style="margin:6px 0 10px; font-size:12px; line-height:1.5;">This is a suggested factual summary, not an assessment or decision. Use it only where the evidence supports it: put it into the assessment below, correct it there, then click Save.</p>
+                    <textarea id="ai-draft-text" readonly aria-label="AI-generated draft assessment" class="input" rows="7">{{ ai_assistance.draft_assessment }}</textarea>
+                    <button type="button" id="use-ai-draft" class="ai-use-button">{% if signal.assessment_summary %}Add to assessment below{% else %}Use as assessment below{% endif %}</button>
                     {% if ai_assistance.evidence_gaps %}
                         <p style="margin:10px 0 5px; font-size:12px;"><strong>Possible evidence gaps to verify:</strong></p>
                         <ul style="margin:0; padding-left:20px; font-size:12px; line-height:1.5;">
@@ -580,6 +594,23 @@
                 summary.setSelectionRange(marker, summary.value.indexOf("]", marker) + 1);
             }
             button.textContent = "Added. Edit the bracketed parts, then save.";
+            button.disabled = true;
+        });
+    })();
+
+    (function () {
+        var button = document.getElementById("use-ai-draft");
+        var summary = document.getElementById("assessment_summary");
+        var draft = document.getElementById("ai-draft-text");
+        if (!button || !summary || !draft) {
+            return;
+        }
+        button.addEventListener("click", function () {
+            var current = summary.value.trim();
+            summary.value = current ? current + "\n\n" + draft.value : draft.value;
+            summary.scrollIntoView({ block: "center" });
+            summary.focus();
+            button.textContent = "Added below. Correct it there, then click Save.";
             button.disabled = true;
         });
     })();

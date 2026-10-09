@@ -44,7 +44,7 @@ def _case_items():
         """
         SELECT case_id, case_number
         FROM pv.safety_cases
-        WHERE workflow_status = 'Ready for submission'
+        WHERE workflow_status = 'Approved'
           AND regulatory_submitted_date IS NULL
         ORDER BY received_date, case_id
         """
@@ -52,13 +52,13 @@ def _case_items():
     if ready:
         items.append(_item(
             "cases-ready",
-            "Safety case(s) ready to submit",
+            "Approved case(s) to submit",
             "Submit to the regulator, then use “Mark as submitted” on the case.",
             [
                 {"label": r["case_number"], "url": url_for("cases.case_detail", case_id=r["case_id"]) + "#workflow"}
                 for r in ready
             ],
-            url_for("cases.case_list", status="Ready for submission"),
+            url_for("cases.case_list", status="Approved"),
         ))
 
     automatic = _safe_rows(
@@ -302,10 +302,10 @@ def _approval_items():
     labels = {
         "Pending review": ("approvals-review", "Case(s) waiting for QPPV review",
                            "The QPPV or Deputy QPPV reviews, then sends to the Group Head.", "review"),
-        "Pending approval": ("approvals-approve", "Case(s) waiting for Group Head approval",
+        "Pending approval": ("approvals-approve", "Case(s) waiting for Case approval",
                              "Approved cases can then be submitted to the regulator.", "approval"),
-        "Returned": ("approvals-returned", "Case(s) returned to the PV officer",
-                     "Make the requested changes and send for review again.", "returned"),
+        "Returned": ("approvals-returned", "Case(s) returned to Assessment",
+                     "Make the requested changes and send for QPPV review again.", "returned"),
     }
     items = []
     for stage, (key, title, hint, tab) in labels.items():

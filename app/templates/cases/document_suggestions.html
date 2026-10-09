@@ -134,6 +134,20 @@
         color: #817786;
         text-align: center;
     }
+    .suggest-input {
+        width: 100%;
+        min-width: 180px;
+        box-sizing: border-box;
+        padding: 6px 9px;
+        border: 1px solid #d5e2d9;
+        border-radius: 7px;
+        background: #ffffff;
+        font: inherit;
+        font-size: 13px;
+    }
+    textarea.suggest-input { resize: vertical; }
+    .suggest-input.is-edited { border-color: #c6a23a; background: #fffbea; }
+    .th-note { color: #8a9a92; font-weight: 600; text-transform: none; letter-spacing: 0; }
 </style>
 
 <section class="suggest-page">
@@ -164,7 +178,7 @@
                                 <th scope="col">Apply</th>
                                 <th scope="col">Field</th>
                                 <th scope="col">In the {{ record_noun }} now</th>
-                                <th scope="col">From the document</th>
+                                <th scope="col">From the document <span class="th-note">(you can correct it)</span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -183,7 +197,26 @@
                                         {% endif %}
                                     </td>
                                     <td>{% if item.current %}{{ item.current }}{% else %}<span class="current-empty">Empty</span>{% endif %}</td>
-                                    <td>{{ item.proposed }}</td>
+                                    <td class="proposed-cell">
+                                        {% set name = "value_" ~ item.field %}
+                                        {% if item.editor == "date" %}
+                                            <input class="suggest-input" type="date" name="{{ name }}" value="{{ item.proposed }}" aria-label="{{ item.label }}">
+                                        {% elif item.editor == "time" %}
+                                            <input class="suggest-input" type="time" name="{{ name }}" value="{{ item.proposed }}" aria-label="{{ item.label }}">
+                                        {% elif item.editor == "choice" %}
+                                            <select class="suggest-input" name="{{ name }}" aria-label="{{ item.label }}">
+                                                {% for choice in item.choices %}
+                                                    <option value="{{ choice }}" {% if choice == item.proposed %}selected{% endif %}>{{ choice }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        {% elif item.editor == "textarea" %}
+                                            <textarea class="suggest-input" name="{{ name }}" rows="3" aria-label="{{ item.label }}">{{ item.proposed }}</textarea>
+                                        {% elif item.editor == "text" %}
+                                            <input class="suggest-input" type="text" name="{{ name }}" value="{{ item.proposed }}" aria-label="{{ item.label }}">
+                                        {% else %}
+                                            {{ item.proposed }}
+                                        {% endif %}
+                                    </td>
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -201,4 +234,17 @@
         {% endif %}
     </section>
 </section>
+<script>
+    // Editing a value ticks its row and marks it as changed.
+    document.querySelectorAll(".suggest-input").forEach(function (input) {
+        var original = input.value;
+        input.addEventListener("input", function () {
+            var row = input.closest("tr");
+            var box = row && row.querySelector('input[type="checkbox"][name="field"]');
+            input.classList.toggle("is-edited", input.value !== original);
+            if (box && input.value !== original) { box.checked = true; }
+        });
+        input.addEventListener("change", function () { input.dispatchEvent(new Event("input")); });
+    });
+</script>
 {% endblock %}

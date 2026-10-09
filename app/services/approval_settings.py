@@ -10,7 +10,7 @@ from app.db import get_db, query_one, transaction
 SETTING_KEY = "case_sign_off"
 DEFAULTS = {
     "review_title": "QPPV review",
-    "approval_title": "Group Head approval",
+    "approval_title": "Case approval",
     "reviewer_roles": ["QPPV", "Deputy QPPV"],
     "approver_roles": ["Group Head RA & Quality"],
     "review_extra_emails": [],

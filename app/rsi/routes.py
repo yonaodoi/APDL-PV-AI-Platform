@@ -1055,6 +1055,98 @@ def exclude_reaction(reaction_id):
         )
     )
 
+def _clean_term(value):
+    return " ".join((value or "").split())[:255]
+
+
+@bp.post("/reactions/<int:reaction_id>/edit")
+@roles_required(*REVIEWER_ROLES)
+def edit_reaction(reaction_id):
+    """Correct the wording of an extracted term; the edited term is verified."""
+    reaction = query_one(
+        "SELECT reaction_id, rsi_id, reaction_term FROM pv.rsi_reactions WHERE reaction_id = %s",
+        (reaction_id,),
+    )
+    if not reaction:
+        abort(404)
+    back = url_for("rsi.review_reactions", rsi_id=reaction["rsi_id"]) + f"#reaction-{reaction_id}"
+    term = _clean_term(request.form.get("reaction_term"))
+    if not term:
+        flash("Enter the reaction term.", "error")
+        return redirect(back)
+    clash = query_one(
+        """
+        SELECT reaction_id FROM pv.rsi_reactions
+        WHERE rsi_id = %s AND LOWER(reaction_term) = LOWER(%s) AND reaction_id <> %s
+        """,
+        (reaction["rsi_id"], term, reaction_id),
+    )
+    if clash:
+        flash(f"“{term}” is already in the list. Verify that one and exclude this one.", "error")
+        return redirect(back)
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            UPDATE pv.rsi_reactions
+            SET reaction_term = %s,
+                review_status = 'Verified',
+                reviewed_by = %s,
+                reviewed_at = CURRENT_TIMESTAMP
+            WHERE reaction_id = %s
+            """,
+            (term, session["user_id"], reaction_id),
+        )
+    write_audit_log(
+        record_type="rsi",
+        record_id=reaction["rsi_id"],
+        action="Reaction term edited",
+        details=f"“{reaction['reaction_term']}” changed to “{term}” and verified.",
+        actor_user_id=session["user_id"],
+    )
+    _recheck_when_terms_reviewed(reaction["rsi_id"])
+    flash(f"Saved and verified: {term}.", "success")
+    return redirect(back)
+
+
+@bp.post("/<int:rsi_id>/reactions/add")
+@roles_required(*REVIEWER_ROLES)
+def add_reaction(rsi_id):
+    """Add a term the automatic extraction missed; it is verified at once."""
+    if not query_one("SELECT rsi_id FROM pv.reference_safety_information WHERE rsi_id = %s", (rsi_id,)):
+        abort(404)
+    back = url_for("rsi.review_reactions", rsi_id=rsi_id)
+    term = _clean_term(request.form.get("reaction_term"))
+    if not term:
+        flash("Enter the reaction term to add.", "error")
+        return redirect(back)
+    if query_one(
+        "SELECT 1 AS x FROM pv.rsi_reactions WHERE rsi_id = %s AND LOWER(reaction_term) = LOWER(%s)",
+        (rsi_id, term),
+    ):
+        flash(f"“{term}” is already in the list.", "info")
+        return redirect(back)
+    with transaction() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO pv.rsi_reactions (
+                rsi_id, reaction_term, source_excerpt, review_status, reviewed_by, reviewed_at
+            )
+            VALUES (%s, %s, %s, 'Verified', %s, CURRENT_TIMESTAMP)
+            """,
+            (rsi_id, term, "Added by a reviewer.", session["user_id"]),
+        )
+    write_audit_log(
+        record_type="rsi",
+        record_id=rsi_id,
+        action="Reaction term added",
+        details=f"“{term}” added by hand and verified.",
+        actor_user_id=session["user_id"],
+    )
+    _recheck_when_terms_reviewed(rsi_id)
+    flash(f"Added and verified: {term}.", "success")
+    return redirect(back)
+
+
 @bp.post("/cases/<int:case_id>/automatic-assessment")
 @login_required
 def automatic_case_assessment(case_id):

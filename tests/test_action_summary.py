@@ -58,14 +58,14 @@ def test_cases_and_documents_and_more_link(monkeypatch):
     docs = [{"record_type": "complaint", "record_id": 4, "original_filename": "letter.pdf",
              "case_number": None, "complaint_number": "PQC-4"}]
     items = _items(monkeypatch, {
-        "workflow_status = 'Ready for submission'": ready,
+        "workflow_status = 'Approved'": ready,
         "processing_status = 'Suggestions ready'": docs,
     })
 
     assert items["cases-ready"]["count"] == 7
     assert len(items["cases-ready"]["records"]) == 5
     assert items["cases-ready"]["more"] == 2
-    assert "status=Ready" in items["cases-ready"]["list_url"]
+    assert "status=Approved" in items["cases-ready"]["list_url"]
     assert items["documents"]["records"][0]["label"] == "PQC-4 · letter.pdf"
 
 
@@ -73,7 +73,7 @@ def test_failed_query_hides_only_its_item(monkeypatch):
     def fake(sql, parameters=()):
         if "pv.safety_signals" in sql:
             raise RuntimeError("permission denied")
-        if "Ready for submission" in sql:
+        if "workflow_status = 'Approved'" in sql:
             return [{"case_id": 1, "case_number": "26-001"}]
         return []
     monkeypatch.setattr(actions, "query_all", fake)

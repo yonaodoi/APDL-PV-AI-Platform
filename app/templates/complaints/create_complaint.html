@@ -311,7 +311,7 @@
         </section>
     {% endif %}
 
-    <form method="post" {% if not editing %}data-guided-voice="true"{% endif %}>
+    <form method="post" {% if extraction_filename is defined and extraction_filename %}action="{{ url_for('complaints.create_complaint') }}"{% endif %} {% if not editing %}data-guided-voice="true"{% endif %}>
         {{ form.hidden_tag() }}
         {% if editing and return_section %}
             <input type="hidden" name="return_section" value="{{ return_section }}">

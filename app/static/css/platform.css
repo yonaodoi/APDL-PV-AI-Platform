@@ -5543,3 +5543,62 @@ details.register-fold:not([open]) > summary { border-bottom: 0; }
     border-radius: 14px;
     background: #ffffff;
 }
+
+/* ==========================================================================
+   Case stages: tracker, who has the case, reassigning
+   ========================================================================== */
+.stage-track { margin: 10px 18px 6px; }
+.stage-track ol { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.stage-track li {
+    position: relative;
+    padding: 4px 9px;
+    border: 1px solid #dce8e1;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #7a8a83;
+    font-size: 10.5px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.stage-track li.is-done { border-color: #cfe3d7; background: #eef6f1; color: #2f6b52; }
+.stage-track li.is-done::before { content: "✓ "; }
+.stage-track li.is-current {
+    border-color: var(--forest, #0b3d2c);
+    background: var(--forest, #0b3d2c);
+    color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(198, 221, 93, 0.55);
+}
+.case-holder {
+    margin: 6px 18px 10px;
+    padding: 9px 12px;
+    border: 1px solid #dce8e1;
+    border-left: 4px solid var(--lime, #c6dd5d);
+    border-radius: 10px;
+    background: #fbfdf6;
+    color: #27483b;
+    font-size: 13px;
+}
+.case-holder-label { color: #6b7d75; font-weight: 700; }
+.case-owner-note { margin-top: 3px; color: #6b7d75; font-size: 12px; }
+.case-holder .reassign { display: inline-block; margin-left: 8px; }
+.case-holder .reassign summary { color: #145a40; font-size: 12px; font-weight: 800; cursor: pointer; }
+.case-holder .reassign form { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.case-holder .reassign select { padding: 5px 8px; border: 1px solid #d5e2d9; border-radius: 7px; font: inherit; font-size: 12.5px; }
+.case-holder .reassign button {
+    padding: 5px 11px;
+    border: 0;
+    border-radius: 7px;
+    background: #145a40;
+    color: #ffffff;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.signoff-override { margin: 8px 0; padding: 8px 10px; border: 1px solid #f0d9a8; border-radius: 8px; background: #fff8e8; font-size: 12.5px; color: #6b4a0c; }
+.signoff-override p { margin: 0 0 6px; }
+.signoff-override label { display: flex; gap: 6px; align-items: center; font-weight: 700; }
+.signoff-override textarea { width: 100%; margin-top: 6px; box-sizing: border-box; }
+.case-holder-cell { color: #3f544d; font-size: 12.5px; min-width: 140px; }
+.mine-chip { border-color: #c6dd5d !important; }
+.mine-chip.is-on { background: #f3f9dc !important; }

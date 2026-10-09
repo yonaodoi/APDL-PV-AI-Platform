@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Follow-up email preview | APDL PV{% endblock %}
+{% block page_title %}Follow-up email preview{% endblock %}
+
+{% block content %}
+<style>
+    .email-preview { max-width: 860px; margin: 0 auto; }
+    .email-preview .back-link { color: #145a40; font-size: 13px; font-weight: 800; text-decoration: none; }
+    .email-preview h1 { margin: 10px 0 4px; color: #183d34; font-size: 24px; }
+    .email-preview .intro { margin: 0 0 16px; color: #5c6b66; font-size: 13.5px; }
+    .email-card {
+        padding: 18px 20px;
+        border: 2px solid #b9d3c5;
+        border-left: 7px solid var(--forest, #0b3d2c);
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow: 0 10px 24px rgba(11, 61, 44, 0.08);
+    }
+    .email-row { display: grid; grid-template-columns: 90px 1fr; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .email-row label, .email-row span.label { color: #526a5f; font-size: 12px; font-weight: 800; }
+    .email-row .to { color: #183d34; font-weight: 700; }
+    .email-card input[type=text], .email-card textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 9px 11px;
+        border: 1px solid #d5e2d9;
+        border-radius: 8px;
+        font: inherit;
+        font-size: 13.5px;
+        color: #233d33;
+    }
+    .email-card textarea { min-height: 420px; line-height: 1.5; resize: vertical; }
+    .email-note { margin: 10px 0 0; color: #6b7d75; font-size: 12.5px; }
+    .email-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 16px; }
+    .send-button {
+        padding: 10px 18px;
+        border: 0;
+        border-radius: 9px;
+        background: #145a40;
+        color: #ffffff;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+    .reset-button, .word-link {
+        padding: 9px 14px;
+        border: 1px solid #cfe0d6;
+        border-radius: 9px;
+        background: #ffffff;
+        color: #145a40;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 800;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    .problem { padding: 12px 14px; border: 1px solid #efc2ba; border-radius: 10px; background: #fff3f1; color: #a3392b; font-weight: 700; }
+    .edited-flag { display: none; color: #8a5a12; font-size: 12px; font-weight: 800; }
+    .edited-flag.on { display: inline; }
+</style>
+
+<section class="email-preview">
+    <a class="back-link" href="{{ url_for('case_review.follow_up_tasks') }}#case-{{ preview.case_id }}">← Back to follow-up tasks</a>
+    <h1>{{ preview.kind }} for {{ preview.case_number }}</h1>
+    <p class="intro">This is the email the reporter will receive. Change the wording if you need to, then send it. The Word follow-up form with the questions is attached, and the date and time it was sent are added at the bottom when it goes.</p>
+
+    {% if preview.problem %}
+        <p class="problem">{{ preview.problem }}</p>
+    {% else %}
+        <form method="post" action="{{ url_for('case_review.send_follow_up_request', case_id=preview.case_id) }}" class="email-card" id="email-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="email-row">
+                <span class="label">To</span>
+                <span class="to">{{ preview.recipient }}</span>
+            </div>
+            <div class="email-row">
+                <label for="subject">Subject</label>
+                <input type="text" id="subject" name="subject" value="{{ preview.subject }}" maxlength="250" required>
+            </div>
+            <label for="body" style="display:block; margin:6px 0; color:#526a5f; font-size:12px; font-weight:800;">Message</label>
+            <textarea id="body" name="body" required>{{ preview.body }}</textarea>
+            <p class="email-note">{{ preview.items|length }} question(s) · reply requested by {{ preview.due.strftime("%d %b %Y") }} · <span class="edited-flag" id="edited-flag">Edited – your wording will be sent</span></p>
+            <div class="email-actions">
+                <button class="send-button" type="submit">Send this email</button>
+                <button class="reset-button" type="button" id="reset-email">Undo my changes</button>
+                <a class="word-link" href="{{ url_for('case_review.download_follow_up_request', case_id=preview.case_id) }}">Preview the attached Word form</a>
+            </div>
+        </form>
+    {% endif %}
+</section>
+
+<script>
+    (function () {
+        var form = document.getElementById("email-form");
+        if (!form) { return; }
+        var subject = document.getElementById("subject");
+        var body = document.getElementById("body");
+        var flag = document.getElementById("edited-flag");
+        var original = { subject: subject.value, body: body.value };
+        function check() {
+            flag.classList.toggle("on", subject.value !== original.subject || body.value !== original.body);
+        }
+        subject.addEventListener("input", check);
+        body.addEventListener("input", check);
+        document.getElementById("reset-email").addEventListener("click", function () {
+            subject.value = original.subject;
+            body.value = original.body;
+            check();
+        });
+        form.addEventListener("submit", function () {
+            var button = form.querySelector(".send-button");
+            setTimeout(function () { button.disabled = true; button.textContent = "Sending… (up to a minute)"; }, 0);
+        });
+    })();
+</script>
+{% endblock %}
