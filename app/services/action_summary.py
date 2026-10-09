@@ -320,10 +320,46 @@ def _approval_items():
     return items
 
 
+def _reply_items():
+    rows = _safe_rows(
+        """
+        SELECT r.reply_id, r.case_id, r.status, c.case_number, r.from_email
+        FROM pv.follow_up_replies AS r
+        LEFT JOIN pv.safety_cases AS c ON c.case_id = r.case_id
+        WHERE r.status IN ('New', 'Unmatched')
+        ORDER BY r.received_at
+        """
+    )
+    if not rows:
+        return []
+    page = url_for("case_review.follow_up_tasks")
+    items = []
+    new = [r for r in rows if r["status"] == "New" and r.get("case_number")]
+    if new:
+        items.append(_item(
+            "replies-new",
+            "Reporter reply(ies) to review",
+            "Check the AI's suggested updates, apply what is right, then click “Done with this reply”.",
+            [{"label": r["case_number"], "url": page + f"#case-{r['case_id']}"} for r in new],
+            page,
+            urgent=True,
+        ))
+    unmatched = [r for r in rows if r["status"] == "Unmatched"]
+    if unmatched:
+        items.append(_item(
+            "replies-unmatched",
+            "Email reply(ies) to link to a case",
+            "The system could not tell which case these answers belong to.",
+            [{"label": r["from_email"], "url": page + "#unmatched-replies"} for r in unmatched],
+            page,
+        ))
+    return items
+
+
 def get_action_items():
     """All dashboard action items, urgent ones first."""
     items = []
-    for builder in (_complaint_items, _approval_items, _follow_up_items, _case_items, _signal_items, _document_items):
+    for builder in (_complaint_items, _reply_items, _approval_items, _follow_up_items, _case_items, _signal_items, _document_items):
         try:
             items.extend(builder())
         except Exception:

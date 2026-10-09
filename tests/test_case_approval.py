@@ -75,7 +75,7 @@ def test_settings_are_cleaned():
     assert settings["review_extra_emails"] == ["a@x.com", "b@y.org"]
     assert settings["digest_hour"] == 23
     assert settings["urgent_days"] == DEFAULTS["urgent_days"]
-    assert clean_emails(["x@y.z", "bad"]) == ["x@y.z"]
+    assert clean_emails(["x@y.org", "bad", "keith@abacuspharma.com,"]) == ["x@y.org", "keith@abacuspharma.com"]
 
 
 def test_daily_summary_lists_cases_and_link():

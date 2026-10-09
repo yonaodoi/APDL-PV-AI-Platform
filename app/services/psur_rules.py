@@ -1,6 +1,6 @@
 """Approval and locking rules for PSUR records."""
 
-APPROVER_ROLES = ("QPPV", "Deputy QPPV")
+APPROVER_ROLES = ("QPPV", "Deputy QPPV", "Group Head RA & Quality")
 APPROVED_STATUSES = ("Approved", "Finalised")
 LOCKED_STATUS = "Finalised"
 

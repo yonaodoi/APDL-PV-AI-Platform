@@ -13,7 +13,13 @@ STATUSES = (
     "Closed",
 )
 GATED_STATUSES = ("Ready for submission", "Submitted")
-OVERRIDE_ROLES = ("System Administrator", "QPPV", "Deputy QPPV", "Medical Reviewer")
+OVERRIDE_ROLES = (
+    "System Administrator",
+    "QPPV",
+    "Deputy QPPV",
+    "Medical Reviewer",
+    "Group Head RA & Quality",
+)
 
 
 # --------------------------------------------------------------------------

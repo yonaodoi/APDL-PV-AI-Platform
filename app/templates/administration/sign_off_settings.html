@@ -1,27 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Sign-off Settings | APDL PV<script>
-    (function () {
-        var form = document.getElementById("sign-off-form");
-        if (!form) return;
-        form.addEventListener("submit", function () {
-            var button = form.querySelector(".save-settings");
-            setTimeout(function () { button.disabled = true; button.textContent = "Saving…"; }, 0);
-        });
-    })();
-</script>
-{% endblock %}
-{% block page_title %}Sign-off Settings<script>
-    (function () {
-        var form = document.getElementById("sign-off-form");
-        if (!form) return;
-        form.addEventListener("submit", function () {
-            var button = form.querySelector(".save-settings");
-            setTimeout(function () { button.disabled = true; button.textContent = "Saving…"; }, 0);
-        });
-    })();
-</script>
-{% endblock %}
+{% block title %}Sign-off Settings | APDL PV{% endblock %}
+{% block page_title %}Sign-off Settings{% endblock %}
 
 {% block content %}
 <style>
@@ -88,11 +68,11 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <section class="settings-card">
-            <h2>PV Officers (who prepare and send cases)</h2>
-            <p>They are emailed when a case is returned with a comment or approved.</p>
+            <h2>PV team</h2>
+            <p>Everyone with a role ticked here gets an email, at their own address, when a reporter replies to a follow-up request. The PV officer who sent a case is also told when it is returned or approved.</p>
             <div class="settings-grid">
                 <div class="settings-field">
-                    <span class="title" style="display:block;margin-bottom:6px;color:#526a5f;font-size:11.5px;font-weight:800;">Roles listed as PV officers</span>
+                    <span class="title" style="display:block;margin-bottom:6px;color:#526a5f;font-size:11.5px;font-weight:800;">Roles on the PV team</span>
                     <div class="role-options">
                         {% for role in role_names %}
                             <label><input type="checkbox" name="officer_roles" value="{{ role }}" {% if role in settings.officer_roles %}checked{% endif %}> {{ role }}</label>
@@ -103,7 +83,7 @@
                     <label class="check-line"><input type="checkbox" name="notify_officer" {% if settings.notify_officer %}checked{% endif %}> Email the PV officer who sent the case when it is returned or approved</label>
                     <label class="title" for="officer_extra_emails" style="margin-top:12px;">Also email these addresses</label>
                     <textarea id="officer_extra_emails" name="officer_extra_emails" rows="2" placeholder="pv.officer@example.com">{{ settings.officer_extra_emails|join(", ") }}</textarea>
-                    <div class="hint">For example a shared PV mailbox. They get every “returned” and “approved” notice.</div>
+                    <div class="hint">Anyone else who should get every reply, “returned” and “approved” notice, for example a shared mailbox later.</div>
                 </div>
                 <div class="settings-field">
                     <span class="title" style="display:block;margin-bottom:6px;color:#526a5f;font-size:11.5px;font-weight:800;">PV officers and their emails (type to add or change)</span>

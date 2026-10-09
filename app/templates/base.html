@@ -274,7 +274,7 @@
     </style>
     <link
         rel="stylesheet"
-        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-30') }}"
+        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-31') }}"
     >
 </head>
 <body>
@@ -348,7 +348,7 @@
                     >PSURs</a>
                 </div>
 
-                {% if session.get('role') in ('System Administrator', 'Auditor') %}
+                {% if session.get('role') in ('System Administrator', 'Auditor', 'Group Head RA & Quality') %}
                     <div class="nav-group">
                         <div class="nav-label">SYSTEM</div>
                         {% if session.get('role') == 'System Administrator' %}

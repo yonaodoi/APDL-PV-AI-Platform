@@ -301,10 +301,20 @@ def reminder_status(today=None, reminder_days=7, max_reminders=2):
         """,
         (sorted(NOT_SENT_AUTOMATICALLY), sorted(NOT_SENT_AUTOMATICALLY)),
     )
+    from app.services.follow_up_replies import reply_state
+
+    replies = reply_state([row["case_id"] for row in rows]) if rows else {}
     status = {}
     for row in rows:
         last = row["last_sent"]
         last_day = last.date() if isinstance(last, datetime) else last
+        reply = replies.get(row["case_id"]) or {}
+        handled = reply.get("last_handled")
+        handled_day = handled.astimezone().date() if isinstance(handled, datetime) else handled
+        # Once a reply has been handled, the next reminder (if information is
+        # still missing) is counted from that moment, not from the last email.
+        if handled_day and handled_day > last_day:
+            last_day = handled_day
         # Every email counts: the first request, automatic reminders, and
         # any "Email again" sent by hand.
         sends = row["sends"] or 1
@@ -313,14 +323,20 @@ def reminder_status(today=None, reminder_days=7, max_reminders=2):
         next_reminder = None
         if not exhausted and row["due"]:
             next_reminder = max(row["due"] + timedelta(days=1), last_day + timedelta(days=reminder_days))
+        waiting = bool(reply.get("waiting"))
+        if waiting:
+            # The reporter has answered; no reminders while the team reviews it.
+            next_reminder = None
         status[row["case_id"]] = {
+            "reply_waiting": waiting,
+            "last_reply": reply.get("last_reply"),
             "requested": row["requested"],
             "sends": sends,
             "reminders": reminders,
             "last_sent": last,
             "due": row["due"],
             "next_reminder": next_reminder,
-            "exhausted": exhausted and bool(row["due"]) and row["due"] < today,
+            "exhausted": exhausted and not waiting and bool(row["due"]) and row["due"] < today,
         }
     return status
 
@@ -410,26 +426,58 @@ def run_follow_up_automation(app=None, today=None):
     return summary
 
 
+def _run_sending(app):
+    try:
+        summary = run_follow_up_automation(app)
+        app.config["FOLLOW_UP_LAST_RUN"] = summary
+        if summary["requests"] or summary["reminders"] or summary["failed"]:
+            app.logger.info("Automatic follow-up: %s", summary)
+    except Exception:
+        app.logger.exception("Automatic follow-up run failed")
+    try:
+        from app.services.case_approval import send_approval_notifications
+
+        notices = send_approval_notifications(app)
+        if any(notices.values()):
+            app.logger.info("Approval notifications: %s", notices)
+    except Exception:
+        app.logger.exception("Approval notifications failed")
+
+
+def run_reply_check(app):
+    """Read reporters' replies; records the outcome for the follow-up page."""
+    from app.services.follow_up_replies import check_replies
+
+    try:
+        summary = check_replies(app)
+    except Exception as error:
+        app.logger.exception("Checking follow-up replies failed")
+        try:
+            get_db().rollback()
+        except Exception:
+            pass
+        summary = {"matched": 0, "unmatched": 0, "checked": 0,
+                   "skipped": None, "error": str(error),
+                   "checked_at": datetime.now(timezone.utc)}
+    app.config["FOLLOW_UP_LAST_REPLY_CHECK"] = summary
+    if summary.get("matched") or summary.get("unmatched"):
+        app.logger.info("Follow-up replies: %s", summary)
+    return summary
+
+
 def _loop(app):
     sleep(90)
+    last_sending = None
     while True:
+        now = datetime.now(timezone.utc)
         with app.app_context():
-            try:
-                summary = run_follow_up_automation(app)
-                app.config["FOLLOW_UP_LAST_RUN"] = summary
-                if summary["requests"] or summary["reminders"] or summary["failed"]:
-                    app.logger.info("Automatic follow-up: %s", summary)
-            except Exception:
-                app.logger.exception("Automatic follow-up run failed")
-            try:
-                from app.services.case_approval import send_approval_notifications
-
-                notices = send_approval_notifications(app)
-                if any(notices.values()):
-                    app.logger.info("Approval notifications: %s", notices)
-            except Exception:
-                app.logger.exception("Approval notifications failed")
-        sleep(max(5, app.config.get("FOLLOW_UP_CHECK_MINUTES", 60)) * 60)
+            send_every = timedelta(minutes=max(5, app.config.get("FOLLOW_UP_CHECK_MINUTES", 60)))
+            if last_sending is None or now - last_sending >= send_every:
+                _run_sending(app)
+                last_sending = now
+            if app.config.get("FOLLOW_UP_READ_REPLIES"):
+                run_reply_check(app)
+        sleep(max(2, app.config.get("FOLLOW_UP_REPLY_CHECK_MINUTES", 15)) * 60)
 
 
 def start_follow_up_scheduler(app):

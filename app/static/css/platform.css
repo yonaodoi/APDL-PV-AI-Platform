@@ -5387,3 +5387,159 @@ details.register-fold:not([open]) > summary { border-bottom: 0; }
     font-size: 12px;
 }
 .signoff-box .approval-buttons button { width: 100%; }
+
+/* ==========================================================================
+   Follow-up page: reporters' replies read from the inbox
+   ========================================================================== */
+.app-shell .follow-up-tasks-page .tasks-header-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.app-shell .follow-up-tasks-page .check-inbox-form { margin: 0; }
+.app-shell .follow-up-tasks-page .check-inbox-form button {
+    padding: 9px 14px;
+    border: 0;
+    border-radius: 9px;
+    background: var(--lime);
+    color: var(--lime-ink);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.app-shell .follow-up-tasks-page .check-inbox-form button:hover { background: var(--lime-hover); }
+.app-shell .follow-up-tasks-page .check-inbox-form button:disabled { opacity: 0.7; cursor: wait; }
+.follow-up-tasks-page .inbox-error { color: #a3392b; font-weight: 700; }
+
+.follow-up-tasks-page .task-status.replied { background: #e3f4ea; color: #1d6b45; border-color: #b9dfc9; }
+
+.follow-up-tasks-page .unmatched-replies {
+    margin: 0 0 18px;
+    padding: 16px 18px;
+    border: 1px solid #f0d9a8;
+    border-radius: 14px;
+    background: #fffaf0;
+}
+.follow-up-tasks-page .unmatched-replies h3 { margin: 0 0 4px; color: #6b4a0c; font-size: 15px; }
+.follow-up-tasks-page .unmatched-reply { margin-top: 12px; padding: 12px 14px; border: 1px solid #f1e3c4; border-radius: 10px; background: #ffffff; }
+.follow-up-tasks-page .reply-subject { margin-top: 2px; color: #3f544d; font-size: 13px; font-weight: 700; }
+.follow-up-tasks-page .reply-note { margin: 6px 0; color: #8a5a12; font-size: 12.5px; }
+
+.follow-up-tasks-page .reply-block { margin-top: 12px; }
+.follow-up-tasks-page .request-section-title.replied { color: #1d6b45; }
+.follow-up-tasks-page .case-reply {
+    margin-top: 8px;
+    padding: 11px 14px;
+    border: 1px solid #dce8e1;
+    border-left: 4px solid #b5c9bf;
+    border-radius: 10px;
+    background: #fbfdfc;
+}
+.follow-up-tasks-page .case-reply.is-new { border-left-color: #2f9e6c; background: #f3faf6; }
+.follow-up-tasks-page .reply-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.follow-up-tasks-page .reply-head strong { color: #183d34; font-size: 13.5px; }
+.follow-up-tasks-page .reply-head span { color: #6b7d75; font-size: 12px; }
+.follow-up-tasks-page .reply-preview { margin: 6px 0 4px; color: #2f4a40; font-size: 13px; line-height: 1.5; white-space: pre-line; }
+.follow-up-tasks-page .reply-text summary { color: #145a40; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.follow-up-tasks-page .reply-text pre {
+    max-height: 320px;
+    margin: 6px 0 0;
+    padding: 10px 12px;
+    overflow: auto;
+    border-radius: 8px;
+    background: #f4f7f5;
+    color: #2f4a40;
+    font: inherit;
+    font-size: 12.5px;
+    white-space: pre-wrap;
+}
+.follow-up-tasks-page .reply-files { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.follow-up-tasks-page .reply-files li { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 12.5px; }
+.follow-up-tasks-page .reply-file-name { color: #3f544d; font-weight: 700; overflow-wrap: anywhere; }
+.follow-up-tasks-page .reply-file-status { color: #6b7d75; }
+.follow-up-tasks-page .reply-file-status.reading { color: #8a5a12; font-weight: 700; }
+.follow-up-tasks-page .reply-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.follow-up-tasks-page .reply-actions form { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.follow-up-tasks-page .reply-actions select {
+    min-width: 260px;
+    max-width: 100%;
+    padding: 6px 9px;
+    border: 1px solid #d5e2d9;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 12.5px;
+}
+.follow-up-tasks-page .reply-primary {
+    padding: 6px 12px;
+    border: 0;
+    border-radius: 8px;
+    background: #145a40;
+    color: #ffffff;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 800;
+    text-decoration: none;
+    cursor: pointer;
+}
+.follow-up-tasks-page .reply-secondary {
+    padding: 6px 12px;
+    border: 1px solid #cfe0d6;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #145a40;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.follow-up-tasks-page .reply-done-form { margin: 8px 0 0; }
+
+/* Follow-up page: each case is its own clearly bounded card */
+.follow-up-tasks-page .tasks-register {
+    display: grid;
+    gap: 22px;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+.follow-up-tasks-page .task-card.request-card {
+    overflow: hidden;
+    padding: 0 20px 18px;
+    border: 2px solid #b9d3c5;
+    border-left: 7px solid var(--forest, #0b3d2c);
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(11, 61, 44, 0.08);
+    scroll-margin-top: 90px;
+}
+.follow-up-tasks-page .task-card.request-card:last-child { border-bottom: 2px solid #b9d3c5; }
+.follow-up-tasks-page .task-card.request-card > .task-card-main {
+    margin: 0 -20px 6px;
+    padding: 14px 20px;
+    border-bottom: 2px solid #d5e5dc;
+    background: linear-gradient(90deg, #e8f2ec 0%, #f5faf7 100%);
+}
+.follow-up-tasks-page .task-card.request-card .task-title {
+    color: var(--forest, #0b3d2c);
+    font-size: 17px;
+    font-weight: 900;
+    letter-spacing: -0.2px;
+}
+.follow-up-tasks-page .task-card.request-card:target {
+    border-color: #8fbfa5;
+    border-left-color: #2f9e6c;
+    box-shadow: 0 0 0 4px rgba(47, 158, 108, 0.18), 0 10px 24px rgba(11, 61, 44, 0.08);
+}
+.follow-up-tasks-page .task-card.request-card .request-section-title {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px dashed #d5e5dc;
+}
+.follow-up-tasks-page .task-card.request-card .reply-block .request-section-title,
+.follow-up-tasks-page .task-card.request-card > .task-card-main + .request-section-title,
+.follow-up-tasks-page .task-card.request-card > .task-card-main + .reply-block .request-section-title { border-top: 0; padding-top: 0; }
+.follow-up-tasks-page .tasks-empty {
+    padding: 28px;
+    border: 1px solid #dce8e1;
+    border-radius: 14px;
+    background: #ffffff;
+}

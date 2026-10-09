@@ -15,6 +15,12 @@
         </p>
     </div>
     <div class="tasks-header-actions">
+        {% if inbox.ready %}
+            <form method="post" action="{{ url_for('case_review.check_follow_up_replies') }}" class="check-inbox-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit">Check for replies now</button>
+            </form>
+        {% endif %}
         <a href="{{ url_for('case_review.follow_up_reminders') }}">Overdue reminders</a>
     </div>
 </header>
@@ -24,13 +30,54 @@
         <strong>Automatic follow-up is on.</strong>
         Requests are emailed {{ automation.grace_hours }} hours after missing information is found,
         and a reminder goes out every {{ automation.reminder_days }} days with no reply (up to {{ automation.max_reminders }}).
-        Contradictions are held for you to check first. You only hear about a case if the reporter does not reply.
+        Contradictions are held for you to check first.
+        {% if inbox.ready %}
+            Replies are read from the inbox every {{ inbox.every }} minutes{% if inbox.last and inbox.last.checked_at %} (last checked {{ inbox.last.checked_at|when }}){% endif %}: they are added to the case, the PV team is emailed, and reminders stop.
+            {% if inbox.last and inbox.last.error %}<br><span class="inbox-error">Last inbox check failed: {{ inbox.last.error }}</span>{% endif %}
+        {% endif %}
     </div>
 {% elif automation.switched_on %}
     <div class="automation-note" role="status">
         <strong>Automatic follow-up is waiting for email to be set up.</strong>
         Until then, use the buttons below to download or email each request.
     </div>
+{% endif %}
+
+{% if unmatched %}
+    <section class="unmatched-replies" id="unmatched-replies" aria-label="Replies to link to a case">
+        <h3>Replies to link to a case ({{ unmatched|length }})</h3>
+        <p class="request-note">These emails look like answers to a follow-up request, but the system could not tell which case with confidence. Choose the case, or ignore the email.</p>
+        {% for reply in unmatched %}
+            <article class="unmatched-reply">
+                <div class="reply-head">
+                    <strong>{{ reply.from_name or reply.from_email }}</strong>
+                    <span>{{ reply.from_email }} · {{ reply.received_at|when }}</span>
+                </div>
+                <div class="reply-subject">{{ reply.subject }}</div>
+                <p class="reply-note">{{ reply.match_note }}</p>
+                <details class="reply-text">
+                    <summary>Read the email</summary>
+                    <pre>{{ reply.reply_text }}</pre>
+                </details>
+                <div class="reply-actions">
+                    <form method="post" action="{{ url_for('case_review.link_follow_up_reply', reply_id=reply.reply_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <select name="case_id" required aria-label="Case for this reply">
+                            <option value="">Choose the case…</option>
+                            {% for c in link_choices %}
+                                <option value="{{ c.case_id }}">{{ c.case_number }}{% if c.reporter_name %} · {{ c.reporter_name }}{% endif %}{% if c.reporter_email %} ({{ c.reporter_email }}){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="reply-primary">Link to case</button>
+                    </form>
+                    <form method="post" action="{{ url_for('case_review.ignore_follow_up_reply', reply_id=reply.reply_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="reply-secondary">Not a follow-up reply</button>
+                    </form>
+                </div>
+            </article>
+        {% endfor %}
+    </section>
 {% endif %}
 
 <section class="tasks-register" aria-label="Open follow-up requests by case">
@@ -54,7 +101,8 @@
                     {% if h %}
                         <div class="request-sent">
                             {% if h.sends > 1 %}Last emailed {{ h.last_sent|when }} · first request {{ h.requested|when }}{% else %}Request emailed {{ (h.last_sent or group.last_request)|when }}{% endif %}
-                            {% if automation.active and h.next_reminder and not h.exhausted %} · next reminder {{ h.next_reminder.strftime("%d %b %Y") }}{% endif %}
+                            {% if group.reply_waiting %} · reminders paused while the reply is reviewed
+                            {% elif automation.active and h.next_reminder and not h.exhausted %} · next reminder {{ h.next_reminder.strftime("%d %b %Y") }}{% endif %}
                         </div>
                     {% elif group.last_request %}
                         <div class="request-sent">Request emailed {{ group.last_request|when }}</div>
@@ -63,8 +111,9 @@
                     {% endif %}
                 </div>
                 <div class="card-side">
-                <span class="task-status {% if (group.history and group.history.exhausted) or (overdue and not automation.active) %}overdue{% endif %}">
-                        {% if group.history and group.history.exhausted %}No reply after reminders
+                <span class="task-status {% if group.reply_waiting %}replied{% elif (group.history and group.history.exhausted) or (overdue and not automation.active) %}overdue{% endif %}">
+                        {% if group.reply_waiting %}Reply received
+                        {% elif group.history and group.history.exhausted %}No reply after reminders
                         {% elif group.history or group.last_request %}Awaiting reply
                         {% elif not group.reporter_tasks and group.check_tasks %}For you to check
                         {% elif not group.reporter_tasks %}PV team task
@@ -80,6 +129,47 @@
                     {% endif %}
                 </div>
             </div>
+
+            {% if group.replies %}
+                <div class="reply-block">
+                    <div class="request-section-title replied">Reporter's replies ({{ group.replies|length }})</div>
+                    {% for reply in group.replies %}
+                        <div class="case-reply {% if reply.status == 'New' %}is-new{% endif %}">
+                            <div class="reply-head">
+                                <strong>{% if reply.status == 'New' %}New reply{% else %}Reply handled{% endif %}</strong>
+                                <span>received {{ reply.received_at|when }} from {{ reply.from_email }}{% if reply.status == 'Handled' and reply.handled_by_name %} · handled by {{ reply.handled_by_name }}{% endif %}</span>
+                            </div>
+                            {% set preview = (reply.reply_text or "")|trim %}
+                            <p class="reply-preview">{{ preview[:280] }}{% if preview|length > 280 %}…{% endif %}</p>
+                            {% if preview|length > 280 %}
+                                <details class="reply-text"><summary>Read the full reply</summary><pre>{{ preview }}</pre></details>
+                            {% endif %}
+                            {% if reply.files %}
+                                <ul class="reply-files">
+                                    {% for f in reply.files %}
+                                        <li>
+                                            <span class="reply-file-name">{{ f.original_filename }}</span>
+                                            {% if f.processing_status == "Suggestions ready" %}
+                                                <a class="reply-primary" href="{{ url_for('cases.review_document_suggestions', case_id=f.case_id, attachment_id=f.attachment_id) }}">Review suggested updates</a>
+                                            {% elif f.processing_status == "Reading document" %}
+                                                <span class="reply-file-status reading">AI is reading…</span>
+                                            {% elif f.processing_status %}
+                                                <span class="reply-file-status">{{ f.processing_status }}</span>
+                                            {% endif %}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                            {% if reply.status == 'New' %}
+                                <form method="post" action="{{ url_for('case_review.mark_reply_handled', reply_id=reply.reply_id) }}" class="reply-done-form">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="reply-secondary" title="Use after applying the answers. If anything is still missing, reminders resume.">Done with this reply</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
 
             {% if group.reporter_tasks %}
                 <div class="request-section-title">To ask the reporter ({{ group.reporter_tasks|length }})</div>
@@ -180,6 +270,18 @@
             setTimeout(function () { window.location.reload(); }, 75000);
         });
     });
+
+    document.querySelectorAll(".check-inbox-form").forEach(function (form) {
+        form.addEventListener("submit", function () {
+            var button = form.querySelector("button");
+            setTimeout(function () { button.disabled = true; button.textContent = "Checking inbox…"; }, 0);
+        });
+    });
+
+    // While the AI is reading a reply, refresh now and then to show the result.
+    if (document.querySelector(".reply-file-status.reading")) {
+        setTimeout(function () { window.location.reload(); }, 30000);
+    }
 
     // A page restored from the browser's back/forward memory may show an
     // old "Sending…" button or an old error; load it fresh instead.

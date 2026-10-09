@@ -429,13 +429,36 @@ def follow_up_tasks():
     cases = group_tasks_by_case(tasks, _last_requests([t["case_id"] for t in tasks]))
     history = _reminder_history()
     failures = _last_failures([group["case_id"] for group in cases])
+    from app.services.follow_up_replies import (
+        inbox_configured,
+        replies_for_cases,
+        unmatched_replies,
+    )
+
+    replies = replies_for_cases([group["case_id"] for group in cases])
+    attachment_status = _reply_attachment_status(replies)
     for group in cases:
         group["history"] = history.get(group["case_id"])
         group["last_failure"] = failures.get(group["case_id"])
+        group["replies"] = replies.get(group["case_id"], [])
+        for reply in group["replies"]:
+            reply["files"] = [
+                attachment_status[a] for a in (reply.get("attachment_ids") or [])
+                if a in attachment_status
+            ]
+        group["reply_waiting"] = any(r["status"] == "New" for r in group["replies"])
+    unmatched = unmatched_replies()
     return render_template(
         "cases/follow_up_tasks.html",
         tasks=tasks,
         cases=cases,
+        unmatched=unmatched,
+        link_choices=_link_choices() if unmatched else [],
+        inbox={
+            "ready": inbox_configured(),
+            "every": current_app.config.get("FOLLOW_UP_REPLY_CHECK_MINUTES", 15),
+            "last": current_app.config.get("FOLLOW_UP_LAST_REPLY_CHECK"),
+        },
         current_date=date.today(),
         automation={
             "switched_on": current_app.config.get("FOLLOW_UP_AUTO_SEND"),
@@ -447,6 +470,116 @@ def follow_up_tasks():
             "last_run": current_app.config.get("FOLLOW_UP_LAST_RUN"),
         },
     )
+
+
+def _reply_attachment_status(replies):
+    ids = [a for rows in replies.values() for r in rows for a in (r.get("attachment_ids") or [])]
+    if not ids:
+        return {}
+    try:
+        rows = query_all(
+            """
+            SELECT attachment_id, record_id AS case_id, original_filename,
+                   processing_status, processing_note
+            FROM pv.record_attachments
+            WHERE attachment_id = ANY(%s)
+            """,
+            (ids,),
+        )
+    except Exception:
+        current_app.logger.warning("Could not read reply attachments", exc_info=True)
+        return {}
+    return {row["attachment_id"]: dict(row) for row in rows}
+
+
+def _link_choices():
+    try:
+        return query_all(
+            """
+            SELECT case_id, case_number, reporter_name, reporter_email
+            FROM pv.safety_cases
+            WHERE workflow_status NOT IN ('Closed')
+            ORDER BY received_date DESC NULLS LAST, case_id DESC
+            LIMIT 300
+            """
+        )
+    except Exception:
+        return []
+
+
+@bp.post("/follow-up-replies/check")
+@login_required
+def check_follow_up_replies():
+    from app.services.follow_up_automation import run_reply_check
+    from app.services.follow_up_replies import inbox_configured
+
+    back = url_for("case_review.follow_up_tasks")
+    if not inbox_configured():
+        flash("Reading replies is not set up: email sending must be set up with an App password first.", "error")
+        return redirect(back)
+    summary = run_reply_check(current_app._get_current_object())
+    if summary.get("error"):
+        flash(f"The inbox could not be checked: {summary['error']}", "error")
+    elif summary.get("skipped"):
+        flash(f"Inbox checked. {summary['skipped']}", "info")
+    elif summary["matched"] or summary["unmatched"]:
+        parts = []
+        if summary["matched"]:
+            parts.append(f"{summary['matched']} new reply(ies) added to their cases")
+        if summary["unmatched"]:
+            parts.append(f"{summary['unmatched']} need linking to a case")
+        flash("Inbox checked: " + "; ".join(parts) + ".", "success")
+    else:
+        flash("Inbox checked. No new replies.", "success")
+    return redirect(back)
+
+
+@bp.post("/follow-up-replies/<int:reply_id>/handled")
+@login_required
+def mark_reply_handled(reply_id):
+    from app.services.follow_up_replies import STATUS_HANDLED, set_reply_status
+
+    case_id = set_reply_status(reply_id, STATUS_HANDLED, session["user_id"])
+    if case_id:
+        write_audit_log(
+            record_type="case", record_id=case_id, action="Follow-up reply handled",
+            details="Reporter's reply reviewed. Reminders resume if information is still missing.",
+            actor_user_id=session["user_id"],
+        )
+        flash("Reply marked as handled. If anything is still missing, reminders resume on schedule.", "success")
+    return redirect(url_for("case_review.follow_up_tasks") + (f"#case-{case_id}" if case_id else ""))
+
+
+@bp.post("/follow-up-replies/<int:reply_id>/link")
+@login_required
+def link_follow_up_reply(reply_id):
+    from app.services.follow_up_replies import link_reply
+
+    back = url_for("case_review.follow_up_tasks")
+    case_id = request.form.get("case_id", type=int)
+    if not case_id or not query_one("SELECT 1 AS x FROM pv.safety_cases WHERE case_id = %s", (case_id,)):
+        flash("Choose the case this reply belongs to.", "error")
+        return redirect(back + "#unmatched-replies")
+    if link_reply(current_app._get_current_object(), reply_id, case_id, session["user_id"]):
+        write_audit_log(
+            record_type="case", record_id=case_id, action="Follow-up reply linked",
+            details=f"Email reply {reply_id} linked to the case by hand.",
+            actor_user_id=session["user_id"],
+        )
+        flash("Reply linked to the case. The AI is reading it for suggested updates.", "success")
+        return redirect(back + f"#case-{case_id}")
+    flash("That reply was already handled.", "info")
+    return redirect(back)
+
+
+@bp.post("/follow-up-replies/<int:reply_id>/ignore")
+@login_required
+def ignore_follow_up_reply(reply_id):
+    from app.services.follow_up_replies import STATUS_IGNORED, set_reply_status
+
+    set_reply_status(reply_id, STATUS_IGNORED, session["user_id"])
+    flash("Email ignored. It stays in the mailbox but is no longer listed here.", "success")
+    return redirect(url_for("case_review.follow_up_tasks"))
 
 
 def _reminder_history():

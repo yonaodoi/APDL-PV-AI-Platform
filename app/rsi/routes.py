@@ -65,6 +65,7 @@ REVIEWER_ROLES = (
     "Medical Reviewer",
     "Quality Reviewer",
     "Regulatory Affairs Officer",
+    "Group Head RA & Quality",
 )
 
 ALLOWED_RSI_EXTENSIONS = {".pdf", ".doc", ".docx"}

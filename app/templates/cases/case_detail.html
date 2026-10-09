@@ -667,6 +667,17 @@
         margin-top: 14px;
     }
     .listedness-actions form { margin: 0; }
+    .listedness-next {
+        margin: 12px 0 4px;
+        padding: 11px 14px;
+        border: 1px solid #f0d9a8;
+        border-radius: 10px;
+        background: #fff8e8;
+        color: #6b4a0c;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    .listedness-next a { display: inline-block; margin-top: 4px; color: #145a40; font-weight: 800; }
     .listedness-warning {
         margin: 0 0 12px;
         padding: 12px 14px;
@@ -737,24 +748,40 @@
             </p>
         {% endif %}
 
-        <div class="listedness-actions">
-            {% if not safety_assessment or safety_assessment.assessment_source == "automatic" %}
-                <form method="post" action="{{ url_for('cases.recheck_listedness', case_id=case.case_id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit">{% if safety_assessment %}Re-check now{% else %}Check listedness now{% endif %}</button>
-                </form>
-            {% endif %}
-            {% if safety_assessment and safety_assessment.needs_rereview %}
-                <form method="post" action="{{ url_for('cases.recheck_listedness', case_id=case.case_id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="replace_reviewer" value="1">
-                    <button type="submit">Replace with automatic check</button>
-                </form>
-            {% endif %}
-            <a href="{{ url_for('rsi.assess_case', case_id=case.case_id) }}">
-                {% if safety_assessment and safety_assessment.assessment_source == "automatic" %}Review and confirm{% else %}Open assessment{% endif %}
-            </a>
-        </div>
+        {% if safety_assessment and safety_assessment.needs_rsi_terms %}
+            <div class="listedness-next" role="note">
+                <strong>Next step: extract the reaction terms.</strong>
+                The reference document has no terms yet, so “Re-check now” will keep giving
+                “Insufficient information”. Open the document, extract and verify its terms,
+                then come back and re-check.
+                {% if can_assess_listedness %}
+                    <a href="{{ url_for('rsi.review_reactions', rsi_id=safety_assessment.rsi_id) }}">Open the reference document’s terms →</a>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        {% if can_assess_listedness %}
+            <div class="listedness-actions">
+                {% if not safety_assessment or safety_assessment.assessment_source == "automatic" %}
+                    <form method="post" action="{{ url_for('cases.recheck_listedness', case_id=case.case_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit">{% if safety_assessment %}Re-check now{% else %}Check listedness now{% endif %}</button>
+                    </form>
+                {% endif %}
+                {% if safety_assessment and safety_assessment.needs_rereview %}
+                    <form method="post" action="{{ url_for('cases.recheck_listedness', case_id=case.case_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="replace_reviewer" value="1">
+                        <button type="submit">Replace with automatic check</button>
+                    </form>
+                {% endif %}
+                <a href="{{ url_for('rsi.assess_case', case_id=case.case_id) }}">
+                    {% if safety_assessment and safety_assessment.assessment_source == "automatic" %}Review and confirm{% else %}Open assessment{% endif %}
+                </a>
+            </div>
+        {% else %}
+            <p class="listedness-meta">Listedness is checked and confirmed by the PV team ({{ listedness_roles|reject("equalto", "System Administrator")|join(", ") }}). You can read the result here.</p>
+        {% endif %}
     </div>
 </section>
 

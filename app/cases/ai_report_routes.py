@@ -630,7 +630,7 @@ def preview_ai_case_assessment(case_id):
     )
 
 @bp.post("/cases/<int:case_id>/ai-assessment/approve")
-@roles_required("QPPV", "System Administrator")
+@roles_required("QPPV", "Group Head RA & Quality", "System Administrator")
 def approve_ai_case_assessment(case_id):
     report = query_one(
         """

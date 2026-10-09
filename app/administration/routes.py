@@ -16,6 +16,7 @@ from app.administration.forms import UserCreateForm
 from app.audit import write_audit_log
 from app.db import query_all, query_one, transaction
 from app.security import roles_required
+from app.services.approval_settings import valid_email
 
 
 bp = Blueprint("administration", __name__, url_prefix="/administration")
@@ -487,7 +488,7 @@ def audit_record_url(record_type, record_id):
 
 
 @bp.get("/audit-log")
-@roles_required("System Administrator", "Auditor")
+@roles_required("System Administrator", "Auditor", "Group Head RA & Quality")
 def audit_log():
     entries = query_all(
         """
@@ -578,7 +579,7 @@ def update_user_contact(user_id):
     if not full_name or len(full_name) > 200:
         flash("Enter the user's full name.", "error")
         return redirect(back)
-    if "@" not in email or " " in email or len(email) > 255:
+    if not valid_email(email) or len(email) > 255:
         flash("Enter a valid email address.", "error")
         return redirect(back)
     clash = query_one(
@@ -649,14 +650,14 @@ def _email_changes(people):
         current = (person.get("email") or "").strip().lower()
         # A person can be listed twice (e.g. reviewer and PV officer); use
         # whichever box was changed.
-        typed = [(v or "").strip().lower() for v in request.form.getlist(field)]
+        typed = [(v or "").strip().strip(",;").strip().lower() for v in request.form.getlist(field)]
         email = next((v for v in typed if v != current), current)
         if email == current:
             continue
         if not email:
             return [], f"Enter an email address for {person['full_name']} (it cannot be left empty)."
-        if "@" not in email or " " in email or len(email) > 255:
-            return [], f"The email for {person['full_name']} is not a valid address."
+        if not valid_email(email) or len(email) > 255:
+            return [], f"The email for {person['full_name']} ({email}) is not a valid address."
         if email in seen:
             return [], f"{seen[email]} and {person['full_name']} cannot share the same email."
         seen[email] = person["full_name"]

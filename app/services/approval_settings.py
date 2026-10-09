@@ -3,6 +3,7 @@ and approves, extra notification addresses (reviewers, approvers and PV officers
 email timing."""
 
 import json
+import re
 
 from app.db import get_db, query_one, transaction
 
@@ -22,6 +23,13 @@ DEFAULTS = {
 }
 
 
+EMAIL_PATTERN = re.compile(r"^[^@\s,;<>]+@[^@\s,;<>]+\.[a-z]{2,}$", re.IGNORECASE)
+
+
+def valid_email(value):
+    return bool(EMAIL_PATTERN.match((value or "").strip()))
+
+
 def clean_emails(text):
     """Split a comma / semicolon / newline separated list into addresses."""
     if isinstance(text, list):
@@ -30,8 +38,8 @@ def clean_emails(text):
         items = (text or "").replace(";", ",").replace("\n", ",").split(",")
     out = []
     for item in items:
-        item = item.strip().lower()
-        if item and "@" in item and " " not in item and item not in out:
+        item = item.strip().strip(",;").lower()
+        if item and valid_email(item) and item not in out:
             out.append(item)
     return out
 

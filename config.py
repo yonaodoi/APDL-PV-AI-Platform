@@ -131,6 +131,33 @@ class Config:
     FOLLOW_UP_REMINDER_DAYS = int(os.environ.get("FOLLOW_UP_REMINDER_DAYS", "7"))
     FOLLOW_UP_MAX_REMINDERS = int(os.environ.get("FOLLOW_UP_MAX_REMINDERS", "2"))
     FOLLOW_UP_CHECK_MINUTES = int(os.environ.get("FOLLOW_UP_CHECK_MINUTES", "60"))
+
+    # Reading reporters' replies. The inbox of the sending account is checked
+    # (read-only) for answers to follow-up emails. It uses the same Gmail App
+    # password as sending. Set FOLLOW_UP_READ_REPLIES=false to switch it off.
+    FOLLOW_UP_READ_REPLIES = (
+        os.environ.get("FOLLOW_UP_READ_REPLIES", "true").lower() == "true"
+    )
+    FOLLOW_UP_REPLY_CHECK_MINUTES = int(
+        os.environ.get("FOLLOW_UP_REPLY_CHECK_MINUTES", "15")
+    )
+    FOLLOW_UP_REPLY_LOOKBACK_DAYS = int(
+        os.environ.get("FOLLOW_UP_REPLY_LOOKBACK_DAYS", "30")
+    )
+    IMAP_HOST = os.environ.get(
+        "IMAP_HOST",
+        "imap.gmail.com" if "gmail" in SMTP_HOST else SMTP_HOST.replace("smtp.", "imap.", 1),
+    )
+    IMAP_PORT = int(os.environ.get("IMAP_PORT", "993"))
+    IMAP_USERNAME = os.environ.get("IMAP_USERNAME", SMTP_USERNAME)
+    IMAP_PASSWORD = (
+        "".join(
+            ch for ch in os.environ.get("IMAP_PASSWORD", "")
+            if not ch.isspace() and ch not in "\"'\u200b\ufeff"
+        )
+        or SMTP_PASSWORD
+    )
+
     @classmethod
     def validate(cls):
         missing = []
@@ -157,6 +184,7 @@ class Config:
 class TestingConfig(Config):
     TESTING = True
     FOLLOW_UP_AUTO_SEND = False
+    FOLLOW_UP_READ_REPLIES = False
     WTF_CSRF_ENABLED = False
     SECRET_KEY = "test-only-secret"
     DATABASE_URL = "postgresql://unused"

@@ -52,6 +52,19 @@ from app.services.case_document_extraction import (
 )
 
 
+
+# Same roles as the listedness assessment page (rsi.assess_case).
+LISTEDNESS_ROLES = (
+    "System Administrator",
+    "QPPV",
+    "Deputy QPPV",
+    "PV Officer",
+    "Medical Reviewer",
+    "Quality Reviewer",
+    "Regulatory Affairs Officer",
+    "Group Head RA & Quality",
+)
+
 bp = Blueprint("cases", __name__, url_prefix="/cases")
 
 DEADLINE_FILTERS = {
@@ -419,6 +432,8 @@ def case_detail(case_id):
         event_terms=get_case_event_terms(case_id),
         dictionary_terms=get_active_terms(),
         safety_assessment=_load_safety_assessment(case_id),
+        can_assess_listedness=session.get("role") in LISTEDNESS_ROLES,
+        listedness_roles=LISTEDNESS_ROLES,
         workflow=_workflow_panel(case, completeness_checks),
         approval=_approval_panel(case),
         today_iso=date.today().isoformat(),
@@ -587,6 +602,12 @@ def _load_safety_assessment(case_id):
     if assessment:
         assessment = dict(assessment)
         assessment["needs_rereview"] = needs_rereview(assessment)
+        # The reference document has no reaction terms yet, so re-checking
+        # cannot give a result until someone extracts and verifies them.
+        assessment["needs_rsi_terms"] = bool(
+            assessment.get("rsi_id")
+            and "no reaction terms have been extracted" in (assessment.get("rsi_evidence") or "")
+        )
     return assessment
 
 
