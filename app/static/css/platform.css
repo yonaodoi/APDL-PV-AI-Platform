@@ -6200,3 +6200,12 @@ details[open] > :not(summary) { animation: pv-page-in 200ms ease-out; }
 .pv-floating-menu a.menu-danger { margin-top: 4px; border-top: 1px solid #f0dcd8; border-radius: 0 0 7px 7px; }
 .pv-floating-menu a.menu-danger:hover { background: #fff3f1; }
 @media (prefers-reduced-motion: reduce) { .pv-floating-menu { animation: none; } }
+
+/* Sub-items: no dark panel; indented under their heading with a thin guide line (ui-refresh-45) */
+.app-shell .sidebar .nav-subgroup-inner { background: transparent !important; box-shadow: none !important; border-radius: 0; }
+.app-shell .sidebar .nav-subgroup.is-open .nav-subgroup-inner { padding: 2px 0 2px 0; }
+.app-shell .sidebar .nav-subgroup { margin-left: 22px; border-left: 1px solid rgba(220, 238, 226, .3); }
+.app-shell .sidebar .nav-subgroup .nav-link.nav-sub { margin: 1px 0 1px 6px; padding: 7px 10px; font-size: 13.5px; font-weight: 600; color: rgba(236, 246, 239, .92); }
+.app-shell .sidebar .nav-subgroup .nav-link.nav-sub::before { display: none !important; }
+.app-shell .sidebar .nav-subgroup .nav-link.nav-sub:hover { background: rgba(255, 255, 255, .08); color: #ffffff; }
+.app-shell .sidebar .nav-subgroup .nav-link.nav-sub.active { background: rgba(255, 255, 255, .12); color: #ffffff; box-shadow: inset 3px 0 0 var(--lime, #c6dd5d); }
