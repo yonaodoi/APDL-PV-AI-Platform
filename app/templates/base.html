@@ -274,7 +274,7 @@
     </style>
     <link
         rel="stylesheet"
-        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-45') }}"
+        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-47') }}"
     >
     <style>:root { --sidebar-footer: "{{ company.short_name|upper|replace('"', '') }}  /  PV OPERATIONS"; {{ company_brand_css }} }</style>
 </head>
@@ -625,26 +625,42 @@
     })();
 
     // Roll-down menu groups: click the arrow to show or hide the items under
-    // a heading. The choice is remembered in this browser.
+    // a heading. Opening one folds the others; clicking anywhere else folds
+    // them back, except the group of the page you are on.
     (function () {
-        function key(id) { return "pv-roll-" + id; }
-        document.querySelectorAll(".nav-roll").forEach(function (head) {
-            var id = head.dataset.roll, btn = head.querySelector(".nav-roll-toggle"),
-                panel = document.getElementById("roll-" + id);
-            if (!btn || !panel) return;
-            var saved = null;
-            try { saved = localStorage.getItem(key(id)); } catch (e) {}
-            if (saved !== null && !head.querySelector(".active") && !panel.querySelector(".active")) {
-                set(saved === "1", false);
-            }
-            function set(open, remember) {
-                head.classList.toggle("is-open", open);
-                panel.classList.toggle("is-open", open);
-                btn.setAttribute("aria-expanded", open ? "true" : "false");
-                if (remember) { try { localStorage.setItem(key(id), open ? "1" : "0"); } catch (e) {} }
-            }
-            btn.addEventListener("click", function () { set(!panel.classList.contains("is-open"), true); });
+        var heads = Array.prototype.slice.call(document.querySelectorAll(".nav-roll"));
+        function parts(head) {
+            return { btn: head.querySelector(".nav-roll-toggle"), panel: document.getElementById("roll-" + head.dataset.roll) };
+        }
+        function current(head) {
+            var p = parts(head);
+            return !!(head.querySelector(".active") || (p.panel && p.panel.querySelector(".active")));
+        }
+        function set(head, open) {
+            var p = parts(head);
+            if (!p.btn || !p.panel) return;
+            head.classList.toggle("is-open", open);
+            p.panel.classList.toggle("is-open", open);
+            p.btn.setAttribute("aria-expanded", open ? "true" : "false");
+        }
+        function foldOthers(keep) {
+            heads.forEach(function (h) { if (h !== keep && !current(h)) set(h, false); });
+        }
+        heads.forEach(function (head) {
+            var p = parts(head);
+            if (!p.btn || !p.panel) return;
+            p.btn.addEventListener("click", function (e) {
+                e.stopPropagation();
+                var open = !p.panel.classList.contains("is-open");
+                if (open) foldOthers(head);
+                set(head, open);
+            });
         });
+        document.addEventListener("click", function (e) {
+            if (e.target.closest && (e.target.closest(".nav-roll") || e.target.closest(".nav-subgroup"))) return;
+            foldOthers(null);
+        });
+        document.addEventListener("keydown", function (e) { if (e.key === "Escape") foldOthers(null); });
         requestAnimationFrame(function () { document.documentElement.classList.add("nav-ready"); });
     })();
 </script>

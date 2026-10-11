@@ -6209,3 +6209,37 @@ details[open] > :not(summary) { animation: pv-page-in 200ms ease-out; }
 .app-shell .sidebar .nav-subgroup .nav-link.nav-sub::before { display: none !important; }
 .app-shell .sidebar .nav-subgroup .nav-link.nav-sub:hover { background: rgba(255, 255, 255, .08); color: #ffffff; }
 .app-shell .sidebar .nav-subgroup .nav-link.nav-sub.active { background: rgba(255, 255, 255, .12); color: #ffffff; box-shadow: inset 3px 0 0 var(--lime, #c6dd5d); }
+
+/* Follow-up radar banner: same compact size as the other page banners (ui-refresh-46) */
+.reminder-hero { min-height: 0; gap: 18px 28px; margin-bottom: 18px; padding: 22px clamp(18px, 3vw, 30px); border-radius: 18px; flex-wrap: wrap; }
+.reminder-hero-copy { flex: 1 1 320px; }
+.reminder-hero h2 { font-size: clamp(21px, 2.6vw, 26px); letter-spacing: -0.4px; margin-bottom: 6px; }
+.reminder-hero-copy > p:last-child { font-size: 13.5px; line-height: 1.5; }
+.reminder-eyebrow { margin-bottom: 6px; }
+.reminder-hero-side { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.reminder-count { display: flex; align-items: baseline; gap: 8px; }
+.reminder-count strong { font-size: 32px; letter-spacing: -1px; }
+.reminder-task-link { padding: 9px 12px; white-space: nowrap; }
+.reminder-orbit { display: none; }
+@media (max-width: 640px) { .dashboard-page .module-card { min-height: 0; } }
+
+/* Compact "nothing here" messages everywhere (ui-refresh-47) */
+.app-shell .content .reminder-clear-state {
+    grid-template-columns: auto 1fr auto; grid-template-areas: "icon kicker link" "icon title link" "icon text link";
+    justify-items: start; align-items: center; column-gap: 16px; row-gap: 2px;
+    padding: 16px 20px; border-radius: 14px; background: #ffffff; text-align: left;
+}
+.app-shell .content .reminder-clear-state .clear-state-graphic { grid-area: icon; width: 40px; height: 40px; margin: 0; }
+.app-shell .content .reminder-clear-state .clear-state-ring,
+.app-shell .content .reminder-clear-state .clear-state-spark { display: none; }
+.app-shell .content .reminder-clear-state .clear-state-check { width: 40px; height: 40px; font-size: 18px; border-radius: 12px; transform: none; }
+.app-shell .content .reminder-clear-state > .reminder-section-kicker { grid-area: kicker; margin: 0; }
+.app-shell .content .reminder-clear-state h3 { grid-area: title; margin: 0; font-size: 16px; }
+.app-shell .content .reminder-clear-state > p:not(.reminder-section-kicker) { grid-area: text; margin: 0; max-width: none; font-size: 13px; line-height: 1.5; }
+.app-shell .content .reminder-clear-state > a { grid-area: link; margin: 0; white-space: nowrap; }
+@media (max-width: 720px) {
+    .app-shell .content .reminder-clear-state { grid-template-columns: auto 1fr; grid-template-areas: "icon kicker" "icon title" "text text" "link link"; }
+}
+.app-shell .content .empty-state { padding: 22px 20px !important; }
+.app-shell .content .empty-state .empty-icon { width: 36px !important; height: 36px !important; font-size: 16px !important; margin-bottom: 8px !important; }
+.app-shell .content .empty-state h3 { margin-top: 0; font-size: 16px; }
