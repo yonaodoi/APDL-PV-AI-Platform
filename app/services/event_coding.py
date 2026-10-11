@@ -105,14 +105,7 @@ def code_verbatim(verbatim, dictionary):
 
 
 def load_dictionary():
-    terms = query_all(
-        """
-        SELECT term_id, preferred_term, system_organ_class
-        FROM pv.event_terms
-        WHERE is_active = TRUE
-        ORDER BY system_organ_class, preferred_term
-        """
-    )
+    terms = _approved_terms()
     synonyms = query_all(
         "SELECT synonym, term_id FROM pv.event_term_synonyms"
     )
@@ -205,15 +198,35 @@ def get_case_event_terms(case_id):
     )
 
 
+def _approved_terms():
+    """Active local event terms a case may be grouped by (proposed or rejected
+    local terms wait for approval in Administration › Terminology)."""
+    try:
+        return query_all(
+            """
+            SELECT term_id, preferred_term, COALESCE(system_organ_class, 'Not yet classified') AS system_organ_class
+            FROM pv.event_terms
+            WHERE is_active = TRUE AND status = 'Approved'
+            ORDER BY 3, preferred_term
+            """
+        )
+    except Exception:
+        # Before migration 055 the status column does not exist yet.
+        from app.db import get_db
+
+        get_db().rollback()
+        return query_all(
+            """
+            SELECT term_id, preferred_term, system_organ_class
+            FROM pv.event_terms
+            WHERE is_active = TRUE
+            ORDER BY system_organ_class, preferred_term
+            """
+        )
+
+
 def get_active_terms():
-    return query_all(
-        """
-        SELECT term_id, preferred_term, system_organ_class
-        FROM pv.event_terms
-        WHERE is_active = TRUE
-        ORDER BY system_organ_class, preferred_term
-        """
-    )
+    return _approved_terms()
 
 
 def preferred_terms_by_case(case_ids):

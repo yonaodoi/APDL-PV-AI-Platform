@@ -14,6 +14,10 @@
         rel="stylesheet"
         href="{{ url_for('static', filename='css/app.css') }}"
     >
+    <style>
+        .auth-lock-note { margin: 14px 0 0; padding: 9px 12px; border-radius: 9px; background: #f3f7f4; color: #3f5a4f; font-size: 13px; line-height: 1.45; }
+        .auth-lock-note strong { color: #1b3a30; }
+    </style>
 </head>
 
 <body class="auth-page">
@@ -106,6 +110,11 @@
                 Sign in
             </button>
         </form>
+
+        <p class="auth-lock-note">
+            For security, an account is locked for {{ lockout_minutes }} minutes after
+            <strong>{{ max_failed_attempts }} wrong passwords</strong> in a row.
+        </p>
 
         <p class="auth-footer">
             Authorised {{ company.short_name }} users only

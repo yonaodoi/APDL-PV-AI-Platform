@@ -1,0 +1,9 @@
+{# Safety Cases sections: one place for cases, follow-up, approvals and overdue reminders. #}
+{% set ep = request.endpoint %}
+<nav class="cases-tabs" aria-label="Safety cases sections">
+    <a href="{{ url_for('cases.case_list') }}" class="{% if ep == 'cases.case_list' and request.args.get('mine') != '1' %}is-active{% endif %}">All cases</a>
+    <a href="{{ url_for('cases.case_list', mine=1) }}" class="{% if ep == 'cases.case_list' and request.args.get('mine') == '1' %}is-active{% endif %}">Waiting for me</a>
+    <a href="{{ url_for('case_review.follow_up_tasks') }}" class="{% if ep == 'case_review.follow_up_tasks' %}is-active{% endif %}">Awaiting information</a>
+    <a href="{{ url_for('case_review.approvals') }}" class="{% if ep == 'case_review.approvals' %}is-active{% endif %}">Approvals{% if approvals_pending_count %} <span class="n">{{ approvals_pending_count }}</span>{% endif %}</a>
+    <a href="{{ url_for('case_review.follow_up_reminders') }}" class="{% if ep == 'case_review.follow_up_reminders' %}is-active{% endif %}">Overdue reminders{% if open_follow_up_reminder_count %} <span class="n warn">{{ open_follow_up_reminder_count }}</span>{% endif %}</a>
+</nav>

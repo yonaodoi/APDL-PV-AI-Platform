@@ -4,26 +4,57 @@
 {% block page_title %}Extract Case Information{% endblock %}
 
 {% block content %}
-<section style="max-width: 850px; margin: 0 auto;">
-    <nav class="ui-crumbs" aria-label="Breadcrumb" style="margin-bottom:12px;">
+<section class="ui-page" style="max-width: 860px;">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
         <a href="{{ url_for('cases.case_list') }}">Safety cases</a><span class="sep">›</span><span>Create from a document</span>
     </nav>
-    <a href="{{ url_for('cases.case_list') }}" style="display: inline-block; margin-bottom: 14px; color: #145a40; font-size: 13px; font-weight: bold; text-decoration: none;">← Back to safety cases</a>
-    <section style="padding: 26px; border: 1px solid #dce8e1; border-radius: 14px; background: white;">
-        <h2 style="margin: 0 0 8px; color: #183d34; font-size: 25px;">Create a case from a document</h2>
-        <p style="margin: 0 0 20px; color: #6b7d75; font-size: 14px; line-height: 1.5;">
-            Upload a case report to draft field values for the safety case form. The local AI model extracts stated information only; it does not save a case.
-        </p>
-        <div style="margin-bottom: 20px; padding: 13px 15px; border-radius: 9px; background: #fff8eb; color: #76521c; font-size: 13px; line-height: 1.5;">
-            Review every suggested value against the original report before saving. Missing or uncertain details must be completed or corrected by an authorised reviewer. The document is processed locally and is not retained by this extraction step.
+
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Step 1 of the case pathway · Intake</p>
+            <h1>Create a case from a document</h1>
+            <p>Upload the source document. It may hold one patient report, several (a line listing, several forms, a literature article) or follow-up for a case already entered. The AI finds each patient report separately, with its pages, and extracts each one from its own text only. Nothing is saved as a case until you review the reports and press <strong>Create safety case</strong>.</p>
         </div>
-        <form method="post" enctype="multipart/form-data">
+        <div class="actions"><a href="{{ url_for('cases.case_list') }}">← Safety cases</a></div>
+    </header>
+
+    <article class="ui-card is-strong">
+        <div class="ui-note warn" style="margin-bottom: 16px;">
+            Check every suggested value against the original report before saving. Missing or uncertain details must be completed or corrected by an authorised reviewer.
+        </div>
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('cases.intake_upload') }}"
+              data-busy="Uploading the document…"
+              data-busy-detail="The original is kept. Reading starts straight away and you can follow its progress on the next page.">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label for="case_document" style="display: block; margin-bottom: 8px; color: #4b6158; font-size: 13px; font-weight: bold;">Case document</label>
-            <input id="case_document" name="case_document" type="file" accept=".pdf,.docx,.txt" required style="display: block; width: 100%; margin-bottom: 8px; padding: 12px; border: 1px solid #d5e2d9; border-radius: 8px; background: #fbfdfc;">
-            <p style="margin: 0 0 18px; color: #817887; font-size: 12px;">Accepted formats: PDF, DOCX, TXT. Maximum size: 20 MB. Scanned/image-only PDFs are not supported.</p>
-            <button type="submit" style="padding: 11px 16px; border: 0; border-radius: 8px; background: #145a40; color: white; cursor: pointer; font-size: 13px; font-weight: bold;">Extract draft fields</button>
+            <div class="ui-field">
+                <label for="case_document">Case document</label>
+                <input id="case_document" name="case_document" type="file" accept=".pdf,.docx,.txt" required>
+                <p class="sub" style="margin-top: 6px;">PDF, DOCX or TXT, up to 20 MB. Scanned (image-only) PDFs cannot be read yet.</p>
+            </div>
+            <div class="ui-actions">
+                <button class="ui-btn primary" type="submit">Upload and read</button>
+                <a class="ui-btn" href="{{ url_for('cases.create_case') }}">Enter the case manually instead</a>
+            </div>
         </form>
-    </section>
+    </article>
+
+    {% if recent %}
+    <article class="ui-card" style="margin-top: 14px;">
+        <h2 style="font-size: 16px; margin: 0 0 8px;">Recent documents</h2>
+        <table class="ui-table">
+            <thead><tr><th>Document</th><th>Status</th><th>Reports</th><th>Cases created</th><th>Uploaded</th></tr></thead>
+            <tbody>
+            {% for d in recent %}
+                <tr>
+                    <td><a href="{{ url_for('cases.intake_document', document_id=d.document_id) }}">{{ d.original_filename }}</a></td>
+                    <td><span class="ui-pill {% if d.status == 'Ready' and d.open_proposals %}warn{% elif d.status == 'Ready' %}good{% elif d.status == 'Failed' %}bad{% else %}muted{% endif %}">{% if d.status == 'Ready' and d.open_proposals %}{{ d.open_proposals }} to review{% else %}{{ d.status }}{% endif %}</span></td>
+                    <td>{{ d.proposals }}</td><td>{{ d.cases_created }}</td>
+                    <td class="sub">{{ d.uploaded_at|when }}{% if d.uploaded_by_name %} · {{ d.uploaded_by_name }}{% endif %}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </article>
+    {% endif %}
 </section>
 {% endblock %}

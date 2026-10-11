@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Deleted Records | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Deleted Records{% endblock %}
+
+{% block content %}
+<section class="ui-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('administration.user_list') }}">Administration</a><span class="sep">›</span>
+        <span>Deleted records</span>
+    </nav>
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Administration</p>
+            <h1>Deleted records</h1>
+            <p>Every permanent deletion, with who deleted it, when and why. Download a full copy of a deleted record if it is needed again or for an inspection.</p>
+        </div>
+    </header>
+
+    <article class="ui-card is-strong">
+        {% if records %}
+            <table class="ui-table">
+                <thead><tr><th>Record</th><th>Type</th><th>Reason</th><th>Deleted</th><th><span class="visually-hidden">Copy</span></th></tr></thead>
+                <tbody>
+                    {% for r in records %}
+                        <tr>
+                            <td><strong>{{ r.record_number }}</strong></td>
+                            <td>{{ record_types[r.record_type].label|capitalize if r.record_type in record_types else r.record_type }}</td>
+                            <td>{{ r.reason }}</td>
+                            <td class="nowrap">{{ r.deleted_at|when }}<br><span class="sub">{{ r.deleted_by_name or "Unknown user" }}</span></td>
+                            <td><a class="ui-btn small" href="{{ url_for('administration.deleted_record_snapshot', deleted_id=r.deleted_id) }}">Download copy</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="sub">Nothing has been deleted.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

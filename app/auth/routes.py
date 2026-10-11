@@ -20,6 +20,11 @@ from app.security import login_required, safe_next_path
 
 bp = Blueprint("auth", __name__)
 
+
+@bp.context_processor
+def _sign_in_policy():
+    return {"max_failed_attempts": MAX_FAILED_ATTEMPTS, "lockout_minutes": LOCKOUT_MINUTES}
+
 MAX_FAILED_ATTEMPTS = 5
 LOCKOUT_MINUTES = 15
 MIN_PASSWORD_LENGTH = 10
@@ -115,8 +120,10 @@ def login():
                 user_id=user["user_id"],
                 details=f"Account: {user['username']}.",
             )
+            minutes_left = max(1, int((locked_until - now).total_seconds() // 60) + 1)
             flash(
-                "This account is temporarily locked. Try again later, "
+                f"This account is temporarily locked after {MAX_FAILED_ATTEMPTS} wrong passwords. "
+                f"Try again in about {minutes_left} minute{'s' if minutes_left != 1 else ''}, "
                 "or ask an administrator to unlock it.",
                 "error",
             )
@@ -168,7 +175,19 @@ def login():
                     ),
                 )
 
-            flash("Invalid username or password.", "error")
+            if new_locked_until:
+                flash(
+                    f"Invalid username or password. That was wrong password {MAX_FAILED_ATTEMPTS} of {MAX_FAILED_ATTEMPTS} in a row, "
+                    f"so the account is now locked for {LOCKOUT_MINUTES} minutes. An administrator can unlock it sooner.",
+                    "error",
+                )
+            else:
+                left = MAX_FAILED_ATTEMPTS - failed_attempts
+                flash(
+                    f"Invalid username or password. {left} attempt{'s' if left != 1 else ''} left before "
+                    f"the account is locked for {LOCKOUT_MINUTES} minutes.",
+                    "error",
+                )
             return render_template("auth/login.html")
 
         with transaction() as cursor:

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Narrative templates | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Narrative templates{% endblock %}
+
+{% block content %}
+<section class="ui-page" style="max-width: 1100px;">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('report_templates.template_list') }}">Report templates</a><span class="sep">›</span><span>Narrative templates</span>
+    </nav>
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Controlled documents</p>
+            <h1>ICSR narrative templates</h1>
+            <p>One approved template per case type. The narrative is built only from the structured case record, in this order: introduction, patient, suspect drugs, events and chronology, closing (actions and outcomes), causality and associated case references. A changed template is saved as a draft and must be approved by a second authorised person before it is used. Each case narrative records the template version it was made with.</p>
+        </div>
+    </header>
+
+    {% for case_type, rows in by_type.items() %}
+        {% set approved = rows|selectattr("status", "equalto", "Approved")|first %}
+        <article class="ui-card is-strong nt-card">
+            <div class="nt-head">
+                <div>
+                    <h2>{{ case_type }} cases</h2>
+                    {% if approved %}<p class="sub">In use: <strong>version {{ approved.version }}</strong>{% if approved.approved_by_name %}, approved by {{ approved.approved_by_name }}{% endif %}{% if approved.approved_at %} on {{ approved.approved_at|when }}{% endif %}</p>{% endif %}
+                </div>
+                <a class="ui-btn primary small" href="{{ url_for('report_templates.new_narrative_template', case_type=case_type) }}">Edit as new version</a>
+            </div>
+            <table class="ui-table">
+                <thead><tr><th>Version</th><th>Status</th><th>Change</th><th>Drafted by</th><th>Approved</th><th></th></tr></thead>
+                <tbody>
+                {% for t in rows %}
+                    <tr>
+                        <td>v{{ t.version }}</td>
+                        <td><span class="ui-pill {% if t.status == 'Approved' %}good{% elif t.status == 'Draft' %}warn{% else %}muted{% endif %}">{{ t.status }}</span></td>
+                        <td class="sub">{{ t.change_note or "—" }}</td>
+                        <td>{{ t.created_by_name or "Platform" }}{% if t.created_at %}<div class="sub">{{ t.created_at|when }}</div>{% endif %}</td>
+                        <td>{% if t.approved_at %}{{ t.approved_by_name or "Platform default" }}<div class="sub">{{ t.approved_at|when }}</div>{% else %}—{% endif %}</td>
+                        <td><a class="ui-btn small" href="{{ url_for('report_templates.narrative_template_detail', template_id=t.template_id) }}">{{ 'Review / preview' if t.status == 'Draft' else 'View' }}</a></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </article>
+    {% endfor %}
+</section>
+<style>
+    .nt-card { margin-bottom: 14px; }
+    .nt-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 8px; }
+    .nt-head h2 { margin: 0; font-size: 17px; }
+    .ui-btn.small { padding: 5px 12px; font-size: 12px; }
+</style>
+{% endblock %}

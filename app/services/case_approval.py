@@ -58,11 +58,16 @@ def _settings(settings=None):
 
 
 def can_review(role, designated_qppv=False, settings=None):
-    return role in _settings(settings)["reviewer_roles"] or bool(designated_qppv)
+    return role in _settings(settings)["reviewer_roles"] or bool(designated_qppv) or qppv_alone(role, designated_qppv, settings)
 
 
-def can_approve(role, settings=None):
-    return role in _settings(settings)["approver_roles"]
+def qppv_alone(role, designated_qppv=False, settings=None):
+    """The QPPV may process a case from start to finish (Sign-off settings)."""
+    return (role == "QPPV" or bool(designated_qppv)) and _settings(settings).get("qppv_end_to_end", True)
+
+
+def can_approve(role, settings=None, designated_qppv=False):
+    return role in _settings(settings)["approver_roles"] or qppv_alone(role, designated_qppv, settings)
 
 
 def last_actor(history, step):
@@ -89,7 +94,7 @@ def check_step(stage, action, user_id, role, designated_qppv, history, settings=
                 f"Only {' or '.join(settings['reviewer_roles'])} can do the "
                 f"{settings['review_title']}."
             )
-        if last_actor(history, "Sent for review") == user_id:
+        if last_actor(history, "Sent for review") == user_id and not qppv_alone(role, designated_qppv, settings):
             raise ApprovalError(
                 "You sent this case for review, so someone else must review it."
             )
@@ -97,12 +102,12 @@ def check_step(stage, action, user_id, role, designated_qppv, history, settings=
     if action in ("approve", "return_approval"):
         if stage != PENDING_APPROVAL:
             raise ApprovalError("This case is not waiting for approval.")
-        if not can_approve(role, settings):
+        if not can_approve(role, settings, designated_qppv):
             raise ApprovalError(
                 f"Only {' or '.join(settings['approver_roles'])} can give the "
                 f"{settings['approval_title']}."
             )
-        if last_actor(history, "Reviewed") == user_id:
+        if last_actor(history, "Reviewed") == user_id and not qppv_alone(role, designated_qppv, settings):
             raise ApprovalError(
                 "You reviewed this case, so someone else must approve it."
             )
@@ -191,6 +196,12 @@ def take_step(case_id, action, user_id, role, designated_qppv=False, comment="",
     history = approval_history(case_id)
     check_step(case["approval_stage"], action, user_id, role, designated_qppv, history)
     stage, step = NEXT_STAGE[action]
+    previous = {"review": "Sent for review", "return_review": "Sent for review",
+                "approve": "Reviewed", "return_approval": "Reviewed"}.get(action)
+    if previous and last_actor(history, previous) == user_id:
+        override_note += " Done by the same person as the previous step (QPPV processing the case alone, allowed in Sign-off settings)."
+    elif action in ("approve", "return_approval") and role not in _settings()["approver_roles"]:
+        override_note += " Approved by the QPPV (allowed in Sign-off settings)."
 
     with transaction() as cursor:
         cursor.execute(

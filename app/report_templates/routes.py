@@ -247,3 +247,102 @@ def marker_guide(report_type):
         abort(404)
     return render_template("report_templates/marker_guide.html", report_type=report_type,
                            spec=REPORT_TYPES[report_type], report_types=REPORT_TYPES)
+
+
+# --------------------------------------------------------------------------
+# Narrative templates (versioned, approved before use)
+# --------------------------------------------------------------------------
+
+@bp.get("/narratives")
+@roles_required(*TEMPLATE_ROLES)
+def narrative_templates():
+    from app.services import narratives
+
+    rows = narratives.list_templates()
+    by_type = {t: [r for r in rows if r["case_type"] == t] for t in narratives.CASE_TYPES}
+    return render_template("report_templates/narrative_templates.html", by_type=by_type, sections=narratives.SECTIONS)
+
+
+@bp.route("/narratives/new/<case_type>", methods=["GET", "POST"])
+@roles_required(*TEMPLATE_ROLES)
+def new_narrative_template(case_type):
+    from app.services import narratives
+
+    if case_type not in narratives.CASE_TYPES:
+        abort(404)
+    base = narratives.approved_template(case_type)
+    if request.method == "POST":
+        sections, problems = narratives.parse_sections(request.form)
+        if problems:
+            for problem in problems:
+                flash(problem, "error")
+            return render_template("report_templates/narrative_template_form.html", case_type=case_type,
+                                   sections=narratives.SECTIONS, values=sections, tokens=narratives.TOKENS,
+                                   note=request.form.get("change_note", ""), base=base)
+        template_id, version = narratives.save_draft(case_type, sections, request.form.get("change_note"), session["user_id"])
+        write_audit_log("narrative_template", template_id, "Narrative template drafted", session["user_id"],
+                        f"{case_type} narrative template version {version} drafted.")
+        flash(f"Draft version {version} saved. Preview it on a case, then approve it to put it into use.", "success")
+        return redirect(url_for("report_templates.narrative_template_detail", template_id=template_id))
+    return render_template("report_templates/narrative_template_form.html", case_type=case_type,
+                           sections=narratives.SECTIONS, values=base["sections"], tokens=narratives.TOKENS,
+                           note="", base=base)
+
+
+@bp.get("/narratives/<int:template_id>")
+@roles_required(*TEMPLATE_ROLES)
+def narrative_template_detail(template_id):
+    from app.db import query_one
+    from app.services import icsr, narratives
+    from app.services.company_profile import company
+
+    template = narratives.get_template(template_id)
+    if not template:
+        abort(404)
+    preview = None
+    number = (request.args.get("case_number") or "").strip()
+    if number:
+        case = query_one("SELECT case_id FROM pv.safety_cases WHERE UPPER(case_number) = UPPER(%s)", (number,))
+        if case:
+            text, sentences, issues = narratives.build(icsr.load_icsr(case["case_id"]), template, company()["legal_name"])
+            preview = {"case_number": number, "text": text, "issues": issues, "sentences": sentences}
+        else:
+            flash(f"No case with the number “{number}”.", "error")
+    return render_template("report_templates/narrative_template_detail.html", template=template,
+                           sections=narratives.SECTIONS, preview=preview, number=number)
+
+
+@bp.post("/narratives/<int:template_id>/approve")
+@roles_required(*TEMPLATE_ROLES)
+def approve_narrative_template(template_id):
+    from app.services import narratives
+
+    template = narratives.get_template(template_id)
+    if not template:
+        abort(404)
+    if template.get("created_by") == session["user_id"]:
+        flash("You drafted this version; another authorised person must approve it.", "error")
+        return redirect(url_for("report_templates.narrative_template_detail", template_id=template_id))
+    try:
+        narratives.approve(template_id, session["user_id"])
+    except ValueError as error:
+        flash(str(error), "error")
+        return redirect(url_for("report_templates.narrative_template_detail", template_id=template_id))
+    write_audit_log("narrative_template", template_id, "Narrative template approved", session["user_id"],
+                    f"{template['case_type']} narrative template version {template['version']} approved and in use.")
+    flash(f"{template['case_type']} template version {template['version']} approved. New drafts use it; "
+          "existing narratives keep the version they were made with.", "success")
+    return redirect(url_for("report_templates.narrative_templates"))
+
+
+@bp.post("/narratives/<int:template_id>/delete")
+@roles_required(*TEMPLATE_ROLES)
+def delete_narrative_template(template_id):
+    from app.services import narratives
+
+    if narratives.delete_draft(template_id):
+        write_audit_log("narrative_template", template_id, "Narrative template draft deleted", session["user_id"], "Draft deleted.")
+        flash("Draft deleted.", "success")
+    else:
+        flash("Only drafts can be deleted; approved and historic versions are kept.", "error")
+    return redirect(url_for("report_templates.narrative_templates"))

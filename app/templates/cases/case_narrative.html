@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Narrative {{ case.case_number }} | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Case narrative{% endblock %}
+
+{% macro sources(version) -%}
+    {% if version.sentences %}
+    <details class="sources">
+        <summary>Where each sentence comes from ({{ version.sentences|length }} sentences)</summary>
+        <ol>
+            {% for s in version.sentences %}
+                <li><span class="s-text">{{ s.text }}</span> <span class="s-fields">{{ s.fields|join(" · ") or "fixed wording" }}</span></li>
+            {% endfor %}
+        </ol>
+    </details>
+    {% endif %}
+{%- endmacro %}
+
+{% block content %}
+<section class="ui-page" style="max-width: 1100px;">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('cases.case_list') }}">Safety cases</a><span class="sep">›</span>
+        <a href="{{ url_for('cases.case_detail', case_id=case.case_id) }}">{{ case.case_number }}</a><span class="sep">›</span>
+        <span>Narrative</span>
+    </nav>
+
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Case pathway · Narrative</p>
+            <h1>Narrative for {{ case.case_number }}</h1>
+            <p>Drafts are built only from the recorded facts using the approved <strong>{{ case_type|lower }}</strong> template{% if template %} (version {{ template.version }}){% endif %}. Missing facts are left out, never guessed. Generating a draft never changes the case narrative: you decide what to use, your edits are kept as versions, and a second person reviews it before final reporting.</p>
+        </div>
+        <div class="actions">
+            <a href="{{ url_for('cases.icsr_form', case_id=case.case_id) }}#section-summary">ICSR form</a>
+            <a href="{{ url_for('cases.case_detail', case_id=case.case_id) }}#pathway">← Back to the case</a>
+        </div>
+    </header>
+
+    {% if locked %}<div class="ui-note warn">The case is in sign-off or already reported; the narrative is read-only until it is returned.</div>{% endif %}
+
+    <div class="narr-grid">
+        <article class="ui-card is-strong">
+            <div class="head">
+                <h2>Case narrative</h2>
+                {% if current %}
+                    <span class="ui-pill {% if current.status == 'Reviewed' %}good{% else %}warn{% endif %}">{% if current.status == 'Reviewed' %}Reviewed{% else %}Not yet reviewed{% endif %}</span>
+                {% elif case.case_narrative %}
+                    <span class="ui-pill muted">Written before versioning</span>
+                {% else %}
+                    <span class="ui-pill bad">None yet</span>
+                {% endif %}
+            </div>
+            {% if case.case_narrative %}
+                <div class="narr-text">{{ case.case_narrative }}</div>
+                {% if current %}
+                    <p class="sub">Version {{ current.version }} · {{ current.source|lower }}{% if current.created_by_name %} by {{ current.created_by_name }}{% endif %}, {{ current.created_at|when }}{% if current.template_version %} · template {{ current.template_case_type }} v{{ current.template_version }}{% endif %}{% if current.reviewed_by_name %} · reviewed by {{ current.reviewed_by_name }}, {{ current.reviewed_at|when }}{% endif %}</p>
+                    {{ sources(current) }}
+                {% endif %}
+            {% else %}
+                <p class="sub">No narrative yet. Generate a draft from the recorded facts.</p>
+            {% endif %}
+            {% if not locked %}
+            <div class="ui-actions">
+                <form method="post" action="{{ url_for('cases.generate_narrative', case_id=case.case_id) }}" data-busy="Writing the draft from the recorded facts…">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="ui-btn {% if not draft %}primary{% endif %}" type="submit">Generate a new draft</button>
+                </form>
+                {% if (current and current.status != 'Reviewed') or (not current and case.case_narrative) %}
+                    {% if can_review %}
+                    <form method="post" action="{{ url_for('cases.review_narrative', case_id=case.case_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="ui-btn primary" type="submit" {% if not current %}disabled title="Save it as a version first (Use as the case narrative)"{% endif %}>Mark as reviewed</button>
+                    </form>
+                    {% else %}
+                    <p class="sub">A medical or quality reviewer, the QPPV or their deputy reviews the narrative.</p>
+                    {% endif %}
+                {% endif %}
+            </div>
+            {% endif %}
+        </article>
+
+        {% if draft or not locked %}
+        <article class="ui-card" id="draft">
+            {% set base = draft or current %}
+            <div class="head">
+                <h2>{% if draft %}Draft version {{ draft.version }}{% else %}Edit the narrative{% endif %}</h2>
+                {% if draft %}<span class="ui-pill muted">Generated {{ draft.created_at|when }} · {{ draft.template_case_type }} template v{{ draft.template_version }}</span>{% endif %}
+            </div>
+            {% if draft and draft.issues %}
+                <div class="ui-note warn issues"><strong>Check before using:</strong>
+                    <ul>{% for issue in draft.issues %}<li>{{ issue }}</li>{% endfor %}</ul></div>
+            {% endif %}
+            {% if not locked %}
+            <form method="post" action="{{ url_for('cases.adopt_narrative', case_id=case.case_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% if draft %}<input type="hidden" name="from_narrative_id" value="{{ draft.narrative_id }}">{% endif %}
+                <label for="narrative_text" class="visually-hidden">Narrative text</label>
+                <textarea id="narrative_text" name="narrative_text" rows="16">{{ base.narrative_text if base else (case.case_narrative or "") }}</textarea>
+                <div class="ui-actions">
+                    <button class="ui-btn primary" type="submit">Use as the case narrative</button>
+                    <span class="sub">Your edits are saved exactly as typed, as a new version.</span>
+                </div>
+            </form>
+            {% else %}
+                <div class="narr-text">{{ draft.narrative_text }}</div>
+            {% endif %}
+            {% if draft %}{{ sources(draft) }}{% endif %}
+        </article>
+        {% endif %}
+    </div>
+
+    {% if versions %}
+    <article class="ui-card versions">
+        <h2>Versions</h2>
+        <table class="ui-table">
+            <thead><tr><th>Version</th><th>Status</th><th>Made by</th><th>Template</th><th>When</th><th></th></tr></thead>
+            <tbody>
+            {% for v in versions %}
+                <tr {% if selected and selected.version == v.version %}class="sel"{% endif %}>
+                    <td>{{ v.version }}</td>
+                    <td><span class="ui-pill {% if v.status == 'Reviewed' %}good{% elif v.status == 'Current' %}warn{% else %}muted{% endif %}">{{ v.status }}</span></td>
+                    <td>{{ v.source }}{% if v.created_by_name %} · {{ v.created_by_name }}{% endif %}</td>
+                    <td>{% if v.template_version %}{{ v.template_case_type }} v{{ v.template_version }}{% else %}—{% endif %}</td>
+                    <td class="sub">{{ v.created_at|when }}</td>
+                    <td><a class="ui-btn small" href="{{ url_for('cases.case_narrative', case_id=case.case_id, version=v.version) }}#version-view">View</a></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% if selected %}
+            <div id="version-view" class="version-view">
+                <h3>Version {{ selected.version }}</h3>
+                <div class="narr-text">{{ selected.narrative_text }}</div>
+                {% if selected.issues %}<p class="sub">Points found when generated: {{ selected.issues|join(" ") }}</p>{% endif %}
+                {{ sources(selected) }}
+            </div>
+        {% endif %}
+    </article>
+    {% endif %}
+</section>
+<style>
+    .narr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+    @media (max-width: 960px) { .narr-grid { grid-template-columns: 1fr; } }
+    .narr-grid .head { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .narr-grid h2, .versions h2 { font-size: 16px; margin: 0 0 8px; }
+    .narr-text { white-space: pre-wrap; line-height: 1.6; font-size: 14px; color: #263a32; background: #fbfdfc; border: 1px solid #e3ece7; border-radius: 10px; padding: 12px 14px; margin: 8px 0; }
+    #narrative_text { width: 100%; font: inherit; font-size: 14px; line-height: 1.55; padding: 10px; border-radius: 10px; border: 1px solid #cfdcd5; }
+    .issues ul { margin: 6px 0 0 18px; padding: 0; }
+    .sources summary { cursor: pointer; font-weight: 700; color: #145a40; font-size: 13px; margin-top: 8px; }
+    .sources ol { margin: 8px 0 0 18px; padding: 0; font-size: 13px; }
+    .sources li { margin-bottom: 6px; }
+    .s-fields { display: block; color: #6b7d75; font-size: 11px; }
+    .versions { margin-top: 14px; }
+    .versions tr.sel td { background: #fffbea; }
+    .version-view { margin-top: 12px; }
+    .ui-actions form { display: inline; margin: 0; }
+</style>
+{% endblock %}

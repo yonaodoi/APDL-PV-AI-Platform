@@ -7,7 +7,8 @@ from app import create_app
 from app.services.approval_settings import DEFAULTS, clean_emails, normalise
 from config import TestingConfig
 
-SETTINGS = normalise({})
+SETTINGS = normalise({"qppv_end_to_end": False})
+QPPV_ALONE = normalise({})   # default: the QPPV may process a case alone
 HISTORY_SENT_BY_5 = [{"step": "Sent for review", "decided_by": 5}]
 HISTORY_REVIEWED_BY_7 = HISTORY_SENT_BY_5 + [{"step": "Reviewed", "decided_by": 7}]
 
@@ -44,6 +45,17 @@ def test_nobody_signs_off_their_own_work():
     )
 
 
+def test_qppv_can_process_a_case_alone_when_allowed():
+    # Sent, reviewed and approved by the same QPPV.
+    assert raises("Pending review", "review", 5, "QPPV", HISTORY_SENT_BY_5, settings=QPPV_ALONE) is None
+    history = [{"step": "Sent for review", "decided_by": 5}, {"step": "Reviewed", "decided_by": 5}]
+    assert raises("Pending approval", "approve", 5, "QPPV", history, settings=QPPV_ALONE) is None
+    # Other roles still need different people.
+    assert "someone else must approve" in raises(
+        "Pending approval", "approve", 7, "Group Head RA & Quality", HISTORY_REVIEWED_BY_7, settings=QPPV_ALONE)
+    assert approval.can_approve("QPPV", QPPV_ALONE) and not approval.can_approve("QPPV", SETTINGS)
+
+
 def test_steps_only_happen_at_the_right_stage():
     assert "not waiting for review" in raises("Pending approval", "review", 7, "QPPV")
     assert "already waiting" in raises("Pending review", "send", 5, "PV Officer")
@@ -56,6 +68,7 @@ def test_administrator_can_change_who_reviews_and_approves():
         "review_title": "Medical review",
         "reviewer_roles": ["Medical Reviewer"],
         "approver_roles": ["QPPV"],
+        "qppv_end_to_end": False,
     })
     assert raises("Pending review", "review", 7, "Medical Reviewer", HISTORY_SENT_BY_5, settings=custom) is None
     assert "Medical review" in raises("Pending review", "review", 7, "QPPV", HISTORY_SENT_BY_5, settings=custom)

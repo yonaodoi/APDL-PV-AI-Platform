@@ -96,8 +96,82 @@ def _parse_json_response(response_text):
     return data
 
 
-def extract_case_fields(document_text):
+def extract_document_pages(file_path):
+    """The document as [(page number, text)], keeping line breaks.
+
+    PDF pages are real pages; Word documents are split at manual page
+    breaks; text files at form feeds. Used to show reviewers where each
+    patient report was found.
+    """
+    from pathlib import Path
+
+    file_path = Path(file_path)
+    extension = file_path.suffix.lower()
+    if extension == ".pdf":
+        from pypdf import PdfReader
+
+        texts = [(page.extract_text() or "") for page in PdfReader(file_path).pages]
+    elif extension == ".docx":
+        from docx import Document
+        from docx.table import Table
+        from docx.text.paragraph import Paragraph
+
+        document = Document(file_path)
+        texts, current = [], []
+
+        def new_page():
+            texts.append("\n".join(current))
+            current.clear()
+
+        # Body in document order; manual page breaks start a new page.
+        for child in document.element.body.iterchildren():
+            tag = child.tag.rsplit("}", 1)[-1]
+            if tag == "p":
+                paragraph = Paragraph(child, document)
+                xml = child.xml
+                brk = xml.find('w:type="page"')
+                first_text = xml.find("<w:t")
+                if brk >= 0 and (first_text < 0 or brk < first_text) and current:
+                    new_page()
+                if paragraph.text.strip():
+                    current.append(paragraph.text.strip())
+                if brk >= 0 and first_text >= 0 and brk > first_text:
+                    new_page()
+            elif tag == "tbl":
+                for row in Table(child, document).rows:
+                    values = []
+                    for cell in row.cells:
+                        if cell.text.strip() and cell.text.strip() not in values:
+                            values.append(cell.text.strip())
+                    if values:
+                        current.append(" | ".join(values))
+        texts.append("\n".join(current))
+    elif extension == ".txt":
+        texts = file_path.read_text(encoding="utf-8-sig", errors="replace").split("\f")
+    else:
+        raise ValueError("Upload a PDF, DOCX, or plain text case document.")
+    pages = []
+    for number, text in enumerate(texts, 1):
+        lines = [" ".join(line.split()) for line in text.splitlines()]
+        cleaned = "\n".join(line for line in lines if line)
+        pages.append((number, cleaned))
+    if not any(text for _, text in pages):
+        raise ValueError(
+            "No readable text was found in the uploaded document. Scanned "
+            "images need OCR before they can be read."
+        )
+    return pages
+
+
+def extract_case_fields(document_text, focus=None):
+    """Extract one patient's case facts. ``focus`` describes the patient to
+    take facts for when the text may mention other patients."""
     source_text = document_text[:MAX_SOURCE_TEXT_LENGTH]
+    focus_rule = (
+        f"\n- The text may mention other patients. Extract facts ONLY for this "
+        f"patient: {focus}. Never copy facts from another patient.\n"
+        if focus else ""
+    )
     prompt = f"""
 Extract pharmacovigilance case information from the document text below.
 Return one valid JSON object only. Do not use markdown.
@@ -124,7 +198,7 @@ Rules:
   Dose not changed, Unknown.
   event_outcome: Recovered/resolved, Recovering/resolving,
   Not recovered/not resolved, Recovered with sequelae, Fatal, Unknown.
-- Include an "uncertain_fields" array containing field names whose values
+{focus_rule}- Include an "uncertain_fields" array containing field names whose values
   were difficult to interpret; use an empty array when none.
 
 JSON object keys:

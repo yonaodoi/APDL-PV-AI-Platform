@@ -3,6 +3,7 @@ from datetime import date, time
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from markupsafe import Markup
 from flask import (
     Blueprint,
     abort,
@@ -240,7 +241,7 @@ def case_list():
         parameters.append(session.get("user_id"))
         if can_review(role, is_designated_qppv(session.get("user_id"))):
             mine.append("safety_cases.workflow_status = 'QPPV review'")
-        if can_approve(role):
+        if can_approve(role, designated_qppv=is_designated_qppv(session.get("user_id"))):
             mine.append("safety_cases.workflow_status = 'Case approval'")
         filters.append("(" + " OR ".join(mine) + ")")
 
@@ -439,10 +440,14 @@ def case_detail(case_id):
         (case_id,),
     )
 
+    safety_assessment = _load_safety_assessment(case_id)
+    pathway = _case_pathway(case, products, completeness_checks, safety_assessment)
+
     return render_template(
         "cases/case_detail.html",
         case=case,
         products=products,
+        pathway=pathway,
         completeness_checks=completeness_checks,
         duplicate_candidates=duplicate_candidates,
         audit_log=audit_log,
@@ -459,7 +464,7 @@ def case_detail(case_id):
         ),
         event_terms=get_case_event_terms(case_id),
         dictionary_terms=get_active_terms(),
-        safety_assessment=_load_safety_assessment(case_id),
+        safety_assessment=safety_assessment,
         can_assess_listedness=session.get("role") in LISTEDNESS_ROLES,
         listedness_roles=LISTEDNESS_ROLES,
         workflow=_workflow_panel(case, completeness_checks),
@@ -577,7 +582,7 @@ def _approval_panel(case):
         "stage": case.get("approval_stage"),
         "history": history,
         "can_review": can_review(role, is_designated_qppv(session.get("user_id"))),
-        "can_approve": can_approve(role),
+        "can_approve": can_approve(role, designated_qppv=is_designated_qppv(session.get("user_id"))),
         "user_id": session.get("user_id"),
     }
 
@@ -639,6 +644,66 @@ def _workflow_panel(case, completeness_checks):
             or can_override(session.get("role"), is_designated_qppv(session.get("user_id")))
         ),
     }
+
+
+def _sync_intake(case_id):
+    """Keep the ICSR reaction list in step with the short intake form."""
+    from app.services.icsr import sync_reactions_from_intake
+
+    try:
+        sync_reactions_from_intake(case_id)
+    except Exception:
+        current_app.logger.exception("Could not sync reactions for case %s", case_id)
+        _rollback_quietly()
+
+
+def _revalidation_prompt(case_id):
+    """New information on a case awaiting information: ask for revalidation."""
+    try:
+        row = query_one("SELECT validity_decision FROM pv.safety_cases WHERE case_id = %s", (case_id,))
+    except Exception:
+        _rollback_quietly()
+        return
+    if row and row.get("validity_decision") == "Awaiting information":
+        flash(
+            Markup(
+                "New information was added to this case, which is awaiting the minimum information. "
+                f'<a href="{url_for("cases.case_validity", case_id=case_id)}">Check validity again</a> '
+                "to move it forward."
+            ),
+            "info",
+        )
+
+
+def _case_pathway(case, products, checks, assessment):
+    """Pathway panel data; never stops the case page from opening."""
+    from app.cases.icsr_routes import _follow_up
+    from app.services import case_pathway
+
+    try:
+        reactions = query_all(
+            "SELECT * FROM pv.case_reactions WHERE case_id = %s ORDER BY sort_order, reaction_id",
+            (case["case_id"],),
+        )
+        causality = query_all("SELECT * FROM pv.case_causality WHERE case_id = %s", (case["case_id"],))
+    except Exception:
+        current_app.logger.exception("Pathway data unavailable for case %s (run the migrations?)", case["case_id"])
+        _rollback_quietly()
+        return None
+    try:
+        from app.services.coding import coding_overview
+
+        coding = coding_overview(case["case_id"])
+    except Exception:
+        current_app.logger.exception("Coding overview unavailable for case %s (run the migrations?)", case["case_id"])
+        _rollback_quietly()
+        coding = None
+    from app.services.narratives import review_state
+
+    return case_pathway.build_pathway(
+        case, products, reactions, checks, assessment, causality, _follow_up(case["case_id"]), coding=coding,
+        narrative_state=review_state(case["case_id"], case.get("case_narrative")),
+    )
 
 
 def _holder_for(case):
@@ -863,6 +928,8 @@ def apply_document_suggestions(case_id, attachment_id):
         if moved:
             flash("The follow-up response was applied, so the case moved to Assessment.", "info")
 
+    _sync_intake(case_id)
+    _revalidation_prompt(case_id)
     listedness_flash = listedness_message(
         run_automatic_listedness(case_id, actor_user_id=session["user_id"])
     )
@@ -1044,7 +1111,8 @@ def review_queue():
 @login_required
 def extract_case_from_document():
     if request.method == "GET":
-        return render_template("cases/extract_case_document.html")
+        # Documents now go through intake, which handles several patients.
+        return redirect(url_for("cases.intake_home"))
 
     uploaded_file = request.files.get("case_document")
     if not uploaded_file or not uploaded_file.filename:
@@ -1113,11 +1181,33 @@ def create_case():
     if request.method == "GET" and source_complaint:
         _prefill_case_from_complaint(form, source_complaint)
 
+    extraction_filename = (request.form.get("extraction_filename") or "").strip()[:200] or None
+    intake_proposal = intake_document = None
+    if (request.form.get("intake_proposal_id") or "").isdigit():
+        from app.services import document_intake
+
+        intake_proposal = document_intake.get_proposal(int(request.form["intake_proposal_id"]))
+        if intake_proposal:
+            intake_document = document_intake.get_document(intake_proposal["document_id"])
+            if intake_proposal["status"] == "Created" and intake_proposal["created_case_id"]:
+                flash("This report was already saved as a case; nothing new was created.", "info")
+                return redirect(url_for("cases.case_detail", case_id=intake_proposal["created_case_id"]))
+
     def render_case_form():
+        if request.method == "POST" and form.errors:
+            flash(
+                "The safety case was not saved yet. "
+                + _form_problem_summary(form)
+                + " Correct the highlighted fields and press Create safety case again.",
+                "error",
+            )
         return render_template(
             "cases/create_case.html",
             form=form,
             source_complaint=source_complaint,
+            extraction_filename=extraction_filename,
+            intake_proposal=intake_proposal,
+            intake_document=intake_document,
         )
 
     if form.validate_on_submit():
@@ -1135,179 +1225,208 @@ def create_case():
                 "This ICSR Case ID already exists."
             )
             return render_case_form()
-        with transaction() as cursor:
-            cursor.execute(
-                "SELECT nextval('pv.safety_cases_case_id_seq') AS case_id"
-            )
-            case_id = cursor.fetchone()["case_id"]
+        from app.services import document_intake
 
-            case_number = form.icsr_case_id.data.strip()
+        try:
+            with transaction() as cursor:
+                if intake_proposal:
+                    # Locks the report so a double click or retry cannot create a second case.
+                    already = document_intake.claim_for_case(cursor, intake_proposal["proposal_id"])
+                    if already:
+                        raise _AlreadyCreated(already)
+                cursor.execute(
+                    "SELECT nextval('pv.safety_cases_case_id_seq') AS case_id"
+                )
+                case_id = cursor.fetchone()["case_id"]
 
-            cursor.execute(
-                """
-                INSERT INTO pv.safety_cases (
-                    case_id,
-                    case_number,
-                    received_date,
-                    country_id,
-                    source,
-                    report_type,
-                    reporter_name,
-                    reporter_profession,
-                    reporter_organisation,
-                    reporter_phone,
-                    reporter_email,
-                    patient_initials,
-                    patient_date_of_birth,
-                    patient_age_years,
-                    patient_sex,
-                    patient_weight_kg,
-                    patient_pregnancy_status,
-                    patient_address,
-                    patient_phone,
-                    medical_history,
-                    concomitant_medicines,
-                    event_description,
-                    treatment_given,
-                    event_onset_date,
-                    event_onset_time,
-                    event_end_date,
-                    laboratory_results,
-                    event_outcome,
-                    seriousness,
-                    seriousness_criteria,
-                    causality_assessment,
-                    case_narrative,
-                    follow_up_required,
-                    follow_up_due_date,
-                    report_title,
-                    form_id,
-                    created_by
-                )
-                VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s, %s
-                )
-                """,
-                (
-                    case_id,
-                    case_number,
-                    form.received_date.data,
-                    form.country_id.data,
-                    form.source.data,
-                    form.report_type.data,
-                    form.reporter_name.data or None,
-                    form.reporter_profession.data or None,
-                    form.reporter_organisation.data or None,
-                    form.reporter_phone.data or None,
-                    form.reporter_email.data or None,
-                    form.patient_initials.data or None,
-                    form.patient_date_of_birth.data,
-                    form.patient_age_years.data,
-                    form.patient_sex.data or None,
-                    form.patient_weight_kg.data or None,
-                    form.patient_pregnancy_status.data or None,
-                    form.patient_address.data or None,
-                    form.patient_phone.data or None,
-                    form.medical_history.data or None,
-                    form.concomitant_medicines.data or None,
-                    form.event_description.data,
-                    form.treatment_given.data or None,
-                    form.event_onset_date.data,
-                    form.event_onset_time.data,
-                    form.event_end_date.data,
-                    form.laboratory_results.data or None,
-                    form.event_outcome.data or None,
-                    form.seriousness.data,
-                    form.seriousness_criteria.data or None,
-                    form.causality_assessment.data or None,
-                    form.case_narrative.data or None,
-                    form.follow_up_required.data,
-                    form.follow_up_due_date.data,
-                    form.report_title.data or None,
-                    form.form_id.data or None,
-                    session["user_id"],
-                ),
-            )
+                case_number = form.icsr_case_id.data.strip()
 
-            cursor.execute(
-                """
-                INSERT INTO pv.case_products (
-                    case_id,
-                    product_name,
-                    generic_name,
-                    strength,
-                    dosage_form,
-                    batch_number,
-                    expiry_date,
-                    dose,
-                    route,
-                    frequency,
-                    indication,
-                    therapy_start_date,
-                    therapy_end_date,
-                    action_taken
-                )
-                VALUES (
-                    %s, %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s, %s
-                )
-                """,
-                (
-                    case_id,
-                    form.product_name.data,
-                    form.generic_name.data or None,
-                    form.strength.data or None,
-                    form.dosage_form.data or None,
-                    form.batch_number.data or None,
-                    form.expiry_date.data,
-                    form.dose.data or None,
-                    form.route.data or None,
-                    form.frequency.data or None,
-                    form.indication.data or None,
-                    form.therapy_start_date.data,
-                    form.therapy_end_date.data,
-                    form.action_taken.data or None,
-                ),
-            )
-
-            cursor.execute(
-                """
-                INSERT INTO pv.case_audit_log (
-                    case_id,
-                    action,
-                    details,
-                    performed_by
-                )
-                VALUES (%s, %s, %s, %s)
-                """,
-                (
-                    case_id,
-                    "Case created",
-                    f"Safety case {case_number} was created."
-                    + (
-                        " Created from product complaint "
-                        f"{source_complaint['complaint_number']}."
-                        if source_complaint
-                        else ""
-                    ),
-                    session["user_id"],
-                ),
-            )
-
-            if source_complaint:
                 cursor.execute(
                     """
-                    UPDATE pv.product_complaints
-                    SET linked_case_id = %s,
-                        updated_at = NOW()
-                    WHERE complaint_id = %s
-                      AND linked_case_id IS NULL
+                    INSERT INTO pv.safety_cases (
+                        case_id,
+                        case_number,
+                        received_date,
+                        country_id,
+                        source,
+                        report_type,
+                        reporter_name,
+                        reporter_profession,
+                        reporter_organisation,
+                        reporter_phone,
+                        reporter_email,
+                        patient_initials,
+                        patient_date_of_birth,
+                        patient_age_years,
+                        patient_sex,
+                        patient_weight_kg,
+                        patient_pregnancy_status,
+                        patient_address,
+                        patient_phone,
+                        medical_history,
+                        concomitant_medicines,
+                        event_description,
+                        treatment_given,
+                        event_onset_date,
+                        event_onset_time,
+                        event_end_date,
+                        laboratory_results,
+                        event_outcome,
+                        seriousness,
+                        seriousness_criteria,
+                        causality_assessment,
+                        case_narrative,
+                        follow_up_required,
+                        follow_up_due_date,
+                        report_title,
+                        form_id,
+                        created_by
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s, %s
+                    )
                     """,
-                    (case_id, source_complaint["complaint_id"]),
+                    (
+                        case_id,
+                        case_number,
+                        form.received_date.data,
+                        form.country_id.data,
+                        form.source.data,
+                        form.report_type.data,
+                        form.reporter_name.data or None,
+                        form.reporter_profession.data or None,
+                        form.reporter_organisation.data or None,
+                        form.reporter_phone.data or None,
+                        form.reporter_email.data or None,
+                        form.patient_initials.data or None,
+                        form.patient_date_of_birth.data,
+                        form.patient_age_years.data,
+                        form.patient_sex.data or None,
+                        form.patient_weight_kg.data or None,
+                        form.patient_pregnancy_status.data or None,
+                        form.patient_address.data or None,
+                        form.patient_phone.data or None,
+                        form.medical_history.data or None,
+                        form.concomitant_medicines.data or None,
+                        form.event_description.data,
+                        form.treatment_given.data or None,
+                        form.event_onset_date.data,
+                        form.event_onset_time.data,
+                        form.event_end_date.data,
+                        form.laboratory_results.data or None,
+                        form.event_outcome.data or None,
+                        form.seriousness.data,
+                        form.seriousness_criteria.data or None,
+                        form.causality_assessment.data or None,
+                        form.case_narrative.data or None,
+                        form.follow_up_required.data,
+                        form.follow_up_due_date.data,
+                        form.report_title.data or None,
+                        form.form_id.data or None,
+                        session["user_id"],
+                    ),
                 )
+
+                cursor.execute(
+                    """
+                    INSERT INTO pv.case_products (
+                        case_id,
+                        product_name,
+                        generic_name,
+                        strength,
+                        dosage_form,
+                        batch_number,
+                        expiry_date,
+                        dose,
+                        route,
+                        frequency,
+                        indication,
+                        therapy_start_date,
+                        therapy_end_date,
+                        action_taken
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s, %s
+                    )
+                    """,
+                    (
+                        case_id,
+                        form.product_name.data,
+                        form.generic_name.data or None,
+                        form.strength.data or None,
+                        form.dosage_form.data or None,
+                        form.batch_number.data or None,
+                        form.expiry_date.data,
+                        form.dose.data or None,
+                        form.route.data or None,
+                        form.frequency.data or None,
+                        form.indication.data or None,
+                        form.therapy_start_date.data,
+                        form.therapy_end_date.data,
+                        form.action_taken.data or None,
+                    ),
+                )
+
+                cursor.execute(
+                    """
+                    INSERT INTO pv.case_audit_log (
+                        case_id,
+                        action,
+                        details,
+                        performed_by
+                    )
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (
+                        case_id,
+                        "Case created",
+                        f"Safety case {case_number} was created."
+                    + (
+                        f" Created from report {intake_proposal['seq']} of {intake_document['original_filename']}"
+                        f" (page(s) {', '.join(str(p) for p in intake_proposal['pages'] or []) or 'not identified'})."
+                        if intake_proposal and intake_document
+                        else ""
+                    )
+                        + (
+                            " Created from product complaint "
+                            f"{source_complaint['complaint_number']}."
+                            if source_complaint
+                            else ""
+                        ),
+                        session["user_id"],
+                    ),
+                )
+
+                if source_complaint:
+                    cursor.execute(
+                        """
+                        UPDATE pv.product_complaints
+                        SET linked_case_id = %s,
+                            updated_at = NOW()
+                        WHERE complaint_id = %s
+                          AND linked_case_id IS NULL
+                        """,
+                        (case_id, source_complaint["complaint_id"]),
+                    )
+                if intake_proposal:
+                    document_intake.mark_created(cursor, intake_proposal["proposal_id"], case_id, session["user_id"])
+        except _AlreadyCreated as done:
+            flash("This report was already saved as a case; nothing new was created.", "info")
+            return redirect(url_for("cases.case_detail", case_id=done.case_id))
+        except document_intake.IntakeError as error:
+            flash(f"The safety case was not saved: {error}", "error")
+            return render_case_form()
+
+        if intake_proposal:
+            try:
+                document_intake.attach_original(case_id, intake_proposal, session["user_id"])
+            except Exception:
+                current_app.logger.exception("Could not attach the intake document to case %s", case_id)
+                flash("The case was saved, but the source document could not be attached; attach it from the case page.", "warning")
 
         if source_complaint:
             write_audit_log(
@@ -1318,6 +1437,7 @@ def create_case():
                 f"Safety case {case_number} was created from this complaint.",
             )
 
+        _sync_intake(case_id)
         listedness_outcome = run_automatic_listedness(
             case_id, actor_user_id=session["user_id"]
         )
@@ -1360,22 +1480,60 @@ def create_case():
                 "could not be completed.",
                 "warning",
             )
-            return redirect(url_for("core.dashboard"))
+            return redirect(url_for("cases.case_detail", case_id=case_id, saved=1))
 
         screening_message = summarise_screening(detected_signals)
         if screening_message:
             flash(screening_message, "warning")
-        flash(f"Safety case {case_number} was created.", "success")
+        flash(
+            f"Safety case {case_number} was saved"
+            + (f" from {extraction_filename}" if extraction_filename else "")
+            + ". It is now in the case pathway"
+            + ("." if intake_proposal else "; the next step is shown below."),
+            "success",
+        )
         if duplicate_candidates:
             flash(
                 "Possible duplicate cases were found. Review the matches "
                 "before proceeding.",
                 "warning",
             )
-            return redirect(url_for("cases.case_detail", case_id=case_id))
-        return redirect(url_for("core.dashboard"))
+        if intake_proposal:
+            remaining = [
+                p for p in document_intake.proposals(intake_proposal["document_id"])
+                if p["status"] == "Proposed" and p["kind"] != "Not a patient report"
+            ]
+            if remaining:
+                flash(
+                    f"{len(remaining)} more report(s) in {intake_document['original_filename']} still need a decision. "
+                    f"Case {case_number} is in its own pathway; confirm its validity from the case page.",
+                    "info",
+                )
+                return redirect(url_for("cases.intake_document", document_id=intake_proposal["document_id"]) + f"#report-{intake_proposal['proposal_id']}")
+        return redirect(url_for("cases.case_detail", case_id=case_id, saved=1))
 
     return render_case_form()
+
+
+class _AlreadyCreated(Exception):
+    def __init__(self, case_id):
+        super().__init__(case_id)
+        self.case_id = case_id
+
+
+def _form_problem_summary(form):
+    """'3 fields need attention: Received date, Product name, …'"""
+    labels = []
+    for name, errors in form.errors.items():
+        if not errors:
+            continue
+        field = getattr(form, name, None)
+        label = field.label.text if field is not None and getattr(field, "label", None) else name
+        if name == "csrf_token":
+            label = "the page had expired (reload and try again)"
+        labels.append(label)
+    count = len(labels)
+    return f"{count} field{'s need' if count != 1 else ' needs'} attention: {', '.join(labels)}."
 
 
 def _load_source_complaint(value):
@@ -1676,6 +1834,7 @@ def edit_case(case_id):
 
         flash("Safety case updated successfully.", "success")
 
+        _sync_intake(case_id)
         listedness_outcome = run_automatic_listedness(
             case_id, actor_user_id=session["user_id"]
         )
@@ -1801,3 +1960,11 @@ def assign_case(case_id):
         )
     flash(f"{case['case_number']} now belongs to {person['full_name']}.", "success")
     return redirect(back)
+
+
+# Pathway pages (validity, ICSR form) share this blueprint.
+from app.cases import icsr_routes  # noqa: E402,F401
+from app.cases import coding_routes  # noqa: E402,F401
+from app.cases import intake_routes  # noqa: E402,F401
+from app.cases import narrative_routes  # noqa: E402,F401
+from app.cases import e2b_routes  # noqa: E402,F401

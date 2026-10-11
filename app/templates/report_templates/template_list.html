@@ -16,6 +16,7 @@
             <h1>Report templates</h1>
             <p>Upload your approved Word templates. Every report is then printed in your layout, with empty lines, rows and sections removed automatically. A template is test-filled before it can go live; if it ever fails, the standard layout is used so no report is lost.</p>
         </div>
+        <div class="actions"><a href="{{ url_for('report_templates.narrative_templates') }}">Narrative templates →</a></div>
     </header>
 
     {% for key, spec in report_types.items() %}

@@ -40,7 +40,8 @@ def test_psur_list_renders_accessible_report_register(monkeypatch):
     page = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert "Draft reports</span>" in page
+    assert "PSUR Workspace" in page and "Draft / in progress" in page
+    assert "Submission due" in page
     assert 'aria-label="Periodic safety reports"' in page
     assert "PSUR-2026-003" in page
     assert '<details class="psur-register fold-card register-fold" id="all-psurs" >' in page

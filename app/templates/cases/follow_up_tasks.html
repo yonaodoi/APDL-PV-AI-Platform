@@ -1,21 +1,27 @@
 {% extends "base.html" %}
 
-{% block title %}Follow-up Tasks | {{ company.platform_name }}{% endblock %}
+{% block title %}Awaiting Information | {{ company.platform_name }}{% endblock %}
 
-{% block page_title %}Follow-up Tasks{% endblock %}
+{% block page_title %}Safety Cases{% endblock %}
 
 {% block content %}
 <section class="follow-up-tasks-page">
     <nav class="ui-crumbs" aria-label="Breadcrumb" style="margin-bottom:12px;">
-        <a href="{{ url_for('cases.case_list') }}">Safety cases</a><span class="sep">›</span><span>Follow-up requests</span>
+        <a href="{{ url_for('cases.case_list') }}">Safety cases</a><span class="sep">›</span><span>Awaiting information</span>
     </nav>
+    {% include "cases/_cases_tabs.html" %}
 <header class="tasks-header">
     <div>
-        <h2>Follow-up requests</h2>
+        <h2>Awaiting information</h2>
         <p>
-            One request per case, built from the information still missing.
-            Questions go to the reporter in a single form; PV-team tasks stay here.
+            Cases waiting for information: cases that are not yet valid, and valid cases with details still missing.
+            One request per case is built from what is missing; replies are added to the same case, which is then revalidated.
         </p>
+        <nav class="fu-filter" aria-label="Show">
+            <a href="{{ url_for('case_review.follow_up_tasks') }}" class="{% if not show %}is-active{% endif %}">All ({{ counts.all }})</a>
+            <a href="{{ url_for('case_review.follow_up_tasks', show='invalid') }}" class="{% if show == 'invalid' %}is-active{% endif %}">Not yet valid ({{ counts.invalid }})</a>
+            <a href="{{ url_for('case_review.follow_up_tasks', show='overdue') }}" class="{% if show == 'overdue' %}is-active{% endif %}">Overdue ({{ counts.overdue }})</a>
+        </nav>
     </div>
     <div class="tasks-header-actions">
         {% if inbox.ready %}
@@ -24,7 +30,6 @@
                 <button type="submit">Check for replies now</button>
             </form>
         {% endif %}
-        <a href="{{ url_for('case_review.follow_up_reminders') }}">Overdue reminders</a>
     </div>
 </header>
 
@@ -90,6 +95,8 @@
             <div class="task-card-main">
                 <div>
                     <a class="task-title" href="{{ url_for('cases.case_detail', case_id=group.case_id) }}">Case {{ group.case_number }}</a>
+                    {% if group.validity == 'Awaiting information' %}<span class="ui-pill warn" title="Minimum criteria not yet met">Not yet valid</span> <a class="revalidate" href="{{ url_for('cases.case_validity', case_id=group.case_id) }}">Revalidate</a>{% endif %}
+                    {% if overdue %}<span class="ui-pill bad">Overdue</span>{% endif %}
                     <div class="task-meta">
                         {{ group.workflow_status }}
                         · Reporter: {{ group.reporter_name or "not recorded" }}{% if group.reporter_email %} ({{ group.reporter_email }}){% endif %}

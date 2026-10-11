@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Terminology | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Terminology{% endblock %}
+
+{% block content %}
+<section class="ui-page" style="max-width: 1100px;">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        {% if is_admin %}<a href="{{ url_for('administration.user_list') }}">Administration</a><span class="sep">›</span>{% endif %}<span>Terminology</span>
+    </nav>
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Administration</p>
+            <h1>Terminology and coding</h1>
+            <p>Official dictionaries are loaded only from licensed release files; the platform never invents MedDRA or WHODrug codes. The local terminology (LOCAL-E / LOCAL-P) is the company's own list, kept separate and labelled as local everywhere.</p>
+        </div>
+        <div class="actions">
+            <a href="{{ url_for('terminology.local_terms', kind='event', status='Proposed') }}">Local event terms{% if proposed.event %} ({{ proposed.event }} to review){% endif %}</a>
+            <a href="{{ url_for('terminology.local_terms', kind='product', status='Proposed') }}">Local products{% if proposed.product %} ({{ proposed.product }} to review){% endif %}</a>
+            {% if is_admin %}<a href="{{ url_for('integrations.integration_list') }}">Licences &amp; integrations</a>{% endif %}
+        </div>
+    </header>
+
+    <div class="term-grid">
+        {% for name, d in dictionaries.items() %}
+        <article class="ui-card {% if not d.terms %}is-off{% endif %}">
+            <p class="kicker">{{ name }}</p>
+            {% if d.terms %}
+                <p><strong>Version {{ d.version }}</strong> · {{ "{:,}".format(d.terms) }} {{ 'lowest level terms' if name == 'MedDRA' else 'drug names' }}</p>
+                <p class="sub">Imported {{ d.imported_at|when }}{% if d.source_filename %} from {{ d.source_filename }}{% endif %}</p>
+            {% else %}
+                <p><strong>{{ messages.meddra_off if name == 'MedDRA' else messages.whodrug_off }}</strong></p>
+                <p class="sub">Until it is imported, coding falls back to the local terminology and says so on each case.</p>
+            {% endif %}
+
+            {% if is_admin %}
+            {% if name == 'MedDRA' %}
+            <form method="post" action="{{ url_for('terminology.import_meddra') }}" enctype="multipart/form-data" class="term-form"
+                  data-busy="Importing MedDRA…" data-busy-detail="Reading the release files and loading the terms. This can take a minute.">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label>Release files <input type="file" name="files" multiple accept=".zip,.asc" required></label>
+                <p class="sub">The MedDRA ASCII release from the MSSO (the <em>MedAscii</em> folder): a zip, or the files llt.asc, pt.asc, soc.asc and mdhier.asc (add meddra_release.asc to fill the version). Upload limit {{ max_mb }} MB (MAX_UPLOAD_MB in .env).</p>
+                <div class="row">
+                    <label>Version <input type="text" name="version" placeholder="e.g. 29.0" pattern="\d{1,2}\.\d" size="8"></label>
+                    <label>Language <input type="text" name="language" value="English" size="10"></label>
+                    <button class="ui-btn primary" type="submit">Import MedDRA</button>
+                </div>
+            </form>
+            {% else %}
+            <form method="post" action="{{ url_for('terminology.import_whodrug') }}" enctype="multipart/form-data" class="term-form"
+                  data-busy="Importing WHODrug…" data-busy-detail="Reading the extract and loading the drug names.">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label>Extract <input type="file" name="file" accept=".csv,.tsv,.txt,.xlsx" required></label>
+                <p class="sub">A licensed WHODrug extract with named columns: <code>drug_name</code> and <code>drug_code</code> (or <code>drug_record_number</code> + <code>sequence_1</code> + <code>sequence_2</code>); optional <code>preferred</code>, <code>ingredients</code>, <code>atc</code>, <code>country</code>, <code>mah</code>. Fixed-width B3 files must be exported to CSV first.</p>
+                <div class="row">
+                    <label>Release <input type="text" name="version" placeholder="e.g. 2026 Mar 1 B3" required></label>
+                    <button class="ui-btn primary" type="submit">Import WHODrug</button>
+                </div>
+            </form>
+            {% endif %}
+            {% endif %}
+        </article>
+        {% endfor %}
+    </div>
+
+    <section class="ui-card" id="rules">
+        <h2>Automatic coding rules</h2>
+        <p class="sub">What the platform may accept without a person. Anything else is shown as “Needs review” in the coding step with the candidates it found.</p>
+        <form method="post" action="{{ url_for('terminology.save_rules') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <fieldset {% if not is_admin %}disabled{% endif %} class="rules">
+                <label><input type="checkbox" name="auto_accept_exact" value="1" {% if rules.auto_accept_exact %}checked{% endif %}> Accept an exact dictionary match (reported wording = MedDRA LLT / WHODrug name)</label>
+                <label><input type="checkbox" name="auto_accept_synonym" value="1" {% if rules.auto_accept_synonym %}checked{% endif %}> Accept wording a reviewer confirmed before (“remember wording”)</label>
+                <label><input type="checkbox" name="auto_accept_local" value="1" {% if rules.auto_accept_local %}checked{% endif %}> Accept an exact match to an <em>approved</em> local term</label>
+                <label><input type="checkbox" name="propose_local" value="1" {% if rules.propose_local %}checked{% endif %}> When nothing suitable is found, propose a local term for review</label>
+                <label><input type="checkbox" name="ai_suggestions" value="1" {% if rules.ai_suggestions %}checked{% endif %}> Ask the AI service for extra candidate names (only names found in the imported dictionary are shown; never accepted automatically)</label>
+            </fieldset>
+            {% if is_admin %}<button class="ui-btn primary" type="submit">Save rules</button>{% endif %}
+        </form>
+    </section>
+
+    {% if imports %}
+    <section class="ui-card">
+        <h2>Import history</h2>
+        <table class="ui-table">
+            <thead><tr><th>Dictionary</th><th>Version</th><th>Records</th><th>Status</th><th>File</th><th>By</th><th>When</th></tr></thead>
+            <tbody>
+            {% for i in imports %}
+                <tr><td>{{ i.dictionary }}</td><td>{{ i.version }}</td><td>{{ "{:,}".format(i.term_count) }}</td>
+                    <td><span class="ui-pill {% if i.status == 'Active' %}good{% else %}muted{% endif %}">{{ i.status }}</span></td>
+                    <td class="sub">{{ i.source_filename or "—" }}</td><td>{{ i.imported_by_name or "—" }}</td><td>{{ i.imported_at|when }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    {% endif %}
+</section>
+<style>
+    .term-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 14px; }
+    .term-grid .is-off { border-color: #f0d9a8; background: #fffaf0; }
+    .term-form { margin-top: 12px; padding-top: 12px; border-top: 1px solid #eef3f0; }
+    .term-form label { display: block; font-size: 12px; font-weight: 700; color: #4a5b54; margin-bottom: 6px; }
+    .term-form input[type=file] { display: block; margin-top: 4px; }
+    .term-form .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .term-form .row input { display: block; margin-top: 4px; }
+    .rules { border: 0; padding: 0; margin: 0 0 12px; display: grid; gap: 8px; }
+    .rules label { font-size: 14px; }
+    section.ui-card { margin-bottom: 14px; }
+</style>
+{% endblock %}

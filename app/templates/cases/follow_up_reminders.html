@@ -6,9 +6,10 @@
 {% block content %}
 <section class="reminder-page">
     <nav class="ui-crumbs" aria-label="Breadcrumb">
-        <a href="{{ url_for('case_review.follow_up_tasks') }}">Follow-up tasks</a><span class="sep">›</span>
+        <a href="{{ url_for('cases.case_list') }}">Safety cases</a><span class="sep">›</span>
         <span>Overdue reminders</span>
     </nav>
+    {% include "cases/_cases_tabs.html" %}
     <header class="reminder-hero">
         <div class="reminder-hero-copy">
             <p class="reminder-eyebrow">CASE FOLLOW-UP / MONITORING</p>

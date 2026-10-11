@@ -311,7 +311,7 @@
         </section>
     {% endif %}
 
-    <form method="post" {% if extraction_filename is defined and extraction_filename %}action="{{ url_for('complaints.create_complaint') }}"{% endif %} {% if not editing %}data-guided-voice="true"{% endif %}>
+    <form method="post" data-busy="Saving the complaint…" {% if extraction_filename is defined and extraction_filename %}action="{{ url_for('complaints.create_complaint') }}"{% endif %} {% if not editing %}data-guided-voice="true"{% endif %}>
         {{ form.hidden_tag() }}
         {% if editing and return_section %}
             <input type="hidden" name="return_section" value="{{ return_section }}">
@@ -378,6 +378,11 @@
                         <div class="field">
                             <label>{{ form.product_name.label.text }} <span class="required">*</span></label>
                             {{ form.product_name(placeholder="For example: ABPARA Paracetamol IV") }}
+                            <label for="catalogue-pick" class="catalogue-label">Company product (catalogue)</label>
+                            <select id="catalogue-pick" data-catalogue-picker data-src="{{ url_for('products.product_options') }}" data-hidden="catalogue_product_id"
+                                    data-selected="{{ (complaint.catalogue_product_id if complaint is defined and complaint and complaint.catalogue_product_id) or '' }}"
+                                    data-fill='{"brand_name": "product_name"}'></select>
+                            <input type="hidden" name="catalogue_product_id" value="{{ (complaint.catalogue_product_id if complaint is defined and complaint and complaint.catalogue_product_id) or '' }}">
                             {% for error in form.product_name.errors %}
                                 <p class="field-error">{{ error }}</p>
                             {% endfor %}

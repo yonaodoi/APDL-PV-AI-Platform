@@ -719,9 +719,19 @@ def _analytics_metrics():
 @bp.get("/analytics/")
 @login_required
 def analytics_home():
+    from app.services import psur_workspace
+
+    try:
+        psur_counts = psur_workspace.load_counts(query_all)
+    except Exception:
+        flask.current_app.logger.exception("PSUR workspace counts unavailable")
+        get_db().rollback()
+        psur_counts = None
     return flask.render_template(
         "analytics/analytics_home.html",
         metrics=_analytics_metrics(),
+        psur_counts=psur_counts,
+        active_key="",
     )
 
 
@@ -1031,3 +1041,20 @@ def analytics_metric_detail(metric_key):
         start_date=start_date_text,
         end_date=end_date_text,
     )
+
+
+@bp.get("/notifications/poll.json")
+@login_required
+def poll_notifications():
+    """New background-work notifications for the signed-in user (shown once)."""
+    from app.services.notifications import pending
+
+    try:
+        items = pending(session["user_id"])
+    except Exception:
+        get_db().rollback()
+        items = []
+    return flask.jsonify({"items": [
+        {"notification_id": i["notification_id"], "tone": i["tone"], "title": i["title"],
+         "message": i["message"], "link": i["link"]} for i in items
+    ]})

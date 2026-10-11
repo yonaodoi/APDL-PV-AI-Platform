@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}{{ template.case_type }} narrative template v{{ template.version }} | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Narrative template{% endblock %}
+
+{% block content %}
+<section class="ui-page" style="max-width: 1100px;">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('report_templates.template_list') }}">Report templates</a><span class="sep">›</span>
+        <a href="{{ url_for('report_templates.narrative_templates') }}">Narrative templates</a><span class="sep">›</span>
+        <span>{{ template.case_type }} v{{ template.version }}</span>
+    </nav>
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">{{ template.status }}{% if template.status == 'Approved' %} · in use{% endif %}</p>
+            <h1>{{ template.case_type }} narrative template, version {{ template.version }}</h1>
+            <p>{% if template.change_note %}{{ template.change_note }} · {% endif %}Drafted by {{ template.created_by_name or "the platform" }}{% if template.created_at %} on {{ template.created_at|when }}{% endif %}{% if template.approved_at %} · approved by {{ template.approved_by_name or "platform default" }} on {{ template.approved_at|when }}{% endif %}.</p>
+        </div>
+        <div class="actions">
+            <a href="{{ url_for('report_templates.new_narrative_template', case_type=template.case_type) }}">Edit as new version</a>
+        </div>
+    </header>
+
+    {% if template.status == 'Draft' %}
+    <div class="ui-card nt-approve">
+        <p><strong>This draft is not in use yet.</strong> Preview it on a real case below, then a second authorised person approves it. Approving replaces the version in use; existing case narratives keep the version they were made with.</p>
+        <div class="row">
+            {% if template.created_by != session.get('user_id') %}
+            <form method="post" action="{{ url_for('report_templates.approve_narrative_template', template_id=template.template_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="ui-btn primary" type="submit">Approve and put into use</button>
+            </form>
+            {% else %}
+            <span class="sub">You drafted this version; another authorised person must approve it.</span>
+            {% endif %}
+            <form method="post" action="{{ url_for('report_templates.delete_narrative_template', template_id=template.template_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="ui-btn" type="submit">Delete draft</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <form method="get" class="ui-card nt-preview-form">
+        <label for="case_number"><strong>Preview on a case</strong> <span class="sub">Builds the narrative with this version without saving anything.</span></label>
+        <div class="row">
+            <input type="text" id="case_number" name="case_number" value="{{ number }}" placeholder="Case number, e.g. {{ company_example }}">
+            <button class="ui-btn" type="submit">Preview</button>
+        </div>
+    </form>
+
+    {% if preview %}
+    <section class="ui-card">
+        <h2>Preview for {{ preview.case_number }}</h2>
+        {% if preview.issues %}
+            <div class="ui-note warn"><strong>Checks found:</strong><ul>{% for i in preview.issues %}<li>{{ i }}</li>{% endfor %}</ul></div>
+        {% endif %}
+        {% if preview.text %}
+            {% for para in preview.text.split("\n\n") %}<p class="nt-para">{{ para }}</p>{% endfor %}
+        {% else %}
+            <p class="sub">Not enough recorded facts on this case to write any sentence.</p>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    <section class="ui-card">
+        <h2>Template sentences</h2>
+        {% for key, label, help in sections %}
+            {% set lines = template.sections.get(key) or [] %}
+            <div class="nt-show">
+                <p><strong>{{ label }}</strong> <span class="sub">{{ help }}</span></p>
+                {% if lines %}<ol>{% for line in lines %}<li><code>{{ line }}</code></li>{% endfor %}</ol>{% else %}<p class="sub">No sentences (this part is left out).</p>{% endif %}
+            </div>
+        {% endfor %}
+    </section>
+</section>
+<style>
+    .ui-card { margin-bottom: 14px; }
+    .nt-approve { border-color: #f0d9a8; background: #fffaf0; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .nt-preview-form label { display: block; margin-bottom: 6px; }
+    .nt-preview-form input { min-width: 260px; }
+    .nt-para { line-height: 1.6; }
+    .nt-show { padding: 8px 0; border-top: 1px solid #eef3f0; }
+    .nt-show p { margin: 0 0 4px; }
+    .nt-show ol { margin: 0; padding-left: 22px; }
+    .nt-show code { white-space: pre-wrap; font-size: 12px; background: #f6f8f7; padding: 1px 4px; border-radius: 4px; }
+</style>
+{% endblock %}

@@ -487,22 +487,30 @@
             </div>
         </div>
         <div class="ui-actions">
-            <a class="ui-btn primary" href="{{ url_for('cases.edit_case', case_id=case.case_id) }}">Edit case</a>
+            <a class="ui-btn primary" href="{{ url_for('cases.icsr_form', case_id=case.case_id) }}">ICSR form</a>
             <a class="ui-btn" href="{{ url_for('case_ai_reports.view_ai_case_assessment', case_id=case.case_id) }}">AI assessment</a>
             <details class="ui-menu">
                 <summary aria-label="More actions for this case" title="More actions">⋯</summary>
                 <div class="menu">
+                    <a href="{{ url_for('cases.case_validity', case_id=case.case_id) }}">Case validity</a>
+                    <a href="{{ url_for('cases.case_coding', case_id=case.case_id) }}">Coding (MedDRA / WHODrug)</a>
+                    <a href="{{ url_for('cases.case_narrative', case_id=case.case_id) }}">Narrative (generate / review)</a>
+                    <a href="{{ url_for('cases.case_e2b', case_id=case.case_id) }}">E2B XML export (R3 / R2)</a>
+                    <a href="{{ url_for('cases.edit_case', case_id=case.case_id) }}">Edit intake details (short form)</a>
                     <a href="{{ url_for('case_reports.download_adr_report', case_id=case.case_id) }}">Download case report (Word)</a>
                     <a href="{{ url_for('case_review.follow_up_tasks') }}#case-{{ case.case_id }}">Follow-up for this case</a>
                     <a href="{{ url_for('rsi.assess_case', case_id=case.case_id) }}">Listedness assessment</a>
                     <a href="#attachments">Attachments</a>
                     <hr>
                     <a href="{{ url_for('cases.case_list') }}">Back to all safety cases</a>
+                    {% if session.get('role') == 'System Administrator' %}<a class="menu-danger" href="{{ url_for('administration.delete_record_page', kind='case', record_id=case.case_id) }}">Delete…</a>{% endif %}
                 </div>
             </details>
         </div>
     </div>
 </section>
+
+{% include "cases/_pathway.html" %}
 
 <nav class="ui-jump" aria-label="Jump to a part of this case">
     <span>Go to</span>
@@ -639,7 +647,7 @@
                 </tbody>
             </table>
             </div>
-            <p class="event-coding-note">Coded with the {{ company.short_name }} event term dictionary. Signal detection groups cases by preferred term.</p>
+            <p class="event-coding-note">Coded with the {{ company.short_name }} event term dictionary. Signal detection groups cases by preferred term.  MedDRA/WHODrug coding of every reported item is in the <a href="{{ url_for('cases.case_coding', case_id=case.case_id) }}">coding step</a>.</p>
         </div>
     </section>
 {% endif %}
@@ -840,7 +848,7 @@
         {% else %}
             <p class="listedness-meta">No files attached to this case yet.</p>
         {% endif %}
-        <form method="post" enctype="multipart/form-data" class="attachment-upload" action="{{ url_for('attachments.manage_attachments', record_type='case', record_id=case.case_id) }}">
+        <form method="post" enctype="multipart/form-data" data-busy="Uploading the file…" data-busy-detail="Readable documents are then checked by the AI for new information." class="attachment-upload" action="{{ url_for('attachments.manage_attachments', record_type='case', record_id=case.case_id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="return_to" value="{{ url_for('cases.case_detail', case_id=case.case_id) }}#attachments">
             <label for="case-document-type">Document type</label>
@@ -988,7 +996,11 @@
                         {% for check in group_checks %}
                             <div style="display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #eef3f0;">
                                 <div>
-                                    <div style="color: #453c4d; font-size: 13px; font-weight: bold;">{{ check.label }}</div>
+                                    <div style="color: #453c4d; font-size: 13px; font-weight: bold;">
+                                        {% if check.status != 'Pass' and check.code == 'event_coding' %}<a class="check-link" href="{{ url_for('cases.case_coding', case_id=case.case_id) }}">{{ check.label }} →</a>
+                                        {% elif check.status != 'Pass' and check.code != 'follow_up_due_date' %}<a class="check-link" href="{{ url_for('cases.icsr_form', case_id=case.case_id, focus=check.code, why=check.message) }}" title="Open the ICSR form at this field">{{ check.label }} →</a>
+                                        {% else %}{{ check.label }}{% endif %}
+                                    </div>
                                     <div style="margin-top: 3px; color: #6b7d75; font-size: 12px;">{{ check.message }}</div>
                                 </div>
                                 <span style="padding: 4px 8px; border-radius: 20px; background: {% if check.status == 'Pass' %}#e7f6ef; color: #176247{% else %}#fff3df; color: #966018{% endif %}; font-size: 10px; font-weight: bold;">{{ check.status }}</span>

@@ -435,6 +435,7 @@
                         <a href="#attachments">Attachments</a>
                         <hr>
                         <a href="{{ url_for('complaints.complaint_list') }}">Back to all complaints</a>
+                    {% if session.get('role') == 'System Administrator' %}<a class="menu-danger" href="{{ url_for('administration.delete_record_page', kind='complaint', record_id=complaint.complaint_id) }}">Delete…</a>{% endif %}
                     </div>
                 </details>
             </div>

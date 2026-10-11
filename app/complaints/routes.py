@@ -359,6 +359,7 @@ def create_complaint():
             )
             complaint_id = cursor.fetchone()["complaint_id"]
 
+        _catalogue_choice(complaint_id)
         write_audit_log(
             "complaint",
             complaint_id,
@@ -683,8 +684,9 @@ def edit_complaint(complaint_id):
         {**updated, "country_name": country_names.get(updated["country_id"])},
         COMPLAINT_FIELD_LABELS,
     )
+    catalogue_changed = _catalogue_choice(complaint_id)
     if not changes:
-        flash("No changes were made.", "info")
+        flash("Catalogue product updated." if catalogue_changed else "No changes were made.", "success" if catalogue_changed else "info")
         return redirect(detail_url)
 
     with transaction() as cursor:
@@ -1267,3 +1269,15 @@ def apply_document_suggestions(complaint_id, attachment_id):
             )
     return redirect(back)
 
+
+def _catalogue_choice(complaint_id):
+    """Keep the catalogue reference and snapshot chosen on the form."""
+    from app.services.product_catalogue import apply_record_choice
+
+    if "catalogue_product_id" not in request.form:
+        return False
+    try:
+        return apply_record_choice("product_complaints", "complaint_id", complaint_id, request.form.get("catalogue_product_id"))
+    except Exception:
+        current_app.logger.exception("Could not store the catalogue product for complaint %s", complaint_id)
+        return False

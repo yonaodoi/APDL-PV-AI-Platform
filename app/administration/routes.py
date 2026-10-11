@@ -269,7 +269,7 @@ def change_user_role(user_id):
         "applies from their next sign-in.",
         "success",
     )
-    return redirect(back)
+    return redirect(url_for("administration.user_list"))
 
 
 @bp.post("/users/<int:user_id>/reset-password")
@@ -327,7 +327,7 @@ def reset_user_password(user_id):
         "securely; they will be asked to choose their own at next sign-in.",
         "success",
     )
-    return redirect(back)
+    return redirect(url_for("administration.user_list"))
 
 
 @bp.post("/users/<int:user_id>/unlock")
@@ -355,11 +355,7 @@ def unlock_user(user_id):
         actor_user_id=session["user_id"],
     )
     flash(f"{user['full_name']}'s account is unlocked.", "success")
-    return redirect(
-        request.form.get("return_to") == "list"
-        and url_for("administration.user_list")
-        or url_for("administration.manage_user", user_id=user_id)
-    )
+    return redirect(url_for("administration.user_list"))
 
 
 @bp.post("/users/<int:user_id>/toggle-status")
@@ -455,6 +451,8 @@ AUDIT_RECORD_LABELS = {
     "case": "Safety case",
     "safety_case": "Safety case",
     "case_intake": "Case intake",
+    "intake": "Intake document",
+    "terminology": "Terminology",
     "complaint": "Product complaint",
     "signal": "Safety signal",
     "psur": "PSUR",
@@ -468,6 +466,7 @@ AUDIT_RECORD_ENDPOINTS = {
     "complaint": ("complaints.complaint_detail", "complaint_id"),
     "signal": ("signals.signal_detail", "signal_id"),
     "psur": ("psur.psur_detail", "psur_id"),
+    "intake": ("cases.intake_document", "document_id"),
 }
 
 
@@ -726,8 +725,8 @@ def update_user_contact(user_id):
         ),
         actor_user_id=session["user_id"],
     )
-    flash("Contact details saved.", "success")
-    return redirect(back)
+    flash(f"Contact details saved for {full_name}.", "success")
+    return redirect(url_for("administration.user_list"))
 
 
 SIGN_OFF_FIELDS = {
@@ -811,6 +810,7 @@ def sign_off_settings():
             "approval_extra_emails": request.form.get("approval_extra_emails", ""),
             "officer_extra_emails": request.form.get("officer_extra_emails", ""),
             "notify_officer": request.form.get("notify_officer") == "on",
+            "qppv_end_to_end": request.form.get("qppv_end_to_end") == "on",
             "digest_hour": request.form.get("digest_hour", ""),
             "urgent_days": request.form.get("urgent_days", ""),
         }
@@ -964,3 +964,124 @@ def company_logo():
     response = send_file(path, mimetype=LOGO_TYPES.get(path.suffix.lower(), "application/octet-stream"))
     response.headers["Cache-Control"] = "public, max-age=3600"
     return response
+
+
+# --------------------------------------------------------------------------
+# Permanent deletion (System Administrator only)
+# --------------------------------------------------------------------------
+
+def _record_detail_url(kind, record_id):
+    endpoints = {
+        "case": ("cases.case_detail", "case_id"),
+        "signal": ("signals.signal_detail", "signal_id"),
+        "complaint": ("complaints.complaint_detail", "complaint_id"),
+        "psur": ("psur.psur_detail", "psur_id"),
+    }
+    endpoint, arg = endpoints[kind]
+    try:
+        return url_for(endpoint, **{arg: record_id})
+    except Exception:
+        return url_for("administration.user_list")
+
+
+@bp.route("/delete/<kind>/<int:record_id>", methods=["GET", "POST"])
+@roles_required("System Administrator")
+def delete_record_page(kind, record_id):
+    """Confirm and permanently delete a case, signal, complaint or PSUR record."""
+    from app.services.record_deletion import (
+        RECORD_TYPES,
+        DeletionError,
+        delete_record,
+        deletion_preview,
+        load_record,
+    )
+
+    spec = RECORD_TYPES.get(kind)
+    if not spec:
+        abort(404)
+    record = load_record(kind, record_id)
+    if not record:
+        flash(f"This {spec['label']} no longer exists.", "warning")
+        return redirect(url_for(spec["list_endpoint"]))
+    number = str(record.get(spec["number"]) or record_id)
+
+    if request.method == "POST":
+        try:
+            delete_record(
+                kind, record_id,
+                request.form.get("reason", ""),
+                session["user_id"],
+                request.form.get("confirm_number", ""),
+            )
+        except DeletionError as error:
+            flash(f"Nothing was deleted. {error}", "error")
+            return redirect(url_for("administration.delete_record_page", kind=kind, record_id=record_id))
+        flash(
+            f"{spec['label'].capitalize()} {number} was deleted. A full copy is kept under "
+            "Administration › Deleted records, and the audit trail still shows its history.",
+            "success",
+        )
+        return redirect(url_for(spec["list_endpoint"]))
+
+    return render_template(
+        "administration/delete_record.html",
+        kind=kind,
+        spec=spec,
+        record=record,
+        record_id=record_id,
+        number=number,
+        preview=deletion_preview(kind, record_id),
+        back_url=_record_detail_url(kind, record_id),
+    )
+
+
+@bp.get("/deleted-records")
+@roles_required("System Administrator", "Auditor")
+def deleted_records_list():
+    from app.services.record_deletion import RECORD_TYPES, deleted_records
+
+    return render_template(
+        "administration/deleted_records.html",
+        records=deleted_records(),
+        record_types=RECORD_TYPES,
+    )
+
+
+@bp.get("/deleted-records/<int:deleted_id>.json")
+@roles_required("System Administrator", "Auditor")
+def deleted_record_snapshot(deleted_id):
+    import json
+
+    from flask import Response
+
+    from app.services.record_deletion import _json_default, deleted_snapshot
+
+    row = deleted_snapshot(deleted_id)
+    if not row:
+        abort(404)
+    snapshot = row["snapshot"]
+    if isinstance(snapshot, str):
+        snapshot = json.loads(snapshot)
+    body = json.dumps(
+        {
+            "record_type": row["record_type"],
+            "record_number": row["record_number"],
+            "reason": row["reason"],
+            "deleted_at": row["deleted_at"],
+            "snapshot": snapshot,
+        },
+        indent=2,
+        default=_json_default,
+    )
+    write_audit_log(
+        record_type=row["record_type"],
+        record_id=row["record_id"],
+        action="Deleted record copy downloaded",
+        details=f"Copy of deleted {row['record_type']} {row['record_number']} downloaded.",
+        actor_user_id=session["user_id"],
+    )
+    return Response(
+        body,
+        mimetype="application/json",
+        headers={"Content-Disposition": f"attachment; filename=deleted_{row['record_type']}_{row['record_id']}.json"},
+    )

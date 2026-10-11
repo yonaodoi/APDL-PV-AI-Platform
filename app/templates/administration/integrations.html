@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Licences & Integrations | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Licences & Integrations{% endblock %}
+
+{% block content %}
+<section class="ui-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('administration.user_list') }}">Administration</a><span class="sep">›</span><span>Licences &amp; integrations</span>
+    </nav>
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Administration</p>
+            <h1>Licences &amp; integrations</h1>
+            <p>MedDRA, WHODrug, AI services and other APIs. Recording a licence does not switch anything on: dictionaries are used once their files are imported, and APIs once a connection test passes. Credentials are encrypted and never shown again.</p>
+        </div>
+        <div class="actions">
+            {% for kind in kinds %}<a href="{{ url_for('integrations.new_integration', kind=kind) }}">+ {{ kind }}</a>{% endfor %}
+        </div>
+    </header>
+
+    <div class="int-summary">
+        <article class="ui-card">
+            <p class="kicker">AI in use now</p>
+            <p><strong>{{ "Claude API" if ai_now.provider == "anthropic" else "Local model" }}</strong> · {{ ai_now.model }}</p>
+            <p class="sub">{% if ai_now.source == "environment" %}From the .env settings (no AI service switched on here).{% else %}From the AI service switched on below.{% endif %}</p>
+        </article>
+        <article class="ui-card">
+            <p class="kicker">AI use this month</p>
+            <p><strong>{{ calls }}</strong> call{{ 's' if calls != 1 }} · estimated {{ "%.2f"|format(spent) }} {{ ai_now.currency or "USD" }}{% if ai_now.limit %} of {{ ai_now.limit }} limit{% endif %}</p>
+            <p class="sub">Estimates need prices per million tokens on the AI service.</p>
+        </article>
+        {% for name, d in dictionaries.items() %}
+        <article class="ui-card">
+            <p class="kicker">{{ name }} dictionary</p>
+            {% if d.terms %}<p><strong>{{ "{:,}".format(d.terms) }}</strong> terms · version {{ d.version }}</p><p class="sub">Imported {{ d.imported_at|when }}</p>
+            {% else %}<p><strong>Not imported</strong></p><p class="sub">Coding uses the local terminology until licensed files are imported.</p>{% endif %}
+            <p class="sub"><a href="{{ url_for('terminology.overview') }}">Import or manage in Terminology →</a></p>
+        </article>
+        {% endfor %}
+    </div>
+
+    <article class="ui-card is-strong">
+        {% if rows %}
+        <div class="table-scroll">
+        <table class="ui-table">
+            <thead><tr><th>Service</th><th>Licence</th><th>Version / model</th><th>Credential</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+            <tbody>
+            {% for r in rows %}
+                <tr id="integration-{{ r.integration_id }}">
+                    <td><strong>{{ r.name }}</strong><div class="sub">{{ r.kind }}{% if r.provider %} · {{ r.provider }}{% endif %}</div></td>
+                    <td>{{ r.licence_reference or "—" }}
+                        {% if r.expiry_date %}<div class="sub">expires {{ r.expiry_date.strftime('%d %b %Y') if r.expiry_date.strftime is defined else r.expiry_date }}</div>{% endif %}
+                        {% if r.licence_state == 'Expired' %}<span class="ui-pill bad">Expired</span>{% elif r.licence_state == 'Expires soon' %}<span class="ui-pill warn">Expires soon</span>{% endif %}</td>
+                    <td>{{ r.dictionary_version or r.model or "—" }}{% if r.api_endpoint %}<div class="sub">{{ r.api_endpoint }}</div>{% endif %}</td>
+                    <td>{{ r.credential_hint or "None" }}</td>
+                    <td>
+                        <span class="ui-pill {% if r.status == 'Working' %}good{% elif r.status == 'Failed' %}bad{% else %}muted{% endif %}">{{ r.status }}</span>
+                        {% if r.enabled %}<span class="ui-pill good">On</span>{% else %}<span class="ui-pill muted">Off</span>{% endif %}
+                        {% if r.last_test_at %}<div class="sub">{{ r.last_test_at|when }}: {{ r.last_test_result }}</div>{% endif %}
+                    </td>
+                    <td class="nowrap">
+                        <form method="post" action="{{ url_for('integrations.test_integration', integration_id=r.integration_id) }}" class="inline" data-busy="Testing the connection…">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="ui-btn small" type="submit">Test</button>
+                        </form>
+                        <form method="post" action="{{ url_for('integrations.toggle_integration', integration_id=r.integration_id) }}" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="enable" value="{{ '0' if r.enabled else '1' }}">
+                            <button class="ui-btn small" type="submit">{{ "Switch off" if r.enabled else "Switch on" }}</button>
+                        </form>
+                        <a class="ui-btn small" href="{{ url_for('integrations.edit_integration', integration_id=r.integration_id) }}">Edit</a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+            <p class="sub">Nothing recorded yet. Add MedDRA and WHODrug licences, and an AI service if you want to manage it here instead of in .env.</p>
+        {% endif %}
+    </article>
+
+    {% if usage %}
+    <article class="ui-card">
+        <h2>AI usage (last six months)</h2>
+        <table class="ui-table">
+            <thead><tr><th>Month</th><th>Service</th><th>Calls</th><th>Failures</th><th>Tokens in / out</th><th>Estimated cost</th></tr></thead>
+            <tbody>{% for u in usage %}<tr><td>{{ u.month.strftime('%b %Y') if u.month.strftime is defined else u.month }}</td><td>{{ u.provider }} · {{ u.model }}</td><td>{{ u.calls }}</td><td>{{ u.failures }}</td><td>{{ "{:,}".format(u.input_tokens) }} / {{ "{:,}".format(u.output_tokens) }}</td><td>{{ "%.2f"|format(u.cost) }}</td></tr>{% endfor %}</tbody>
+        </table>
+        <p class="sub">Only counts and timings are kept; prompts and answers are not stored here.</p>
+    </article>
+    {% endif %}
+</section>
+<style>
+    .int-summary { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .int-summary .ui-card { margin: 0; padding: 12px 14px; }
+    .int-summary p { margin: 0 0 4px; }
+    form.inline { display: inline; margin: 0; }
+</style>
+{% endblock %}

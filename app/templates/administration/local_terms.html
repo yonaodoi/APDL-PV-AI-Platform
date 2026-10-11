@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Local terminology | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Local terminology{% endblock %}
+
+{% block content %}
+<section class="ui-page" style="max-width: 1180px;">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('terminology.overview') }}">Terminology</a><span class="sep">›</span>
+        <span>Local {{ 'event terms' if kind == 'event' else 'products' }}</span>
+    </nav>
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Local terminology · not {{ dictionary }}</p>
+            <h1>Local {{ 'event terms' if kind == 'event' else 'product terms' }}</h1>
+            <p>Terms the company uses where no suitable official term was found. A proposed term counts on a case only once it is approved. Map a local term to an official {{ dictionary }} code when one becomes available{% if not dictionary_on %} (needs the {{ dictionary }} dictionary imported){% endif %}.</p>
+        </div>
+        <div class="actions">
+            <a href="{{ url_for('terminology.local_terms', kind='event', status='Proposed') }}">Events{% if proposed.event %} ({{ proposed.event }}){% endif %}</a>
+            <a href="{{ url_for('terminology.local_terms', kind='product', status='Proposed') }}">Products{% if proposed.product %} ({{ proposed.product }}){% endif %}</a>
+        </div>
+    </header>
+
+    <nav class="ui-tabs" aria-label="Filter">
+        {% for s in ("Proposed", "Approved", "Rejected", "") %}
+            <a href="{{ url_for('terminology.local_terms', kind=kind, status=s or None) }}" class="{% if status == s %}active{% endif %}">{{ s or "All" }}</a>
+        {% endfor %}
+    </nav>
+
+    {% if not rows %}<div class="ui-note">No {{ (status or 'local')|lower }} terms.</div>{% endif %}
+
+    {% if rows %}
+    <table class="ui-table local-table">
+        <thead><tr><th>Local code</th><th>Term</th><th>From wording</th><th>Status</th><th>Mapped to</th><th>Review</th></tr></thead>
+        <tbody>
+        {% for r in rows %}
+            {% set rid = r.term_id if kind == 'event' else r.local_product_id %}
+            <tr id="term-{{ rid }}">
+                <td><code class="local">{{ r.local_code }}</code></td>
+                <td><strong>{{ r.preferred_term if kind == 'event' else r.name }}</strong>
+                    {% if kind == 'event' and r.system_organ_class %}<div class="sub">{{ r.system_organ_class }}</div>{% endif %}
+                    {% if kind == 'product' and r.ingredients %}<div class="sub">{{ r.ingredients }}</div>{% endif %}</td>
+                <td class="sub">{{ r.source_wording or "—" }}{% if r.created_by_name %}<div>proposed by {{ r.created_by_name }}</div>{% endif %}</td>
+                <td><span class="ui-pill {% if r.status == 'Approved' %}good{% elif r.status == 'Rejected' %}bad{% else %}warn{% endif %}">{{ r.status }}</span>
+                    {% if r.approved_by_name %}<div class="sub">{{ r.approved_by_name }}{% if r.approved_at %}, {{ r.approved_at|when }}{% endif %}</div>{% endif %}</td>
+                <td>{% if r.mapped_code %}{{ r.mapped_dictionary }} <code>{{ r.mapped_code }}</code> {{ r.mapped_term }}{% if r.mapped_version %} <span class="sub">({{ r.mapped_version }})</span>{% endif %}{% else %}<span class="sub">—</span>{% endif %}</td>
+                <td>
+                    <form method="post" action="{{ url_for('terminology.review_local', kind=kind, local_id=rid, status=status or None) }}" class="review">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {% if dictionary_on %}<input type="text" name="map_code" placeholder="{{ 'MedDRA LLT code' if kind == 'event' else 'WHODrug code' }}" size="14" aria-label="Official code to map to">{% endif %}
+                        {% if r.status != 'Approved' %}<button class="ui-btn primary small" name="decision" value="Approved">Approve</button>{% endif %}
+                        {% if r.status != 'Rejected' %}<button class="ui-btn small" name="decision" value="Rejected">Reject</button>{% endif %}
+                        {% if dictionary_on %}<button class="ui-btn small" name="decision" value="">Map only</button>{% endif %}
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</section>
+<style>
+    code.local { background: #f3eefa; color: #5b3b86; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+    .local-table td { vertical-align: top; }
+    .local-table tr:target { background: #fffbea; }
+    .review { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0; }
+    .ui-btn.small { padding: 5px 10px; font-size: 12px; }
+    .ui-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+    .ui-tabs a { padding: 6px 12px; border-radius: 999px; background: #eef3f0; color: #145a40; text-decoration: none; font-weight: 700; font-size: 13px; }
+    .ui-tabs a.active { background: #145a40; color: #fff; }
+</style>
+{% endblock %}

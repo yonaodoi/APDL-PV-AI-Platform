@@ -181,9 +181,10 @@
         <p class="generation-note" id="generation-note">
             This page updates automatically as each section is written.
         </p>
+        <p class="generation-note"><strong>You do not need to stay here.</strong> The assessment keeps running if you close this page or go elsewhere in the platform. It is saved on the case, and you get a pop-up with a sound wherever you are in the platform when it is ready to review.</p>
         <p class="model-note">
             Model: {{ model_name }}.
-            {% if model_name.startswith("Local") %}Local models can take several minutes; you can leave this page open.{% endif %}
+            {% if model_name.startswith("Local") %}Local models can take several minutes.{% endif %}
         </p>
 
         <div class="failure-box" id="failure-box" hidden></div>

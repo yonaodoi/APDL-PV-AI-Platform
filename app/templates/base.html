@@ -274,7 +274,7 @@
     </style>
     <link
         rel="stylesheet"
-        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-35') }}"
+        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-40') }}"
     >
     <style>:root { --sidebar-footer: "{{ company.short_name|upper|replace('"', '') }}  /  PV OPERATIONS"; {{ company_brand_css }} }</style>
 </head>
@@ -303,34 +303,34 @@
                         {% if request.endpoint == 'core.dashboard' %}aria-current="page"{% endif %}
                     >Dashboard</a>
                     <a
-                        class="nav-link {% if request.endpoint.startswith('cases.') or request.endpoint.startswith('case_ai_reports.') %}active{% endif %}"
+                        class="nav-link {% if (request.endpoint or '').startswith('cases.') or (request.endpoint or '').startswith('case_ai_reports.') %}active{% endif %}"
                         href="{{ url_for('cases.case_list') }}"
-                        {% if request.endpoint.startswith('cases.') or request.endpoint.startswith('case_ai_reports.') %}aria-current="page"{% endif %}
+                        {% if (request.endpoint or '').startswith('cases.') or (request.endpoint or '').startswith('case_ai_reports.') %}aria-current="page"{% endif %}
                     >Safety Cases</a>
                     <a
-                        class="nav-link {% if request.endpoint in ('case_review.review_queue', 'case_review.follow_up_tasks', 'case_review.complete_follow_up_task', 'case_review.download_follow_up_request', 'case_review.send_follow_up_request') %}active{% endif %}"
+                        class="nav-link nav-sub {% if request.endpoint in ('case_review.review_queue', 'case_review.follow_up_tasks', 'case_review.complete_follow_up_task', 'case_review.download_follow_up_request', 'case_review.send_follow_up_request') %}active{% endif %}"
                         href="{{ url_for('case_review.follow_up_tasks') }}"
                         {% if request.endpoint in ('case_review.review_queue', 'case_review.follow_up_tasks', 'case_review.complete_follow_up_task', 'case_review.download_follow_up_request', 'case_review.send_follow_up_request') %}aria-current="page"{% endif %}
-                    >Follow-up Tasks</a>
+                    >Awaiting information</a>
                     <a
-                        class="nav-link {% if request.endpoint == 'case_review.approvals' %}active{% endif %}"
+                        class="nav-link nav-sub {% if request.endpoint == 'case_review.approvals' %}active{% endif %}"
                         href="{{ url_for('case_review.approvals') }}"
                         {% if request.endpoint == 'case_review.approvals' %}aria-current="page"{% endif %}
                     >Approvals{% if approvals_pending_count %} <span class="nav-count" title="Cases waiting for your sign-off">{{ approvals_pending_count }}</span>{% endif %}</a>
                     <a
-                        class="nav-link {% if request.endpoint in ('case_review.follow_up_reminders', 'case_review.acknowledge_follow_up_reminder') %}active{% endif %}"
+                        class="nav-link nav-sub {% if request.endpoint in ('case_review.follow_up_reminders', 'case_review.acknowledge_follow_up_reminder') %}active{% endif %}"
                         href="{{ url_for('case_review.follow_up_reminders') }}"
                         {% if request.endpoint in ('case_review.follow_up_reminders', 'case_review.acknowledge_follow_up_reminder') %}aria-current="page"{% endif %}
                     >
-                        Overdue Reminders
+                        Overdue reminders
                         {% if open_follow_up_reminder_count %}
                             <span class="nav-count" aria-label="{{ open_follow_up_reminder_count }} open reminders">{{ open_follow_up_reminder_count }}</span>
                         {% endif %}
                     </a>
                     <a
-                        class="nav-link {% if request.endpoint.startswith('complaints.') %}active{% endif %}"
+                        class="nav-link {% if (request.endpoint or '').startswith('complaints.') %}active{% endif %}"
                         href="{{ url_for('complaints.complaint_list') }}"
-                        {% if request.endpoint.startswith('complaints.') %}aria-current="page"{% endif %}
+                        {% if (request.endpoint or '').startswith('complaints.') %}aria-current="page"{% endif %}
                     >Product Quality Complaints</a>
                 </div>
 
@@ -342,15 +342,19 @@
                         {% if request.endpoint in ('core.analytics_home', 'core.analytics_metric_detail', 'core.regulatory_reporting') %}aria-current="page"{% endif %}
                     >PV &amp; Regulatory Analytics</a>
                     <a
-                        class="nav-link {% if request.endpoint.startswith('signals.') %}active{% endif %}"
+                        class="nav-link {% if (request.endpoint or '').startswith('signals.') %}active{% endif %}"
                         href="{{ url_for('signals.signal_list') }}"
-                        {% if request.endpoint.startswith('signals.') %}aria-current="page"{% endif %}
+                        {% if (request.endpoint or '').startswith('signals.') %}aria-current="page"{% endif %}
                     >Safety Signals</a>
                     <a
-                        class="nav-link {% if request.endpoint.startswith('psur.') or request.endpoint.startswith('psur_sections.') or request.endpoint.startswith('psur_builder.') %}active{% endif %}"
+                        class="nav-link {% if (request.endpoint or '').startswith('psur.') or (request.endpoint or '').startswith('psur_sections.') or (request.endpoint or '').startswith('psur_builder.') %}active{% endif %}"
                         href="{{ url_for('psur.psur_list') }}"
-                        {% if request.endpoint.startswith('psur.') or request.endpoint.startswith('psur_sections.') or request.endpoint.startswith('psur_builder.') %}aria-current="page"{% endif %}
+                        {% if (request.endpoint or '').startswith('psur.') or (request.endpoint or '').startswith('psur_sections.') or (request.endpoint or '').startswith('psur_builder.') %}aria-current="page"{% endif %}
                     >PSURs</a>
+                    <a
+                        class="nav-link {% if request.endpoint and (request.endpoint or '').startswith('products.') %}active{% endif %}"
+                        href="{{ url_for('products.product_list') }}"
+                    >Product Catalogue</a>
                 </div>
 
                 {% set system_role = session.get('role') %}
@@ -359,17 +363,24 @@
                         <div class="nav-label">SYSTEM</div>
                         {% if session.get('role') == 'System Administrator' %}
                             <a
-                                class="nav-link {% if request.endpoint.startswith('administration.') and request.endpoint != 'administration.audit_log' %}active{% endif %}"
+                                class="nav-link {% if (request.endpoint or '').startswith('administration.') and request.endpoint != 'administration.audit_log' %}active{% endif %}"
                                 href="{{ url_for('administration.user_list') }}"
-                                {% if request.endpoint.startswith('administration.') and request.endpoint != 'administration.audit_log' %}aria-current="page"{% endif %}
+                                {% if (request.endpoint or '').startswith('administration.') and request.endpoint != 'administration.audit_log' %}aria-current="page"{% endif %}
                             >Administration</a>
                         {% endif %}
                         {% if system_role in ('System Administrator', 'QPPV', 'Deputy QPPV', 'Group Head RA & Quality') %}
                             <a
-                                class="nav-link {% if request.endpoint.startswith('report_templates.') %}active{% endif %}"
+                                class="nav-link {% if (request.endpoint or '').startswith('report_templates.') %}active{% endif %}"
                                 href="{{ url_for('report_templates.template_list') }}"
-                                {% if request.endpoint.startswith('report_templates.') %}aria-current="page"{% endif %}
+                                {% if (request.endpoint or '').startswith('report_templates.') %}aria-current="page"{% endif %}
                             >Report Templates</a>
+                        {% endif %}
+                        {% if system_role in ('System Administrator', 'QPPV', 'Deputy QPPV', 'Group Head RA & Quality') %}
+                            <a
+                                class="nav-link {% if (request.endpoint or '').startswith('terminology.') %}active{% endif %}"
+                                href="{{ url_for('terminology.overview') }}"
+                                {% if (request.endpoint or '').startswith('terminology.') %}aria-current="page"{% endif %}
+                            >Terminology</a>
                         {% endif %}
                         {% if system_role in ('System Administrator', 'Auditor', 'Group Head RA & Quality') %}
                             <a
@@ -401,6 +412,9 @@
                             <span>{{ session.get("role", "Platform user") }}</span>
                         </div>
 
+                        <button type="button" class="account-action" id="pv-sound-toggle">Alert sound: on</button>
+                        <button type="button" class="account-action" id="pv-desktop-toggle">Turn on desktop alerts</button>
+
                         <a class="account-action" href="{{ url_for('auth.change_password') }}">
                             Change password
                         </a>
@@ -427,6 +441,7 @@
         </div>
     </div>
     <script src="{{ url_for('static', filename='js/voice_entry.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/catalogue_picker.js', v='1') }}" defer></script>
     <script>
         // Open a folded section when the address points at it (for example
         // after saving an edit), and when a link on the page jumps to it.
@@ -499,6 +514,57 @@
             menus().forEach(function (other) { if (other !== menu) other.open = false; });
         }, true);
     })();
+
+    // Forms marked data-busy show a "working" message while the server works
+    // (document extraction, AI drafting, saving). The page stays put until the
+    // server answers, so the message also prevents a second click.
+    (function () {
+        var overlay = null;
+        function show(title, detail) {
+            if (!overlay) {
+                overlay = document.createElement("div");
+                overlay.className = "busy-overlay";
+                overlay.setAttribute("role", "status");
+                overlay.setAttribute("aria-live", "assertive");
+                overlay.innerHTML = '<div class="busy-box"><span class="busy-spinner" aria-hidden="true"></span>'
+                    + '<strong class="busy-title"></strong><p class="busy-detail"></p><p class="busy-time"></p></div>';
+                document.body.appendChild(overlay);
+            }
+            overlay.querySelector(".busy-title").textContent = title;
+            overlay.querySelector(".busy-detail").textContent = detail || "";
+            var started = Date.now(), time = overlay.querySelector(".busy-time");
+            time.textContent = "";
+            clearInterval(overlay._timer);
+            overlay._timer = setInterval(function () {
+                var s = Math.round((Date.now() - started) / 1000);
+                time.textContent = s >= 5 ? s + " seconds… please keep this page open." : "";
+            }, 1000);
+            overlay.classList.add("is-on");
+        }
+        window.showBusy = show;
+        window.hideBusy = function () {
+            if (overlay) { overlay.classList.remove("is-on"); clearInterval(overlay._timer); }
+            document.querySelectorAll("form[data-busy] button[type=submit]").forEach(function (b) { b.disabled = false; });
+        };
+        document.addEventListener("submit", function (event) {
+            var form = event.target;
+            if (!form.dataset || !form.dataset.busy || event.defaultPrevented) return;
+            if (typeof form.checkValidity === "function" && !form.checkValidity()) return;
+            setTimeout(function () {
+                show(form.dataset.busy, form.dataset.busyDetail);
+                form.querySelectorAll('button[type="submit"]').forEach(function (b) { b.disabled = true; });
+            }, 0);
+        });
+        // Coming back with the browser's Back button: hide the message again.
+        window.addEventListener("pageshow", function () {
+            if (overlay) overlay.classList.remove("is-on");
+            document.querySelectorAll("form[data-busy] button[type=submit]").forEach(function (b) { b.disabled = false; });
+        });
+    })();
 </script>
+{% if session.get("user_id") %}
+<div id="pv-alerts" hidden data-poll-url="{{ url_for('core.poll_notifications') }}"></div>
+<script src="{{ url_for('static', filename='js/alerts.js', v='1') }}"></script>
+{% endif %}
 </body>
 </html>

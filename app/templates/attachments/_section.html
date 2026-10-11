@@ -29,7 +29,7 @@
             <p class="record-attachment-empty">No files attached yet.</p>
         {% endif %}
         {% if not locked %}
-            <form method="post" enctype="multipart/form-data" class="record-attachment-upload" action="{{ url_for('attachments.manage_attachments', record_type=record_type, record_id=record_id) }}">
+            <form method="post" enctype="multipart/form-data" data-busy="Uploading the file…" data-busy-detail="Readable documents are then checked by the AI for new information." class="record-attachment-upload" action="{{ url_for('attachments.manage_attachments', record_type=record_type, record_id=record_id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="return_to" value="{{ return_to }}#attachments">
                 {% if document_types %}

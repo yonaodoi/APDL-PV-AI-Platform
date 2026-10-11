@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | {{ company.platform_name if company else 'PV' }}{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<section class="ui-page" style="max-width: 760px;">
+    <div class="ui-card error-card" role="alert">
+        <p class="kicker">{% if status >= 500 %}Error{% elif status == 422 %}Not saved{% else %}Notice{% endif %}</p>
+        <h1>{{ title }}</h1>
+        <p class="error-message">{{ message }}</p>
+        {% if posted %}
+            <p class="sub">Anything this step could not complete was not saved. Your entries are usually still in the form when you go back.</p>
+        {% endif %}
+        {% if reference %}<p class="sub">Reference for the administrator: <strong>{{ reference }}</strong></p>{% endif %}
+        <div class="error-actions">
+            <button type="button" class="ui-btn primary" onclick="history.back()">← Go back to the form</button>
+            <a class="ui-btn" href="{{ url_for('core.dashboard') }}">Dashboard</a>
+        </div>
+    </div>
+</section>
+<style>
+    .error-card { margin-top: 20px; border-color: #efc2ba; background: #fffaf9; }
+    .error-card h1 { margin: 4px 0 10px; font-size: 22px; color: #7a2a20; }
+    .error-message { font-size: 15px; color: #33413b; line-height: 1.5; }
+    .error-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+</style>
+{% endblock %}

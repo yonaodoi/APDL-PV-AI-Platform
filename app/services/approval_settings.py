@@ -18,6 +18,9 @@ DEFAULTS = {
     "officer_roles": ["PV Officer"],
     "officer_extra_emails": [],
     "notify_officer": True,
+    # The QPPV may take a case through every step alone (send, review,
+    # approve, narrative review). Each step they take alone is recorded.
+    "qppv_end_to_end": True,
     "digest_hour": 8,
     "urgent_days": 3,
 }
@@ -57,8 +60,9 @@ def normalise(values):
         result[key] = roles or list(DEFAULTS[key])
     for key in ("review_extra_emails", "approval_extra_emails", "officer_extra_emails"):
         result[key] = clean_emails(result[key])
-    flag = result["notify_officer"]
-    result["notify_officer"] = flag if isinstance(flag, bool) else str(flag).lower() in ("1", "true", "on", "yes")
+    for key in ("notify_officer", "qppv_end_to_end"):
+        flag = result[key]
+        result[key] = flag if isinstance(flag, bool) else str(flag).lower() in ("1", "true", "on", "yes")
     try:
         result["digest_hour"] = min(max(int(result["digest_hour"]), 0), 23)
     except (TypeError, ValueError):

@@ -1,0 +1,52 @@
+{# Case processing pathway: stages, current stage, outstanding issues, next action, follow-up. #}
+{% if pathway %}
+<section class="pathway" id="pathway" aria-label="Case processing pathway">
+    <ol class="pathway-steps">
+        {% for stage in pathway.stages %}
+            <li class="step is-{{ stage.state }}" {% if stage.state == 'current' %}aria-current="step"{% endif %}>
+                <span class="dot" aria-hidden="true">{% if stage.state == 'done' %}✓{% else %}{{ loop.index }}{% endif %}</span>
+                <span class="name">{{ stage.label }}</span>
+                {% if stage.issues and stage.state != 'done' %}<span class="n" title="{{ stage.issues|length }} open item(s)">{{ stage.issues|length }}</span>{% endif %}
+            </li>
+        {% endfor %}
+    </ol>
+    <div class="pathway-body">
+        <div class="pathway-now">
+            <p class="kicker">{% if pathway.current %}Current stage: {{ pathway.current_label }}{% else %}All stages complete{% endif %}</p>
+            <a class="ui-btn primary next" href="{{ pathway.next_action.href }}">{{ pathway.next_action.label }} →</a>
+            <p class="sub">{{ pathway.next_action.hint }}</p>
+            {% if pathway.completed %}<p class="sub done-list">Completed: {{ pathway.completed|join(' · ') }}</p>{% endif %}
+        </div>
+        <div class="pathway-issues">
+            <p class="kicker">Outstanding at this stage</p>
+            {% if pathway.issues %}
+                <ul>
+                    {% for issue in pathway.issues[:6] %}<li><a href="{{ issue.href }}">{{ issue.text }}</a></li>{% endfor %}
+                </ul>
+                {% if pathway.issues|length > 6 %}<p class="sub">and {{ pathway.issues|length - 6 }} more.</p>{% endif %}
+            {% else %}
+                <p class="sub">Nothing outstanding.</p>
+            {% endif %}
+            {% set later = pathway.all_issues|rejectattr("stage", "equalto", pathway.current_label)|list %}
+            {% if later %}
+                <details class="later"><summary>{{ later|length }} item{{ 's' if later|length != 1 }} for other stages</summary>
+                    <ul>{% for issue in later %}<li><span class="stage-tag">{{ issue.stage }}</span> <a href="{{ issue.href }}">{{ issue.text }}</a></li>{% endfor %}</ul>
+                </details>
+            {% endif %}
+        </div>
+        <div class="pathway-fu">
+            <p class="kicker">Follow-up</p>
+            {% set fu = pathway.follow_up %}
+            {% if fu.open %}
+                <p><strong>{{ fu.open }}</strong> open item{{ 's' if fu.open != 1 }}{% if fu.next_due %}, due <strong>{{ fu.next_due.strftime('%d %b %Y') }}</strong>{% endif %}</p>
+                {% if fu.overdue %}<p><span class="ui-pill bad">{{ fu.overdue }} overdue</span></p>{% endif %}
+                {% if fu.owners %}<p class="sub">With {{ fu.owners|join(', ') }}</p>{% endif %}
+            {% else %}
+                <p class="sub">No open follow-up.</p>
+            {% endif %}
+            <p class="sub">{% if fu.requests_sent %}{{ fu.requests_sent }} request(s) sent{% if fu.last_request %}, last {{ fu.last_request|when }}{% endif %}{% else %}No request sent{% endif %}</p>
+            <a class="pathway-link" href="{{ url_for('case_review.follow_up_tasks') }}#case-{{ case.case_id }}">Open in Awaiting information</a>
+        </div>
+    </div>
+</section>
+{% endif %}

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Validity {{ case.case_number }} | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Case validity{% endblock %}
+
+{% block content %}
+<section class="ui-page" style="max-width: 980px;">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('cases.case_list') }}">Safety cases</a><span class="sep">›</span>
+        <a href="{{ url_for('cases.case_detail', case_id=case.case_id) }}">{{ case.case_number }}</a><span class="sep">›</span>
+        <span>Validity</span>
+    </nav>
+
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Case pathway · Validation</p>
+            <h1>Is {{ case.case_number }} a valid case?</h1>
+            <p>A valid ICSR needs all four minimum criteria. This is separate from completeness: a valid case can still have missing details, which are completed in the ICSR form. Suggestions below come from what is recorded; you decide.</p>
+        </div>
+        <div class="actions"><a href="{{ url_for('cases.case_detail', case_id=case.case_id) }}">← Back to the case</a></div>
+    </header>
+
+    {% if case.validity_decision %}
+        <div class="ui-note {% if case.validity_decision == 'Valid' %}{% else %}warn{% endif %}" style="margin-bottom: 14px;">
+            Current decision: <strong>{{ case.validity_decision }}</strong>{% if case.validity_decided_at %} · {{ case.validity_decided_at|when }}{% endif %}{% if case.validity_notes %} · {{ case.validity_notes }}{% endif %}
+        </div>
+    {% endif %}
+
+    <form method="post" class="ui-card is-strong" data-busy="Saving the validity decision…">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <table class="ui-table validity-table">
+            <thead><tr><th>Minimum criterion</th><th>Suggestion from the record</th><th>Your decision</th></tr></thead>
+            <tbody>
+                {% for key, label in criteria %}
+                    {% set suggestion, reason = suggestions[key] %}
+                    {% set current = case[key] or suggestion %}
+                    <tr>
+                        <td><strong>{{ label }}</strong></td>
+                        <td>
+                            <span class="ui-pill {% if suggestion == 'Present' %}good{% elif suggestion == 'Absent' %}bad{% else %}warn{% endif %}">{{ suggestion }}</span>
+                            <div class="sub" style="margin-top: 4px;">{{ reason }}</div>
+                            {% if suggestion == 'Uncertain' %}<div class="sub" style="color:#8a5a00; font-weight:700;">Needs a person to check the source.</div>{% endif %}
+                        </td>
+                        <td class="nowrap">
+                            {% for choice in choices %}
+                                <label class="v-choice"><input type="radio" name="{{ key }}" value="{{ choice }}" {% if current == choice %}checked{% endif %} required> {{ choice }}</label>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="ui-field" style="margin-top: 12px;">
+            <label for="validity_notes">Notes (optional)</label>
+            <textarea id="validity_notes" name="validity_notes" rows="2" placeholder="e.g. Reporter is a pharmacist at the named hospital; patient identified by initials and age.">{{ case.validity_notes or "" }}</textarea>
+        </div>
+
+        <div class="ui-note" style="margin-top: 12px;" id="validity-result" aria-live="polite"></div>
+
+        <div class="ui-actions">
+            <button class="ui-btn primary" type="submit" name="decision" value="decide">Save decision</button>
+            <button class="ui-btn" type="submit" name="decision" value="await">Request the missing information</button>
+            <a class="ui-btn" href="{{ url_for('cases.edit_case', case_id=case.case_id) }}">Correct the intake details first</a>
+        </div>
+    </form>
+
+    <article class="ui-card">
+        <h2>Follow-up for this case</h2>
+        {% if follow_up.open %}
+            <p>{{ follow_up.open }} open follow-up item{{ 's' if follow_up.open != 1 }}{% if follow_up.next_due %}, next due <strong>{{ follow_up.next_due.strftime('%d %b %Y') }}</strong>{% endif %}{% if follow_up.overdue %} · <span class="ui-pill bad">{{ follow_up.overdue }} overdue</span>{% endif %}{% if follow_up.owners %} · with {{ follow_up.owners|join(', ') }}{% endif %}.</p>
+        {% else %}
+            <p class="sub">No open follow-up items.</p>
+        {% endif %}
+        <p class="sub">{% if follow_up.requests_sent %}{{ follow_up.requests_sent }} request(s) sent{% if follow_up.last_request %}, last {{ follow_up.last_request|when }}{% endif %}.{% else %}No follow-up request sent yet.{% endif %}</p>
+        <div class="ui-actions">
+            <a class="ui-btn" href="{{ url_for('case_review.follow_up_tasks') }}#case-{{ case.case_id }}">Open in Awaiting information</a>
+            <a class="ui-btn" href="{{ url_for('case_review.preview_follow_up_request', case_id=case.case_id) }}">Preview the follow-up request</a>
+        </div>
+    </article>
+</section>
+<style>
+    .validity-table td { vertical-align: top; }
+    .v-choice { display: inline-flex; gap: 5px; align-items: center; margin-right: 12px; font-size: 13px; font-weight: 700; color: #27483b; }
+</style>
+<script>
+    (function () {
+        var names = {{ criteria|map(attribute=0)|list|tojson }};
+        var out = document.getElementById("validity-result");
+        function update() {
+            var values = names.map(function (n) { var c = document.querySelector('input[name="' + n + '"]:checked'); return c ? c.value : ""; });
+            if (values.every(function (v) { return v === "Present"; })) {
+                out.className = "ui-note"; out.textContent = "All four criteria are present: saving makes this a valid case and opens the ICSR form, with the supported information already filled in.";
+            } else if (values.some(function (v) { return v === "Uncertain"; })) {
+                out.className = "ui-note warn"; out.textContent = "At least one criterion is uncertain. Check the source and record Present or Absent, or choose “Request the missing information”.";
+            } else {
+                out.className = "ui-note warn"; out.textContent = "Not a valid case yet: saving moves it to Awaiting information, where the follow-up request, reminders and due date are tracked. The case is not converted again when the information arrives; you revalidate the same record.";
+            }
+        }
+        document.querySelectorAll('input[type=radio]').forEach(function (r) { r.addEventListener("change", update); });
+        update();
+    })();
+</script>
+{% endblock %}

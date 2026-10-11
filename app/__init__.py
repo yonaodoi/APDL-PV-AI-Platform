@@ -21,6 +21,19 @@ def create_app(config_class=Config):
     csrf.init_app(app)
     app.teardown_appcontext(close_db)
     register_cli(app)
+    from .errors import register_error_handlers
+
+    register_error_handlers(app)
+
+    @app.after_request
+    def mark_file_downloads(response):
+        """Lets the page know a download has arrived (completion alert)."""
+        if "attachment" in (response.headers.get("Content-Disposition") or ""):
+            import time
+
+            response.set_cookie("pv_download", str(int(time.time() * 1000)), max_age=600,
+                                samesite="Lax", secure=request.is_secure, httponly=False)
+        return response
 
     from .administration.routes import bp as administration_blueprint
     from .attachments.routes import bp as attachments_blueprint
@@ -38,6 +51,10 @@ def create_app(config_class=Config):
     from .psur.builder_routes import bp as psur_builder_blueprint
     from .core.routes import bp as core_blueprint
     from .report_templates.routes import bp as report_templates_blueprint
+    from .products.routes import bp as products_blueprint
+    from .administration.integrations_routes import bp as integrations_blueprint
+    from .administration.terminology_routes import bp as terminology_blueprint
+    from .administration.e2b_routes import bp as e2b_admin_blueprint
 
     app.register_blueprint(administration_blueprint)
     app.register_blueprint(attachments_blueprint)
@@ -56,6 +73,10 @@ def create_app(config_class=Config):
     app.register_blueprint(core_blueprint)
     app.register_blueprint(case_ai_reports_blueprint)
     app.register_blueprint(report_templates_blueprint)
+    app.register_blueprint(products_blueprint)
+    app.register_blueprint(integrations_blueprint)
+    app.register_blueprint(terminology_blueprint)
+    app.register_blueprint(e2b_admin_blueprint)
 
     @app.before_request
     def refresh_session_activity():

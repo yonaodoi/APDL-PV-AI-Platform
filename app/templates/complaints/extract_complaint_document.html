@@ -19,7 +19,7 @@
                 Add a complaint report and the platform will prepare an editable intake draft from the facts stated in the document. Nothing is saved until you review and submit the completed form.
             </p>
 
-            <form method="post" enctype="multipart/form-data">
+            <form method="post" enctype="multipart/form-data" data-busy="Reading the report and drafting the complaint…" data-busy-detail="The AI is reading the document. This usually takes 20–60 seconds; the draft opens automatically when it is ready.">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="quality-dropzone">
                     <span class="quality-upload-icon" aria-hidden="true">↑</span>

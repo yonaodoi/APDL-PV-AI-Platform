@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}{{ kind }} | Licences & Integrations | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Licences & Integrations{% endblock %}
+
+{% block content %}
+{% set st = row.settings or {} %}
+<section class="ui-page" style="max-width: 980px;">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('administration.user_list') }}">Administration</a><span class="sep">›</span>
+        <a href="{{ url_for('integrations.integration_list') }}">Licences &amp; integrations</a><span class="sep">›</span>
+        <span>{{ row.name or ("New " ~ kind) }}</span>
+    </nav>
+    <form method="post" class="ui-card is-strong" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <h1 style="margin:0 0 6px; font-size:20px;">{{ kind }}{% if row.name %}: {{ row.name }}{% endif %}</h1>
+        <p class="sub">
+            {% if kind == "MedDRA" %}Record the MSSO subscription. Coding uses MedDRA only after the licensed release files are imported (or a MedDRA API is configured and tested).
+            {% elif kind == "WHODrug" %}Record the UMC WHODrug licence. Coding uses WHODrug only after the licensed files are imported (or the WHODrug API is configured and tested).
+            {% elif kind == "AI provider" %}The AI service used for drafting, extraction and suggestions. Switch it on only after a successful connection test; one AI service is on at a time.
+            {% else %}Another service the platform connects to.{% endif %}
+        </p>
+        <div class="ui-grid">
+            <div class="ui-field"><label for="name">Name *</label><input id="name" name="name" type="text" required value="{{ row.name or ('MedDRA' if kind == 'MedDRA' else ('WHODrug Global' if kind == 'WHODrug' else '')) }}"></div>
+            {% if kind == "AI provider" %}
+                <div class="ui-field"><label for="provider">Provider</label>
+                    <select id="provider" name="provider">{% for value, label in providers %}<option value="{{ value }}" {% if row.provider == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                <div class="ui-field"><label for="model">Model</label><input id="model" name="model" type="text" value="{{ row.model or '' }}" placeholder="e.g. claude-sonnet-5-5 or qwen2.5:7b"></div>
+            {% else %}
+                <div class="ui-field"><label for="provider">Provider / organisation issuing the licence</label><input id="provider" name="provider" type="text" value="{{ row.provider or ('MedDRA MSSO' if kind == 'MedDRA' else ('Uppsala Monitoring Centre' if kind == 'WHODrug' else '')) }}"></div>
+            {% endif %}
+            <div class="ui-field"><label for="licence_reference">Licence / subscription reference</label><input id="licence_reference" name="licence_reference" type="text" value="{{ row.licence_reference or '' }}"></div>
+            <div class="ui-field"><label for="registration_date">Registration date</label><input id="registration_date" name="registration_date" type="date" value="{{ row.registration_date or '' }}"></div>
+            <div class="ui-field"><label for="expiry_date">Expiry date</label><input id="expiry_date" name="expiry_date" type="date" value="{{ row.expiry_date or '' }}"></div>
+            <div class="ui-field"><label for="organisation">Licensed organisation</label><input id="organisation" name="organisation" type="text" value="{{ row.organisation or company.legal_name }}"></div>
+            {% if kind in ("MedDRA", "WHODrug") %}<div class="ui-field"><label for="dictionary_version">Dictionary release / version</label><input id="dictionary_version" name="dictionary_version" type="text" value="{{ row.dictionary_version or '' }}" placeholder="{{ 'e.g. 29.0' if kind == 'MedDRA' else 'e.g. 2026 Mar 1 B3' }}"></div>{% endif %}
+            <div class="ui-field"><label for="api_endpoint">API endpoint (optional)</label><input id="api_endpoint" name="api_endpoint" type="url" value="{{ row.api_endpoint or '' }}" placeholder="https://…"></div>
+        </div>
+        <div class="ui-field" style="margin-top:10px;"><label for="permitted_use">Permitted use / licence terms</label><textarea id="permitted_use" name="permitted_use" rows="2">{{ row.permitted_use or '' }}</textarea></div>
+
+        <h2 style="margin:16px 0 6px; font-size:15px;">Credential</h2>
+        <div class="ui-grid">
+            <div class="ui-field">
+                <label for="credential">{% if row.has_credential %}Replace the stored credential{% else %}API key / credential{% endif %}</label>
+                <input id="credential" name="credential" type="password" autocomplete="new-password" value="" placeholder="{{ row.credential_hint or 'Paste here; it is encrypted and never shown again' }}">
+                {% if row.has_credential %}<label class="check-line" style="margin-top:6px;"><input type="checkbox" name="clear_credential"> Remove the stored credential ({{ row.credential_hint }})</label>{% endif %}
+            </div>
+        </div>
+        <p class="sub">Leave blank to keep the current credential. It is encrypted before saving, never shown in full, and never written to logs, exports or the audit trail.</p>
+
+        {% if kind == "AI provider" %}
+        <h2 style="margin:16px 0 6px; font-size:15px;">Processing and limits</h2>
+        <div class="ui-grid">
+            <div class="ui-field"><label for="timeout_seconds">Timeout (seconds)</label><input id="timeout_seconds" name="timeout_seconds" type="number" min="10" max="1800" value="{{ st.timeout_seconds or defaults.timeout_seconds }}"></div>
+            <div class="ui-field"><label for="max_retries">Retries after a temporary failure</label><input id="max_retries" name="max_retries" type="number" min="0" max="5" value="{{ st.max_retries if st.max_retries is not none else defaults.max_retries }}"></div>
+            <div class="ui-field"><label for="monthly_limit">Monthly spending limit (blank = none)</label><input id="monthly_limit" name="monthly_limit" type="number" min="0" step="0.01" value="{{ st.monthly_limit or '' }}"></div>
+            <div class="ui-field"><label for="currency">Currency</label><input id="currency" name="currency" type="text" maxlength="3" value="{{ st.currency or 'USD' }}"></div>
+            <div class="ui-field"><label for="price_input_per_million">Price per million input tokens</label><input id="price_input_per_million" name="price_input_per_million" type="number" min="0" step="0.0001" value="{{ st.price_input_per_million or '' }}"></div>
+            <div class="ui-field"><label for="price_output_per_million">Price per million output tokens</label><input id="price_output_per_million" name="price_output_per_million" type="number" min="0" step="0.0001" value="{{ st.price_output_per_million or '' }}"></div>
+        </div>
+        <label class="check-line" style="margin-top:10px;"><input type="checkbox" name="use_for_documents" {% if st.use_for_documents %}checked{% endif %}> This service may read uploaded documents (they contain patient and reporter identifiers)</label>
+        <p class="sub">When unticked, documents are read with the document settings in .env (by default the local model), and only de-identified case facts are sent to this service for assessments.</p>
+        {% endif %}
+
+        <div class="ui-actions">
+            <button class="ui-btn primary" type="submit">Save</button>
+            <a class="ui-btn" href="{{ url_for('integrations.integration_list') }}">Cancel</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

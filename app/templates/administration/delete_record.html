@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Delete {{ number }} | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Delete record{% endblock %}
+
+{% block content %}
+<section class="ui-page" style="max-width: 820px;">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for(spec.list_endpoint) }}">{{ spec.label|capitalize }}s</a><span class="sep">›</span>
+        <a href="{{ back_url }}">{{ number }}</a><span class="sep">›</span>
+        <span>Delete</span>
+    </nav>
+
+    <article class="ui-card is-strong del-card">
+        <h1>Permanently delete {{ spec.label }} {{ number }}?</h1>
+        <p>This removes the {{ spec.label }} and everything that belongs to it from the platform. It cannot be undone from the screens.</p>
+        <ul class="del-keep">
+            <li><strong>Kept:</strong> a full copy of the record and its related rows under Administration › Deleted records, the audit trail entries, and uploaded files on the server.</li>
+            <li><strong>Other records</strong> that only point to it (for example a complaint linked to this case) are kept; the link is cleared.</li>
+        </ul>
+
+        {% if preview %}
+            <h2>What will be removed</h2>
+            <table class="ui-table del-table">
+                <thead><tr><th>Information</th><th>Rows</th></tr></thead>
+                <tbody>
+                    <tr><td>The {{ spec.label }} itself</td><td>1</td></tr>
+                    {% for label, count in preview %}
+                        <tr><td>{{ label|capitalize }}</td><td>{{ count }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        <form method="post" class="del-form" id="delete-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="ui-field">
+                <label for="reason">Reason for deletion (recorded in the audit trail)</label>
+                <textarea id="reason" name="reason" rows="3" required minlength="5" placeholder="e.g. Test record created during training; duplicate of APDL-ICSR-26-009"></textarea>
+            </div>
+            <div class="ui-field">
+                <label for="confirm_number">Type <strong>{{ number }}</strong> to confirm</label>
+                <input id="confirm_number" name="confirm_number" type="text" autocomplete="off" required>
+            </div>
+            <div class="ui-actions">
+                <button class="ui-btn danger" type="submit" id="delete-button" disabled>Delete permanently</button>
+                <a class="ui-btn" href="{{ back_url }}">Cancel</a>
+            </div>
+        </form>
+    </article>
+</section>
+<style>
+    .del-card h1 { margin: 0 0 8px; color: #8a1f17; font-size: 21px; }
+    .del-card h2 { margin: 16px 0 6px; font-size: 14px; color: #183d34; }
+    .del-card { border-left-color: #a3392b !important; }
+    .del-keep { margin: 8px 0 4px; padding-left: 18px; color: #3f544d; font-size: 13px; line-height: 1.5; }
+    .del-table { max-width: 520px; }
+    .del-form { margin-top: 16px; display: grid; gap: 12px; }
+    .del-form textarea, .del-form input[type=text] { width: 100%; box-sizing: border-box; }
+</style>
+<script>
+    (function () {
+        var input = document.getElementById("confirm_number");
+        var reason = document.getElementById("reason");
+        var button = document.getElementById("delete-button");
+        function check() { button.disabled = !(input.value.trim() === {{ number|tojson }} && reason.value.trim().length >= 5); }
+        input.addEventListener("input", check);
+        reason.addEventListener("input", check);
+        document.getElementById("delete-form").addEventListener("submit", function () {
+            setTimeout(function () { button.disabled = true; button.textContent = "Deleting…"; }, 0);
+        });
+    })();
+</script>
+{% endblock %}

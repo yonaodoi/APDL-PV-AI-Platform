@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Product Catalogue | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Product Catalogue{% endblock %}
+
+{% block content %}
+<section class="ui-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb"><span>Product catalogue</span></nav>
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Company products</p>
+            <h1>Product catalogue</h1>
+            <p>The company's products and their reusable facts. Choosing a product on a safety case, signal or complaint fills these in; each record keeps the version it used, so later changes here never rewrite existing records.</p>
+        </div>
+        {% if can_manage %}
+        <div class="actions">
+            <a class="primary" href="{{ url_for('products.new_product') }}">+ Add product</a>
+            <a href="{{ url_for('rsi.rsi_list') }}">Reference safety information</a>
+        </div>
+        {% endif %}
+    </header>
+
+    {% if can_manage %}
+        <details class="ui-card fold-card" {% if not products %}open{% endif %}>
+            <summary><strong>Bulk import from CSV or Excel</strong> <span class="sub">– preview, checks and duplicate detection before anything changes</span></summary>
+            <form method="post" action="{{ url_for('products.upload_import') }}" enctype="multipart/form-data" class="import-form" data-busy="Reading the file and checking each product…">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="ui-field">
+                    <label for="import-file">File (.csv or .xlsx, first worksheet)</label>
+                    <input id="import-file" type="file" name="file" accept=".csv,.xlsx" required>
+                </div>
+                <div class="ui-actions">
+                    <button class="ui-btn primary" type="submit">Upload and preview</button>
+                    <a class="ui-btn" href="{{ url_for('products.import_template') }}">Download the template</a>
+                </div>
+                <p class="sub">Columns: product_code, brand_name, generic_name, strength, dosage_form, routes, manufacturer, mah, registration_number, market, status, notes. Common alternative headings (e.g. "Active ingredients", "Country") are recognised.</p>
+            </form>
+            {% if pending_imports %}
+                <p class="sub" style="margin-top:8px;"><strong>Waiting for review:</strong>
+                {% for b in pending_imports %}<a href="{{ url_for('products.import_preview', batch_id=b.batch_id) }}">{{ b.original_filename }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+            {% endif %}
+        </details>
+    {% endif %}
+
+    <form method="get" class="ui-card filter-bar">
+        <div class="ui-field"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}" placeholder="Identifier, brand, generic, registration"></div>
+        <div class="ui-field"><label for="status">Status</label>
+            <select id="status" name="status"><option value="">All</option>{% for s in statuses %}<option {% if s == status %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+        <div class="ui-field"><label for="market">Market</label>
+            <select id="market" name="market"><option value="">All</option>{% for m in markets %}<option {% if m == market %}selected{% endif %}>{{ m }}</option>{% endfor %}</select></div>
+        <div class="ui-actions"><button class="ui-btn primary" type="submit">Filter</button>{% if q or status or market %}<a class="ui-btn" href="{{ url_for('products.product_list') }}">Clear</a>{% endif %}</div>
+    </form>
+
+    <article class="ui-card is-strong">
+        {% if products %}
+        <div class="table-scroll">
+        <table class="ui-table">
+            <thead><tr><th>Identifier</th><th>Product</th><th>Generic / active ingredient(s)</th><th>Market</th><th>Registration</th><th>Status</th><th>RSI</th><th>Version</th></tr></thead>
+            <tbody>
+                {% for p in products %}
+                    <tr>
+                        <td><a href="{{ url_for('products.product_detail', product_id=p.product_id) }}">{{ p.product_code }}</a></td>
+                        <td><strong>{{ p.brand_name }}</strong>{% if p.strength or p.dosage_form %}<div class="sub">{{ [p.strength, p.dosage_form]|select|join(' · ') }}</div>{% endif %}</td>
+                        <td>{{ p.generic_name or "—" }}</td>
+                        <td>{{ p.market or "—" }}</td>
+                        <td>{{ p.registration_number or "—" }}</td>
+                        <td><span class="ui-pill {% if p.status == 'Active' %}good{% elif p.status in ('Withdrawn', 'Suspended') %}bad{% else %}muted{% endif %}">{{ p.status }}</span></td>
+                        <td>{% if p.rsi_document_type %}{{ p.rsi_document_type }}{% if p.rsi_version %} v{{ p.rsi_version }}{% endif %}{% else %}<span class="sub">None linked</span>{% endif %}</td>
+                        <td class="nowrap">v{{ p.version }}<div class="sub">{{ p.updated_at|when }}</div></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+            <p class="sub">{% if q or status or market %}No product matches these filters.{% else %}The catalogue is empty. Add products one by one or import a file.{% endif %}</p>
+        {% endif %}
+    </article>
+</section>
+<style>
+    .filter-bar { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px 14px; align-items: end; }
+    .import-form { display: grid; gap: 10px; margin-top: 10px; }
+    @media (max-width: 760px) { .filter-bar { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}

@@ -342,6 +342,11 @@
                 <div class="field">
                     <label>{{ form.product_name.label.text }} <span class="required">*</span></label>
                     {{ form.product_name(placeholder="Product name") }}
+                            <label for="catalogue-pick" class="catalogue-label">Company product (catalogue)</label>
+                            <select id="catalogue-pick" data-catalogue-picker data-src="{{ url_for('products.product_options') }}" data-hidden="catalogue_product_id"
+                                    data-selected="{{ (signal.catalogue_product_id if signal is defined and signal and signal.catalogue_product_id) or '' }}"
+                                    data-fill='{"brand_name": "product_name"}'></select>
+                            <input type="hidden" name="catalogue_product_id" value="{{ (signal.catalogue_product_id if signal is defined and signal and signal.catalogue_product_id) or '' }}">
                     {% for error in form.product_name.errors %}
                         <p class="field-error">{{ error }}</p>
                     {% endfor %}

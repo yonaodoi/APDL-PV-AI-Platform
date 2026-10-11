@@ -67,9 +67,7 @@
         ('new-cases', 'New safety cases', metrics.new_cases, '+', '', 'Safety cases with a New workflow status.', 'Open new-case register'),
         ('serious-cases', 'Serious safety cases', metrics.serious_cases, '!', 'serious', 'Safety reports recorded as serious.', 'Open serious-case register'),
         ('open-signals', 'Open safety signals', metrics.open_signals, 'S', 'signals', 'Signals that are new or under evaluation.', 'Open signal register'),
-        ('reports-due', 'PSUR reports due', metrics.reports_due, 'D', 'psur', 'Draft or review reports at or past their data lock point.', 'Open due-report register'),
-        ('product-complaints', 'Product quality complaints', metrics.total_complaints, 'Q', 'complaints', 'All recorded product quality complaints.', 'Open complaint register'),
-        ('psur-records', 'PSUR records', metrics.total_psurs, 'R', 'psur', 'All periodic safety report records.', 'Open PSUR register')
+        ('product-complaints', 'Product quality complaints', metrics.total_complaints, 'Q', 'complaints', 'All recorded product quality complaints.', 'Open complaint register')
     ] %}
     <section class="module-grid" aria-label="Analytics measures">
         {% for key, label, value, icon, colour, description, action in cards %}
@@ -84,5 +82,6 @@
             </a>
         {% endfor %}
     </section>
+    {% if psur_counts %}{% include "psur/_workspace_card.html" %}{% endif %}
 </section>
 {% endblock %}

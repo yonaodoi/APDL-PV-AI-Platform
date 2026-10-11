@@ -336,6 +336,7 @@
                     <a href="#supporting-cases-title">Supporting cases</a>
                     <hr>
                     <a href="{{ url_for('signals.signal_list') }}">Back to all safety signals</a>
+                    {% if session.get('role') == 'System Administrator' %}<a class="menu-danger" href="{{ url_for('administration.delete_record_page', kind='signal', record_id=signal.signal_id) }}">Delete…</a>{% endif %}
                 </div>
             </details>
         </div>

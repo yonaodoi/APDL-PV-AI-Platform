@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Import preview | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Product Catalogue{% endblock %}
+
+{% block content %}
+{% set s = batch.summary %}
+<section class="ui-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('products.product_list') }}">Product catalogue</a><span class="sep">›</span><span>Import {{ batch.original_filename }}</span>
+    </nav>
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Import preview · nothing has changed yet</p>
+            <h1>{{ batch.original_filename }}</h1>
+            <p>{{ s.rows }} row{{ 's' if s.rows != 1 }}: {{ s.create }} new, {{ s.update }} with changes, {{ s.unchanged }} unchanged, {{ s.review }} to review as possible duplicates, {{ s.error }} with problems. Choose what happens to each row, then apply.</p>
+        </div>
+    </header>
+
+    {% if s.missing_columns %}<div class="ui-note bad">Required column(s) not found: {{ s.missing_columns|join(', ') }}. Rename the headings to match the template and upload again.</div>{% endif %}
+    {% if s.unmapped %}<div class="ui-note warn">Columns ignored (not recognised): {{ s.unmapped|join(', ') }}.</div>{% endif %}
+
+    {% if batch.status == 'Preview' %}
+    <form method="post" class="ui-card is-strong" data-busy="Applying the import…">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="table-scroll">
+        <table class="ui-table import-table">
+            <thead><tr><th>Line</th><th>Product</th><th>Checks</th><th>Action</th></tr></thead>
+            <tbody>
+                {% for e in batch.rows %}
+                    {% set p = e.product %}
+                    <tr class="is-{{ e.action }}">
+                        <td>{{ e.line }}</td>
+                        <td><strong>{{ p.product_code or "—" }}</strong> {{ p.brand_name or "" }} {{ p.strength or "" }} {{ p.dosage_form or "" }}<div class="sub">{{ p.generic_name or "" }}{% if p.market %} · {{ p.market }}{% endif %}{% if p.registration_number %} · {{ p.registration_number }}{% endif %}</div></td>
+                        <td>
+                            {% if e.problems %}<ul class="bad-list">{% for x in e.problems %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
+                            {% if e.action == 'update' %}<div><span class="ui-pill warn">Changes an existing product</span><ul>{% for d in e.differences %}<li>{{ d }}</li>{% endfor %}</ul></div>{% endif %}
+                            {% if e.action == 'unchanged' %}<span class="ui-pill muted">Same as the catalogue</span>{% endif %}
+                            {% if e.action == 'create' %}<span class="ui-pill good">New product</span>{% endif %}
+                            {% if e.similar %}<div class="sub">Looks like: {% for d in e.similar %}{{ d.product_code }} {{ d.brand_name }} ({{ d.reasons|join(', ') }}){% if not loop.last %}; {% endif %}{% endfor %}</div>{% endif %}
+                        </td>
+                        <td class="nowrap">
+                            {% if e.action == 'error' %}
+                                <span class="sub">Cannot be imported</span>
+                            {% else %}
+                                <select name="decision-{{ e.line }}" aria-label="Action for line {{ e.line }}">
+                                    {% if e.action == 'create' %}<option value="create" selected>Add as new</option>{% endif %}
+                                    {% if e.action == 'review' %}
+                                        <option value="skip" selected>Skip (decide later)</option>
+                                        <option value="create">Add as a different product</option>
+                                        {% for d in e.similar %}<option value="update:{{ d.product_id }}">Update {{ d.product_code }}</option>{% endfor %}
+                                    {% endif %}
+                                    {% if e.action == 'update' %}<option value="update" selected>Update (new version)</option>{% endif %}
+                                    {% if e.action != 'review' %}<option value="skip" {% if e.action == 'unchanged' %}selected{% endif %}>Skip</option>{% endif %}
+                                </select>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        <div class="ui-actions">
+            <button class="ui-btn primary" type="submit" name="action" value="apply">Apply the chosen actions</button>
+            <button class="ui-btn" type="submit" name="action" value="discard">Discard this import</button>
+        </div>
+    </form>
+    {% else %}
+        <div class="ui-note">This import was {{ batch.status|lower }}{% if batch.applied_at %} on {{ batch.applied_at|when }}{% endif %}.</div>
+    {% endif %}
+</section>
+<style>
+    .import-table tr.is-error td { background: #fff6f4; }
+    .import-table tr.is-review td { background: #fffbea; }
+    .import-table ul { margin: 4px 0 0; padding-left: 16px; font-size: 12px; }
+    .bad-list { color: #a3392b; font-weight: 700; }
+</style>
+{% endblock %}

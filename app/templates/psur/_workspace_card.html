@@ -1,0 +1,23 @@
+{# PSUR Workspace: one card for report records and their reporting obligations. Needs `psur_counts`. #}
+<section class="psur-ws" aria-label="PSUR workspace">
+    <div class="psur-ws-head">
+        <div>
+            <h3>PSUR Workspace</h3>
+            <p>Report records and their submission deadlines (from the data lock point). Select a figure to open the matching reports.</p>
+        </div>
+        {% if request.endpoint != 'psur.psur_list' %}<a class="psur-ws-open" href="{{ url_for('psur.psur_list') }}">Open PSUR register →</a>{% endif %}
+    </div>
+    <div class="psur-ws-grid">
+        {% for key, label, href, tone in [
+            ("total", "Total records", url_for('psur.psur_list'), ""),
+            ("in_progress", "Draft / in progress", url_for('psur.psur_list', view='in_progress'), ""),
+            ("due_soon", "Due within 30 days", url_for('psur.psur_list', due='soon'), "warn"),
+            ("overdue", "Overdue", url_for('psur.psur_list', due='overdue'), "bad"),
+            ("completed", "Completed", url_for('psur.psur_list', view='completed'), "good"),
+        ] %}
+            <a class="psur-ws-tile {{ tone }}{% if psur_counts[key] and tone %} has{% endif %}{% if active_key == key %} active{% endif %}" href="{{ href }}">
+                <strong>{{ psur_counts[key] }}</strong><span>{{ label }}</span>
+            </a>
+        {% endfor %}
+    </div>
+</section>

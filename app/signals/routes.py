@@ -304,6 +304,9 @@ def create_signal():
                 ),
             )
 
+        new_signal = query_one("SELECT signal_id FROM pv.safety_signals WHERE signal_number = %s", (signal_number,))
+        if new_signal:
+            _catalogue_choice(new_signal["signal_id"])
         flash(f"Safety signal {signal_number} saved successfully.", "success")
         return redirect(url_for("signals.signal_list"))
 
@@ -381,8 +384,9 @@ def edit_signal(signal_id):
         "owner_name": (form.owner_name.data or "").strip() or None,
     }
     changes = describe_changes(signal, updated, SIGNAL_FIELD_LABELS)
+    catalogue_changed = _catalogue_choice(signal_id)
     if not changes:
-        flash("No changes were made.", "info")
+        flash("Catalogue product updated." if catalogue_changed else "No changes were made.", "success" if catalogue_changed else "info")
         return redirect(detail_url)
 
     with transaction() as cursor:
@@ -873,3 +877,16 @@ def save_safety_signal_reporting_draft():
         draft_id=draft["draft_id"],
         updated_at=draft["updated_at"].isoformat(),
     )
+
+
+def _catalogue_choice(signal_id):
+    """Keep the catalogue reference and snapshot chosen on the form."""
+    from app.services.product_catalogue import apply_record_choice
+
+    if "catalogue_product_id" not in request.form:
+        return False
+    try:
+        return apply_record_choice("safety_signals", "signal_id", signal_id, request.form.get("catalogue_product_id"))
+    except Exception:
+        current_app.logger.exception("Could not store the catalogue product for signal %s", signal_id)
+        return False

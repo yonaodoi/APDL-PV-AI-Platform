@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Coding {{ case.case_number }} | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Coding{% endblock %}
+
+{% macro choose_form(item, cand) -%}
+<form method="post" action="{{ url_for('cases.choose_coding', case_id=case.case_id) }}" class="choose">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="entity" value="{{ item.entity }}"><input type="hidden" name="entity_id" value="{{ item.entity_id }}">
+    <input type="hidden" name="dictionary" value="{{ cand.dictionary }}"><input type="hidden" name="code" value="{{ cand.code }}">
+    {% if cand.dictionary != 'Local' %}<label class="sub remember" title="Code this exact wording the same way automatically next time"><input type="checkbox" name="remember" value="1"> remember wording</label>{% endif %}
+    <button class="ui-btn primary small" type="submit">Use</button>
+</form>
+{%- endmacro %}
+
+{% block content %}
+<section class="ui-page" style="max-width: 1180px;">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('cases.case_list') }}">Safety cases</a><span class="sep">›</span>
+        <a href="{{ url_for('cases.case_detail', case_id=case.case_id) }}">{{ case.case_number }}</a><span class="sep">›</span>
+        <span>Coding</span>
+    </nav>
+
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Case pathway · Coding</p>
+            <h1>Code the reported terms for {{ case.case_number }}</h1>
+            <p>The reported wording is never changed; the code is stored beside it with the dictionary and version. Exact matches and wording confirmed before are accepted automatically (see the coding rules); everything else waits for your choice. Local terms (LOCAL-…) are the company's own terminology, not MedDRA or WHODrug.</p>
+        </div>
+        <div class="actions">
+            <a href="{{ url_for('cases.icsr_form', case_id=case.case_id) }}">ICSR form</a>
+            <a href="{{ url_for('cases.case_detail', case_id=case.case_id) }}#pathway">← Back to the case</a>
+        </div>
+    </header>
+
+    <div class="coding-dicts">
+        {% for name, d in dictionaries.items() %}
+            <article class="ui-card {% if not d.terms %}is-off{% endif %}">
+                <p class="kicker">{{ name }}</p>
+                {% if d.terms %}
+                    <p><strong>Version {{ d.version }}</strong> · {{ "{:,}".format(d.terms) }} terms</p>
+                {% else %}
+                    <p><strong>{{ messages.meddra_off if name == 'MedDRA' else messages.whodrug_off }}</strong></p>
+                    <p class="sub">Coding uses the local terminology until the licensed {{ name }} files are imported{% if session.get('role') == 'System Administrator' %} (<a href="{{ url_for('terminology.overview') }}">Administration › Terminology</a>){% endif %}.</p>
+                {% endif %}
+            </article>
+        {% endfor %}
+        <article class="ui-card">
+            <p class="kicker">This case</p>
+            {% set req_open = overview.open_required|length %}
+            <p><strong>{{ overview['items']|length }}</strong> reported item(s) ·
+                {% if req_open %}<span class="ui-pill warn">{{ req_open }} required open</span>{% else %}<span class="ui-pill good">Reactions and drugs coded</span>{% endif %}
+                {% if overview.open_optional %}<span class="ui-pill muted">{{ overview.open_optional|length }} optional open</span>{% endif %}</p>
+            {% if not locked %}
+            <form method="post" action="{{ url_for('cases.run_coding', case_id=case.case_id) }}" data-busy="Coding the reported terms…" data-busy-detail="Exact matches first, then confirmed wording, then dictionary search.">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="ui-btn primary" type="submit">Run automatic coding</button>
+                <label class="sub inline"><input type="checkbox" name="redo" value="1"> also re-check items already coded (manual choices are kept)</label>
+            </form>
+            {% endif %}
+        </article>
+    </div>
+
+    {% if locked %}<div class="ui-note warn">The case is in sign-off or already reported; coding is read-only until it is returned.</div>{% endif %}
+
+    {% if not overview['items'] %}
+        <div class="ui-note">Nothing to code yet. Record the reactions and drugs in the <a href="{{ url_for('cases.icsr_form', case_id=case.case_id) }}">ICSR form</a> first.</div>
+    {% endif %}
+
+    {% for section, items in overview['items']|groupby("section") %}
+    <section class="ui-card coding-section">
+        <h2>{{ section }}</h2>
+        {% for item in items %}
+            {% set cd = item.coding %}
+            {% set status = cd.status if cd else "Not started" %}
+            <article class="coding-item status-{{ status|lower|replace(' ', '-') }}" id="item-{{ item.entity }}-{{ item.entity_id }}">
+                <div class="ci-head">
+                    <div>
+                        <p class="kicker">{{ item.label }}{% if item.context %} · {{ item.context }}{% endif %}{% if item.required %} · required{% endif %}</p>
+                        <p class="verbatim">“{{ item.verbatim }}”
+                            <a class="sub" href="{{ url_for('cases.icsr_form', case_id=case.case_id, focus=item.focus) }}">edit wording</a></p>
+                    </div>
+                    <span class="ui-pill {% if status == 'Coded' %}good{% elif status == 'Not coded' %}muted{% elif status == 'Unavailable' %}bad{% else %}warn{% endif %}">{{ status }}</span>
+                </div>
+
+                {% if cd and cd.code %}
+                    <p class="coded-as">
+                        {% if cd.dictionary == 'MedDRA' %}
+                            <strong>LLT</strong> {{ cd.term }} <code>{{ cd.code }}</code>
+                            {% if cd.pt_name %} · <strong>PT</strong> {{ cd.pt_name }} <code>{{ cd.pt_code }}</code>{% endif %}
+                            {% if cd.soc_name %} · <strong>SOC</strong> {{ cd.soc_name }}{% endif %}
+                            · MedDRA {{ cd.version }}
+                        {% elif cd.dictionary == 'WHODrug' %}
+                            <strong>{{ cd.term }}</strong> <code>{{ cd.code }}</code>{% if cd.pt_name %} · {{ cd.pt_name }}{% endif %}{% if cd.soc_code %} · ATC {{ cd.soc_code }}{% endif %} · WHODrug {{ cd.version }}
+                        {% else %}
+                            <strong>{{ cd.term }}</strong> <code class="local">{{ cd.code }}</code> · <em>local terminology (not MedDRA/WHODrug)</em>
+                        {% endif %}
+                        <span class="sub">· {{ cd.method }}{% if cd.coded_at %}, {{ cd.coded_at|when }}{% endif %}</span>
+                    </p>
+                {% endif %}
+                {% if cd and cd.message %}<p class="ci-message">{{ cd.message }}</p>{% endif %}
+                {% if item.entity == 'reaction' and (',' in item.verbatim or ';' in item.verbatim) %}
+                    <p class="ci-message">This wording may describe more than one reaction. Each reaction is coded on its own: <a href="{{ url_for('cases.icsr_form', case_id=case.case_id, focus=item.focus, why='Split this into one reaction per entry (keep each reporter wording).') }}">split it in the ICSR form</a>.</p>
+                {% endif %}
+
+                {% if not locked %}
+                {% set candidates = (cd.candidates if cd else [])|rejectattr("code", "equalto", cd.code if cd and status == 'Coded' else "")|list %}
+                {% if candidates and status != 'Coded' %}
+                    <table class="ui-table candidates">
+                        <thead><tr><th>Candidate</th><th>Details</th><th>Source</th><th></th></tr></thead>
+                        <tbody>
+                        {% for cand in candidates[:8] %}
+                            <tr>
+                                <td><strong>{{ cand.term }}</strong> <code {% if cand.dictionary == 'Local' %}class="local"{% endif %}>{{ cand.code }}</code></td>
+                                <td class="sub">
+                                    {% if cand.dictionary == 'MedDRA' %}PT {{ cand.pt_name }} · {{ cand.soc_name or '' }}
+                                    {% elif cand.dictionary == 'WHODrug' %}{{ cand.pt_name or '' }}{% if cand.soc_code %} · ATC {{ cand.soc_code }}{% endif %}
+                                    {% else %}Local{% if cand.status %} · {{ cand.status }}{% endif %}{% if cand.soc_name %} · {{ cand.soc_name }}{% endif %}{% endif %}
+                                </td>
+                                <td class="sub">{{ cand.dictionary }}{% if cand.version and cand.version != 'local' %} {{ cand.version }}{% endif %} · {{ cand.method }}{% if cand.score is not none %} · {{ (cand.score * 100)|round|int }}%{% endif %}</td>
+                                <td>{{ choose_form(item, cand) }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+
+                <details class="ci-more" {% if status not in ('Coded', 'Not coded') and not candidates %}open{% endif %}>
+                    <summary>{% if status == 'Coded' %}Change the coding{% else %}Search or other options{% endif %}</summary>
+                    <div class="ci-search" data-search-url="{{ url_for('cases.coding_search', case_id=case.case_id) }}" data-kind="{{ item.kind }}">
+                        <label>Search {{ 'MedDRA' if item.kind == 'event' else 'WHODrug' }} and the local terminology
+                            <input type="search" value="{{ item.verbatim[:80] }}" autocomplete="off"></label>
+                        <button type="button" class="ui-btn">Search</button>
+                        <p class="sub search-message" aria-live="polite"></p>
+                        <table class="ui-table candidates search-results" hidden><tbody></tbody></table>
+                        <template class="choose-template">{{ choose_form(item, {"dictionary": "__D__", "code": "__C__"}) }}</template>
+                    </div>
+                    <div class="ci-actions">
+                        <form method="post" action="{{ url_for('cases.propose_local_term', case_id=case.case_id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="entity" value="{{ item.entity }}"><input type="hidden" name="entity_id" value="{{ item.entity_id }}">
+                            <label>Propose a local term <input type="text" name="name" value="{{ item.verbatim[:120] }}" required></label>
+                            <button class="ui-btn" type="submit">Propose for review</button>
+                        </form>
+                        {% if not item.required %}
+                        <form method="post" action="{{ url_for('cases.not_coded', case_id=case.case_id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="entity" value="{{ item.entity }}"><input type="hidden" name="entity_id" value="{{ item.entity_id }}">
+                            <label>Not codable because <input type="text" name="reason" placeholder="e.g. not a medical term" required></label>
+                            <button class="ui-btn" type="submit">Record as not coded</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </details>
+                {% endif %}
+            </article>
+        {% endfor %}
+    </section>
+    {% endfor %}
+
+    {% if history %}
+    <details class="ui-card coding-history">
+        <summary><strong>Coding history</strong> ({{ history|length }} most recent)</summary>
+        <table class="ui-table">
+            <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Wording</th><th>Result</th></tr></thead>
+            <tbody>
+            {% for h in history %}
+                {% set s = h.snapshot if h.snapshot is mapping else {} %}
+                <tr><td>{{ h.occurred_at|when }}</td><td>{{ h.actor_name or "System" }}</td><td>{{ h.action }}</td>
+                    <td>{{ s.verbatim }}</td><td>{{ s.term or "—" }} {% if s.code %}<code>{{ s.code }}</code>{% endif %} · {{ s.status }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </details>
+    {% endif %}
+</section>
+
+
+
+<style>
+    .coding-dicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .coding-dicts .is-off { border-color: #f0d9a8; background: #fffaf0; }
+    .coding-dicts p { margin: 4px 0; }
+    .coding-dicts label.inline { display: block; margin-top: 6px; }
+    .coding-section { margin-bottom: 14px; }
+    .coding-section h2 { font-size: 16px; margin: 0 0 8px; }
+    .coding-item { border-top: 1px solid #eef3f0; padding: 12px 0; }
+    .coding-item:target { background: #fffbea; box-shadow: 0 0 0 3px #fde68a; border-radius: 8px; padding: 12px; }
+    .ci-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+    .ci-head .kicker { margin: 0; }
+    .verbatim { margin: 4px 0; font-size: 15px; font-weight: 700; color: #263a32; }
+    .verbatim a { font-weight: 400; margin-left: 8px; font-size: 12px; }
+    .coded-as { margin: 6px 0; font-size: 13px; }
+    .coded-as code, .candidates code { background: #eef6f1; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+    code.local { background: #f3eefa !important; color: #5b3b86; }
+    .ci-message { margin: 6px 0; padding: 7px 10px; border-radius: 8px; background: #fff6e2; color: #6b4a0c; font-size: 13px; }
+    .candidates { margin: 8px 0; font-size: 13px; }
+    .candidates td { vertical-align: middle; }
+    .choose { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin: 0; }
+    .ui-btn.small { padding: 5px 12px; font-size: 12px; }
+    .ci-more summary { cursor: pointer; color: #145a40; font-weight: 700; font-size: 13px; margin-top: 6px; }
+    .ci-search { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin: 10px 0; }
+    .ci-search label { flex: 1 1 320px; font-size: 12px; font-weight: 700; color: #4a5b54; }
+    .ci-search input[type=search] { display: block; width: 100%; margin-top: 4px; }
+    .ci-search .search-message, .ci-search table { flex: 1 1 100%; margin: 0; }
+    .ci-actions { display: flex; flex-wrap: wrap; gap: 16px; }
+    .ci-actions form { display: flex; gap: 8px; align-items: flex-end; flex: 1 1 340px; }
+    .ci-actions label { flex: 1; font-size: 12px; font-weight: 700; color: #4a5b54; }
+    .ci-actions input[type=text] { display: block; width: 100%; margin-top: 4px; }
+    .coding-history summary { cursor: pointer; }
+    @media (max-width: 700px) { .choose { justify-content: flex-start; } .candidates thead { display: none; } .candidates td { display: block; border: 0; padding: 2px 0; } .candidates tr { display: block; border-bottom: 1px solid #eef3f0; padding: 6px 0; } }
+</style>
+<script>
+(function () {
+    document.querySelectorAll(".ci-search").forEach(function (box) {
+        var input = box.querySelector("input[type=search]"), button = box.querySelector("button"),
+            table = box.querySelector(".search-results"), body = table.querySelector("tbody"),
+            message = box.querySelector(".search-message"), tpl = box.querySelector(".choose-template").innerHTML;
+        function text(tag, value, cls) { var el = document.createElement(tag); el.textContent = value || ""; if (cls) el.className = cls; return el; }
+        function run() {
+            message.textContent = "Searching…";
+            fetch(box.dataset.searchUrl + "?kind=" + encodeURIComponent(box.dataset.kind) + "&q=" + encodeURIComponent(input.value), { credentials: "same-origin" })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    body.innerHTML = "";
+                    (data.results || []).forEach(function (c) {
+                        var tr = document.createElement("tr");
+                        var first = document.createElement("td");
+                        first.appendChild(text("strong", c.term)); first.appendChild(document.createTextNode(" "));
+                        first.appendChild(text("code", c.code, c.dictionary === "Local" ? "local" : ""));
+                        tr.appendChild(first);
+                        var detail = c.dictionary === "MedDRA" ? "PT " + (c.pt_name || "") + (c.soc_name ? " · " + c.soc_name : "")
+                            : c.dictionary === "WHODrug" ? (c.pt_name || "") + (c.soc_code ? " · ATC " + c.soc_code : "")
+                            : "Local" + (c.status ? " · " + c.status : "");
+                        tr.appendChild(text("td", detail, "sub"));
+                        tr.appendChild(text("td", c.dictionary + (c.version && c.version !== "local" ? " " + c.version : "") + " · " + c.method, "sub"));
+                        var last = document.createElement("td");
+                        var holder = document.createElement("div");
+                        holder.innerHTML = tpl.replace(/__D__/g, "").replace(/__C__/g, "");
+                        var f = holder.firstElementChild;
+                        f.querySelector('[name="dictionary"]').value = c.dictionary;
+                        f.querySelector('[name="code"]').value = c.code;
+                        if (c.dictionary === "Local") { var rem = f.querySelector(".remember"); if (rem) rem.remove(); }
+                        last.appendChild(f); tr.appendChild(last);
+                        body.appendChild(tr);
+                    });
+                    table.hidden = !(data.results || []).length;
+                    message.textContent = (data.message ? data.message + " " : "") + ((data.results || []).length ? "" : "No matching terms. Try other words or propose a local term.");
+                })
+                .catch(function () { message.textContent = "Search failed; try again."; });
+        }
+        button.addEventListener("click", run);
+        input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); run(); } });
+    });
+})();
+</script>
+{% endblock %}

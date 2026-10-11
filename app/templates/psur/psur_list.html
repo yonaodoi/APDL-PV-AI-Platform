@@ -252,11 +252,10 @@
     </a>
 </header>
 
-<section class="psur-summary" aria-label="Filtered PSUR totals">
-    <div class="summary-chip"><strong>{{ reports|length }}</strong><span>Matching reports</span></div>
-    <div class="summary-chip"><strong>{{ reports|selectattr("status", "equalto", "Draft")|list|length }}</strong><span>Draft reports</span></div>
-    <div class="summary-chip"><strong>{{ reports|selectattr("status", "equalto", "Finalised")|list|length }}</strong><span>Finalised reports</span></div>
-</section>
+{% include "psur/_workspace_card.html" %}
+{% if view_label %}
+    <p class="psur-active-view">Showing: <strong>{{ view_label }}</strong> · <a href="{{ url_for('psur.psur_list') }}">Show all</a></p>
+{% endif %}
 <section class="psur-filter">
     <form method="get" class="filter-grid">
         <div class="filter-field">
@@ -293,6 +292,8 @@
             <input class="filter-input" id="end_date" name="end_date" type="date" value="{{ end_date }}">
         </div>
 
+        {% if selected_view %}<input type="hidden" name="view" value="{{ selected_view }}">{% endif %}
+        {% if selected_due %}<input type="hidden" name="due" value="{{ selected_due }}">{% endif %}
         <div class="filter-actions">
             <button class="filter-button" type="submit">Apply filters</button>
             <a class="clear-filters" href="{{ url_for('psur.psur_list') }}">Clear filters</a>
@@ -300,7 +301,7 @@
     </form>
 </section>
 
-{% set any_filter = selected_product or selected_status or start_date or end_date %}
+{% set any_filter = selected_product or selected_status or start_date or end_date or selected_view or selected_due %}
 <details class="psur-register fold-card register-fold" id="all-psurs" {% if any_filter or not reports %}open{% endif %}>
     <summary class="register-toolbar">
         <h3>All PSUR records</h3>
@@ -316,6 +317,7 @@
                     <th scope="col">Product</th>
                     <th scope="col">Reporting period</th>
                     <th scope="col">Data lock point</th>
+                    <th scope="col">Submission due</th>
                     <th scope="col">Prepared by</th>
                     <th scope="col">Status</th>
                 </tr>
@@ -335,6 +337,10 @@
                             {{ report.reporting_period_end.strftime("%d %b %Y") }}
                         </td>
                         <td>{{ report.data_lock_point.strftime("%d %b %Y") }}</td>
+                        <td>
+                            {% set sub = report.submission %}
+                            {% if sub %}{{ sub.due_date.strftime("%d %b %Y") }}<br><span class="clock-badge clock-{{ sub.state }}">{{ sub.label }}</span>{% else %}—{% endif %}
+                        </td>
                         <td>{{ report.prepared_by or "Not recorded" }}</td>
                         <td><span class="status-pill status-{{ report.status|lower|replace(' ', '-') }}">{{ report.status }}</span></td>
                     </tr>
@@ -345,7 +351,7 @@
     {% else %}
         <div class="empty-state">
             <div class="empty-icon" aria-hidden="true">+</div>
-            {% if selected_product or selected_status or start_date or end_date %}
+            {% if any_filter %}
                 <h3>No matching PSUR records</h3>
                 <p>Try changing or clearing one or more filters.</p>
                 <a class="empty-clear-link" href="{{ url_for('psur.psur_list') }}">Clear all filters</a>

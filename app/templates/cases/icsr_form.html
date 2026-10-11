@@ -1,0 +1,855 @@
+{% extends "base.html" %}
+
+{% block title %}ICSR {{ case.case_number }} | {{ company.platform_name }}{% endblock %}
+{% block page_title %}ICSR form{% endblock %}
+
+{# ------------------------------------------------------------------ macros #}
+{% macro nf_select(name, current) -%}
+    <select class="nf" name="nf-{{ name }}" aria-label="Reason the value is missing (null flavour)" title="Reason the value is missing">
+        <option value="">Reason if blank…</option>
+        {% for code, label in c.NULL_FLAVOURS %}<option value="{{ code }}" {% if current == code %}selected{% endif %}>{{ label }} ({{ code }})</option>{% endfor %}
+    </select>
+{%- endmacro %}
+
+{% macro coding_status(id, default) -%}
+    {% set item = coding_slots.get(id) %}
+    {% set cd = item.coding if item else None %}
+    {% if cd %}
+        <p class="coding-status is-{{ cd.status|lower|replace(' ', '-') }}">
+            <span class="ui-pill {% if cd.status == 'Coded' %}good{% elif cd.status == 'Not coded' %}muted{% else %}warn{% endif %}">{{ cd.status }}</span>
+            {% if cd.code %}<strong>{{ cd.term }}</strong> <code>{{ cd.code }}</code>{% if cd.dictionary == 'MedDRA' and cd.pt_name %} · PT {{ cd.pt_name }}{% endif %} · {{ 'local terminology' if cd.dictionary == 'Local' else cd.dictionary ~ ' ' ~ (cd.version or '') }}{% endif %}
+            {% if cd.message and cd.status != 'Coded' %}<span class="coding-msg">{{ cd.message }}</span>{% endif %}
+            <a href="{{ url_for('cases.case_coding', case_id=case.case_id) }}#item-{{ item.entity }}-{{ item.entity_id }}">{{ 'Change' if cd.status == 'Coded' else 'Choose the term' }} →</a>
+        </p>
+    {% elif item %}
+        <p class="coding-status">Not coded yet; coding runs when the form is saved. <a href="{{ url_for('cases.case_coding', case_id=case.case_id) }}#item-{{ item.entity }}-{{ item.entity_id }}">Open the coding step →</a></p>
+    {% else %}
+        <p class="coding-status">{{ default }}</p>
+    {% endif %}
+{%- endmacro %}
+
+{% macro err(name) -%}
+    {% if errors.get(name) %}<p class="f-error" id="{{ name }}-error">{{ errors[name] }}</p>{% endif %}
+{%- endmacro %}
+
+{% macro field(id, label, value, kind="text", choices=None, nf=None, nf_value=None, hint=None, wide=False, placeholder="", check=None) -%}
+    <div class="f {% if wide %}f-wide{% endif %} {% if errors.get(id) %}f-has-error{% endif %}" data-field="{{ id }}">
+        <label for="{{ id }}">{{ label }}</label>
+        {% if kind == "textarea" %}
+            <textarea id="{{ id }}" name="{{ id }}" rows="3" {% if check %}data-check="{{ check }}"{% endif %}>{{ c.form_value(value) }}</textarea>
+        {% elif kind == "choice" %}
+            <select id="{{ id }}" name="{{ id }}" {% if check %}data-check="{{ check }}"{% endif %}>
+                <option value="">—</option>
+                {% for option in choices %}<option value="{{ option }}" {% if c.form_value(value) == option %}selected{% endif %}>{{ option }}</option>{% endfor %}
+            </select>
+        {% elif kind == "country" %}
+            <select id="{{ id }}" name="{{ id }}" {% if check %}data-check="{{ check }}"{% endif %}>
+                <option value="">—</option>
+                {% for country in countries %}<option value="{{ country.country_id }}" {% if value == country.country_id or c.form_value(value) == country.country_id|string %}selected{% endif %}>{{ country.country_name }}</option>{% endfor %}
+            </select>
+        {% elif kind == "date" %}
+            <input id="{{ id }}" name="{{ id }}" type="text" inputmode="numeric" value="{{ c.form_value(value) }}" placeholder="{{ placeholder or 'YYYY-MM-DD, YYYY-MM or YYYY' }}" autocomplete="off" {% if check %}data-check="{{ check }}"{% endif %}>
+        {% elif kind == "fulldate" %}
+            <input id="{{ id }}" name="{{ id }}" type="date" value="{{ c.form_value(value) }}" {% if check %}data-check="{{ check }}"{% endif %}>
+        {% elif kind == "number" %}
+            <input id="{{ id }}" name="{{ id }}" type="text" inputmode="decimal" value="{{ c.form_value(value) }}" placeholder="{{ placeholder }}" {% if check %}data-check="{{ check }}"{% endif %}>
+        {% else %}
+            <input id="{{ id }}" name="{{ id }}" type="text" value="{{ c.form_value(value) }}" placeholder="{{ placeholder }}" {% if check %}data-check="{{ check }}"{% endif %}>
+        {% endif %}
+        {% if nf %}{{ nf_select(id, nf_value) }}{% endif %}
+        {% if hint %}<p class="f-hint">{{ hint }}</p>{% endif %}
+        {{ err(id) }}
+    </div>
+{%- endmacro %}
+
+{% macro value_unit(id, unit_id, label, value, unit, units, nf=False, nf_value=None, check=None) -%}
+    <div class="f {% if errors.get(id) %}f-has-error{% endif %}" data-field="{{ id }}">
+        <label for="{{ id }}">{{ label }}</label>
+        <div class="vu">
+            <input id="{{ id }}" name="{{ id }}" type="text" inputmode="decimal" value="{{ c.form_value(value) }}" {% if check %}data-check="{{ check }}"{% endif %}>
+            <select id="{{ unit_id }}" name="{{ unit_id }}" aria-label="{{ label }} unit">
+                <option value="">unit</option>
+                {% for u in units %}<option value="{{ u }}" {% if unit == u %}selected{% endif %}>{{ u }}</option>{% endfor %}
+            </select>
+        </div>
+        {% if nf %}{{ nf_select(id, nf_value) }}{% endif %}
+        {{ err(id) }}
+    </div>
+{%- endmacro %}
+
+{% macro row_hidden(prefix, key, row, order) -%}
+    <input type="hidden" name="{{ prefix }}-{{ key }}-__key" value="{{ key }}">
+    <input type="hidden" name="{{ prefix }}-{{ key }}-__id" value="{{ c.row_id(prefix, row) }}">
+    <input type="hidden" name="{{ prefix }}-{{ key }}-__order" value="{{ order }}" class="row-order">
+    <input type="hidden" name="{{ prefix }}-{{ key }}-__remove" value="0" class="row-remove">
+{%- endmacro %}
+
+{% macro entry_head(kind, title, sub="") -%}
+    <summary>
+        <span class="entry-title" data-entry-title>{{ title }}</span>
+        {% if sub %}<span class="entry-sub">{{ sub }}</span>{% endif %}
+        <button type="button" class="entry-remove" data-remove-entry aria-label="Remove this entry">Remove</button>
+    </summary>
+{%- endmacro %}
+
+{# ---- repeated entries (also used inside <template> for new rows) ---- #}
+{% macro reporter_entry(key, row, order) -%}
+    {% set p = "reporters-" ~ key ~ "-" %}{% set nfv = row.null_flavours or {} %}
+    <details class="entry" data-entry="reporters" data-key="{{ key }}" data-title-fields="title given_name family_name organisation" data-empty-title="Additional primary source" open>
+        {{ entry_head("reporter", c.entry_heading("reporter", row)) }}
+        {{ row_hidden("reporters", key, row, order) }}
+        <div class="grid">
+            {{ field(p ~ "qualification", "Qualification", row.qualification, "choice", c.QUALIFICATIONS) }}
+            {{ field(p ~ "country_id", "Country", row.country_id, "country") }}
+            {{ field(p ~ "title", "Title", row.title, nf=True, nf_value=nfv.title) }}
+            {{ field(p ~ "given_name", "Given name", row.given_name, nf=True, nf_value=nfv.given_name) }}
+            {{ field(p ~ "middle_name", "Middle name", row.middle_name) }}
+            {{ field(p ~ "family_name", "Family name", row.family_name, nf=True, nf_value=nfv.family_name) }}
+            {{ field(p ~ "organisation", "Organisation", row.organisation, nf=True, nf_value=nfv.organisation) }}
+            {{ field(p ~ "email", "Email", row.email, nf=True, nf_value=nfv.email) }}
+            {{ field(p ~ "phone", "Telephone", row.phone, nf=True, nf_value=nfv.phone) }}
+        </div>
+    </details>
+{%- endmacro %}
+
+{% macro product_entry(key, row, order) -%}
+    {% set p = "products-" ~ key ~ "-" %}{% set nfv = row.null_flavours or {} %}
+    <details class="entry" data-entry="products" data-key="{{ key }}" data-title-fields="product_name strength dosage_form" data-role-field="product_role" data-empty-title="Drug not yet named" open>
+        {{ entry_head("product", c.entry_heading("product", row)) }}
+        {{ row_hidden("products", key, row, order) }}
+        <div class="grid">
+            {{ field(p ~ "product_role", "Drug role", row.product_role or "Suspect", "choice", c.DRUG_ROLES) }}
+            {{ field(p ~ "product_name", "Medicinal product name as reported by the primary source", row.product_name, wide=True, check="suspected_product", hint="Exactly as the reporter wrote it, including any strength or brand they gave.") }}
+            <div class="f f-wide catalogue-slot">
+                <label for="{{ p }}catalogue">Company product (catalogue)</label>
+                <select id="{{ p }}catalogue" data-catalogue-picker data-src="{{ url_for('products.product_options') }}"
+                        data-hidden="{{ p }}catalogue_product_id" data-selected="{{ row.catalogue_product_id or '' }}"
+                        data-fill='{"brand_name": "{{ p }}brand_name", "generic_name": "{{ p }}generic_name", "strength": "{{ p }}strength", "dosage_form": "{{ p }}dosage_form"}'></select>
+                <input type="hidden" name="{{ p }}catalogue_product_id" value="{{ row.catalogue_product_id or '' }}">
+                <p class="f-hint">Fills the product's reusable facts into empty fields. Dose, dates, batch and expiry are never taken from the catalogue.{% if row.catalogue_version %} This drug uses catalogue version {{ row.catalogue_version }}.{% endif %}</p>
+            </div>
+            <div class="f f-wide coding-slot" data-coding="whodrug" data-for="{{ p }}product_name">
+                <label>Medicinal product (WHODrug)</label>
+                {{ coding_status(p ~ "product_name", "Coded separately from the reported name when the form is saved; dictionary identity only (strength and brand stay in their own fields).") }}
+            </div>
+            {{ field(p ~ "brand_name", "Brand name", row.brand_name, nf=True, nf_value=nfv.brand_name) }}
+            {{ field(p ~ "generic_name", "Generic name / active ingredient(s)", row.generic_name, nf=True, nf_value=nfv.generic_name) }}
+            {{ field(p ~ "strength", "Strength", row.strength, nf=True, nf_value=nfv.strength, placeholder="e.g. 500 mg") }}
+            {{ field(p ~ "dosage_form", "Pharmaceutical form", row.dosage_form, nf=True, nf_value=nfv.dosage_form, placeholder="e.g. Solution for infusion") }}
+            {{ field(p ~ "indication", "Indication as reported", row.indication, nf=True, nf_value=nfv.indication) }}
+            {{ field(p ~ "dose_value", "Dose", row.dose_value, "number", nf=True, nf_value=nfv.dose_value) }}
+            {{ field(p ~ "dose_unit", "Dose unit", row.dose_unit, placeholder="e.g. mg, mL, tablet") }}
+            {{ field(p ~ "dose", "Dosage as reported", row.dose, hint="Free text, e.g. 1 g IV over 15 minutes.") }}
+            {{ field(p ~ "frequency", "Frequency", row.frequency, nf=True, nf_value=nfv.frequency, placeholder="e.g. Once daily") }}
+            {{ field(p ~ "route", "Route of administration", row.route, nf=True, nf_value=nfv.route, placeholder="e.g. Intravenous") }}
+            {{ field(p ~ "start_text", "Treatment start", row.start_text, "date", nf=True, nf_value=nfv.start_text) }}
+            {{ field(p ~ "end_text", "Treatment stop", row.end_text, "date", nf=True, nf_value=nfv.end_text) }}
+            {{ field(p ~ "batch_number", "Batch / lot number", row.batch_number, nf=True, nf_value=nfv.batch_number) }}
+            {{ field(p ~ "expiry_date", "Expiry date", row.expiry_date, "fulldate") }}
+            {{ field(p ~ "action_taken", "Action taken with the drug", row.action_taken, "choice", c.ACTIONS_TAKEN) }}
+        </div>
+    </details>
+{%- endmacro %}
+
+{% macro reaction_entry(key, row, order) -%}
+    {% set p = "reactions-" ~ key ~ "-" %}{% set nfv = row.null_flavours or {} %}
+    <details class="entry" data-entry="reactions" data-key="{{ key }}" data-title-fields="reported_term" data-empty-title="Reaction/event not yet described" open>
+        {{ entry_head("reaction", c.entry_heading("reaction", row)) }}
+        {{ row_hidden("reactions", key, row, order) }}
+        <div class="grid">
+            {{ field(p ~ "reported_term", "Reaction/event as reported by the primary source", row.reported_term, "textarea", wide=True, check="reported_event", hint="The reporter's own words. MedDRA coding is recorded separately and never replaces this text.") }}
+            <div class="f f-wide coding-slot" data-coding="meddra" data-for="{{ p }}reported_term">
+                <label>Reaction/event (MedDRA)</label>
+                {{ coding_status(p ~ "reported_term", "Coded when the form is saved (LLT and PT with dictionary version).") }}
+            </div>
+            {{ field(p ~ "serious", "Is this reaction serious?", row.serious, "choice", c.YES_NO_UNKNOWN, check="seriousness_basis") }}
+            <fieldset class="f f-wide criteria" data-show-when="{{ p }}serious=Yes">
+                <legend>Seriousness criteria</legend>
+                {% for key2, label in c.SERIOUSNESS_CRITERIA %}
+                    <label class="check"><input type="checkbox" name="{{ p }}{{ key2 }}" {% if row[key2] %}checked{% endif %}> {{ label }}</label>
+                {% endfor %}
+            </fieldset>
+            {{ field(p ~ "outcome", "Outcome at the time of last observation", row.outcome, "choice", c.OUTCOMES, check="event_outcome") }}
+            {{ field(p ~ "medically_confirmed", "Medically confirmed by a healthcare professional?", row.medically_confirmed, "choice", c.YES_NO_UNKNOWN) }}
+            {{ field(p ~ "start_text", "Start of reaction/event", row.start_text, "date", nf=True, nf_value=nfv.start_text, check="event_onset_date") }}
+            {{ field(p ~ "end_text", "End of reaction/event", row.end_text, "date", nf=True, nf_value=nfv.end_text) }}
+            {{ value_unit(p ~ "duration_value", p ~ "duration_unit", "Duration", row.duration_value, row.duration_unit, c.DURATION_UNITS) }}
+            {{ field(p ~ "country_id", "Country where it occurred", row.country_id, "country") }}
+        </div>
+    </details>
+{%- endmacro %}
+
+{% macro history_entry(prefix, key, row, order) -%}
+    {% set p = prefix ~ "-" ~ key ~ "-" %}{% set nfv = row.null_flavours or {} %}
+    <details class="entry" data-entry="{{ prefix }}" data-key="{{ key }}" data-title-fields="condition_text" data-empty-title="Condition not yet described" open>
+        {{ entry_head("history", c.entry_heading("history", row)) }}
+        {{ row_hidden(prefix, key, row, order) }}
+        <div class="grid">
+            {{ field(p ~ "condition_text", "Disease, condition or surgical procedure (as reported)", row.condition_text, wide=True) }}
+            <div class="f f-wide coding-slot" data-coding="meddra" data-for="{{ p }}condition_text"><label>MedDRA coding</label>{{ coding_status(p ~ "condition_text", "Coded when the form is saved.") }}</div>
+            {{ field(p ~ "start_text", "Start date", row.start_text, "date", nf=True, nf_value=nfv.start_text) }}
+            {{ field(p ~ "end_text", "End date", row.end_text, "date", nf=True, nf_value=nfv.end_text) }}
+            {{ field(p ~ "continuing", "Continuing?", row.continuing, "choice", c.YES_NO_UNKNOWN) }}
+            <div class="f"><label class="check"><input type="checkbox" name="{{ p }}family_history" {% if row.family_history %}checked{% endif %}> Family history</label></div>
+            {{ field(p ~ "comments", "Medical comments", row.comments, "textarea", wide=True) }}
+        </div>
+    </details>
+{%- endmacro %}
+
+{% macro test_entry(key, row, order) -%}
+    {% set p = "tests-" ~ key ~ "-" %}{% set nfv = row.null_flavours or {} %}
+    <details class="entry" data-entry="tests" data-key="{{ key }}" data-title-fields="test_name test_date_text" data-empty-title="Test not yet named" open>
+        {{ entry_head("test", c.entry_heading("test", row)) }}
+        {{ row_hidden("tests", key, row, order) }}
+        <div class="grid">
+            {{ field(p ~ "test_name", "Test name (as reported)", row.test_name) }}
+            <div class="f coding-slot" data-coding="meddra" data-for="{{ p }}test_name"><label>Test name (MedDRA)</label>{{ coding_status(p ~ "test_name", "Coded when the form is saved.") }}</div>
+            {{ field(p ~ "test_date_text", "Test date", row.test_date_text, "date", nf=True, nf_value=nfv.test_date_text) }}
+            {{ field(p ~ "result_text", "Result", row.result_text, nf=True, nf_value=nfv.result_text) }}
+            {{ field(p ~ "result_unit", "Unit", row.result_unit) }}
+            {{ field(p ~ "normal_low", "Normal low", row.normal_low) }}
+            {{ field(p ~ "normal_high", "Normal high", row.normal_high) }}
+            {{ field(p ~ "more_info_available", "More information available?", row.more_info_available, "choice", c.YES_NO_UNKNOWN) }}
+            {{ field(p ~ "comments", "Comments", row.comments, "textarea", wide=True) }}
+        </div>
+    </details>
+{%- endmacro %}
+
+{% macro past_drug_entry(prefix, key, row, order) -%}
+    {% set p = prefix ~ "-" ~ key ~ "-" %}{% set nfv = row.null_flavours or {} %}
+    <details class="entry" data-entry="{{ prefix }}" data-key="{{ key }}" data-title-fields="drug_name" data-empty-title="Drug not yet named" open>
+        {{ entry_head("past_drug", c.entry_heading("past_drug", row)) }}
+        {{ row_hidden(prefix, key, row, order) }}
+        <div class="grid">
+            {{ field(p ~ "drug_name", "Name of drug as reported", row.drug_name, wide=True) }}
+            <div class="f f-wide coding-slot" data-coding="whodrug" data-for="{{ p }}drug_name"><label>Medicinal product (WHODrug)</label>{{ coding_status(p ~ "drug_name", "Coded when the form is saved.") }}</div>
+            {{ field(p ~ "indication_text", "Indication (as reported)", row.indication_text) }}
+            {{ field(p ~ "reaction_text", "Reaction (as reported)", row.reaction_text) }}
+            {{ field(p ~ "start_text", "Start date", row.start_text, "date", nf=True, nf_value=nfv.start_text) }}
+            {{ field(p ~ "end_text", "End date", row.end_text, "date", nf=True, nf_value=nfv.end_text) }}
+        </div>
+    </details>
+{%- endmacro %}
+
+{% macro causality_entry(key, row, order, products_rows, reactions_rows) -%}
+    {% set p = "causality-" ~ key ~ "-" %}
+    {% set product_key = row.product_ref or (("p" ~ row.case_product_id) if row.case_product_id else "") %}
+    {% set reaction_key = row.reaction_ref or (("r" ~ row.reaction_id) if row.reaction_id else "") %}
+    <details class="entry" data-entry="causality" data-key="{{ key }}" data-causality data-empty-title="Assessment not yet described" open>
+        {{ entry_head("causality", c.causality_heading(row, products_rows, reactions_rows) if row else "Assessment not yet described") }}
+        {{ row_hidden("causality", key, row, order) }}
+        <div class="grid">
+            <div class="f {% if errors.get(p ~ 'product_ref') %}f-has-error{% endif %}">
+                <label for="{{ p }}product_ref">Drug</label>
+                <select id="{{ p }}product_ref" name="{{ p }}product_ref" data-ref="products" data-selected="{{ product_key }}"><option value="">—</option></select>
+                {{ err(p ~ "product_ref") }}
+            </div>
+            <div class="f">
+                <label for="{{ p }}reaction_ref">Reaction/event</label>
+                <select id="{{ p }}reaction_ref" name="{{ p }}reaction_ref" data-ref="reactions" data-selected="{{ reaction_key }}"><option value="">—</option></select>
+            </div>
+            {{ field(p ~ "source", "Source of assessment", row.source, "choice", c.CAUSALITY_SOURCES, hint="Reporter, healthcare professional, investigator, author, company or AI draft are kept apart.") }}
+            {{ field(p ~ "method", "Method of assessment", row.method, "choice", c.CAUSALITY_METHODS) }}
+            {{ field(p ~ "result", "Result of assessment", row.result, "choice", c.CAUSALITY_RESULTS) }}
+            {{ field(p ~ "assessor", "Assessor", row.assessor) }}
+            {{ field(p ~ "assessed_on", "Assessment date", row.assessed_on, "fulldate") }}
+            {{ field(p ~ "comments", "Rationale / comments", row.comments, "textarea", wide=True) }}
+        </div>
+    </details>
+{%- endmacro %}
+
+{# ------------------------------------------------------------------ page #}
+{% block content %}
+{% set cs = case %}{% set nfc = cs.null_flavours or {} %}
+{% set parent = record.parent or {} %}{% set nfp = parent.null_flavours or {} %}
+<section class="ui-page icsr-page">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('cases.case_list') }}">Safety cases</a><span class="sep">›</span>
+        <a href="{{ url_for('cases.case_detail', case_id=cs.case_id) }}">{{ cs.case_number }}</a><span class="sep">›</span>
+        <span>ICSR form</span>
+    </nav>
+
+    <header class="ui-record-head">
+        <div>
+            <p class="kicker">Case pathway · ICSR completion</p>
+            <h1>{{ cs.case_number }} <span class="sub">ICSR form</span></h1>
+            <p class="sub">Record everything exactly as reported. Dates may be partial (2026, 2026-09 or 2026-09-16). Where a value is missing for a known reason, choose the reason instead of leaving it unexplained.</p>
+        </div>
+        <div class="ui-actions">
+            <a class="ui-btn" href="{{ url_for('cases.case_detail', case_id=cs.case_id) }}#pathway">← Back to the case</a>
+        </div>
+    </header>
+
+    {% if locked %}
+        <div class="ui-note warn">This case is in sign-off or already reported. The form is read-only until it is returned for changes.</div>
+    {% endif %}
+
+    {% if errors %}
+        <div class="ui-note bad form-problems" role="alert" id="form-problems">
+            <strong>Not saved yet: {{ errors|length }} item{{ 's' if errors|length != 1 }} to correct.</strong>
+            <ul>{% for id, message in errors.items() %}<li><a href="#{{ id }}" data-focus="{{ id }}">{{ message }}</a></li>{% endfor %}</ul>
+        </div>
+    {% endif %}
+
+    {% if checklist %}
+        {% set required = checklist|selectattr("level", "equalto", "required")|list %}
+        <details class="icsr-checklist" id="icsr-checklist" {% if required or not errors %}open{% endif %}>
+            <summary><strong>Still to complete</strong>
+                {% if required %}<span class="ui-pill warn">{{ required|length }} required</span>{% endif %}
+                {% if checklist|length > required|length %}<span class="ui-pill muted">{{ checklist|length - required|length }} recommended</span>{% endif %}
+                <span class="sub">Select an item to go straight to the field. Nothing you have typed is lost.</span>
+            </summary>
+            <ul>
+                {% for item in checklist %}
+                    <li class="lvl-{{ item.level }}" data-check-target="{{ item.target }}">
+                        <button type="button" class="link-btn" data-focus="{{ item.target }}" data-why="{{ item.why }}">
+                            <span class="sec">{{ item.section }}</span> {{ item.label }}
+                        </button>
+                        <span class="why">{{ item.why }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </details>
+    {% endif %}
+
+    <nav class="ui-jump icsr-jump" aria-label="Form sections">
+        <a href="#section-admin">A. Administrative</a>
+        <a href="#section-patient">B. Patient</a>
+        <a href="#section-drugs">C. Drugs</a>
+        <a href="#section-reactions">D. Reactions</a>
+        <a href="#section-history">E. Medical history</a>
+        <a href="#section-tests">F. Tests</a>
+        <a href="#section-pastdrugs">G. Past drugs</a>
+        <a href="#section-assessments">H. Assessments</a>
+        <a href="#section-summary">I. Summary</a>
+        <a href="#section-documents">J. Documents</a>
+    </nav>
+
+    <form method="post" id="icsr-form" data-busy="Saving the ICSR…" data-busy-detail="Saving, then checking completeness, coding and listedness again." novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="">
+        <input type="hidden" name="anchor" value="">
+        <fieldset {% if locked %}disabled{% endif %} class="icsr-fields">
+
+        {# ---------------------------------------------------- A #}
+        <details class="icsr-section" id="section-admin" open>
+            <summary><h2>A. Administrative information</h2></summary>
+            <h3>Report information</h3>
+            <div class="grid">
+                {{ field("case-icsr_report_type", "Report type", cs.icsr_report_type, "choice", c.REPORT_TYPES) }}
+                {{ field("case-case_category", "Case category (for the narrative)", cs.case_category, "choice", c.CASE_CATEGORIES) }}
+                {{ field("case-received_date", "Date report was first received (Day 0)", cs.received_date, "fulldate") }}
+                {{ field("case-most_recent_info_date", "Date of most recent information", cs.most_recent_info_date, "fulldate") }}
+                {{ field("case-expedited_criteria", "Does this case meet the local criteria for expedited reporting?", cs.expedited_criteria, "choice", c.YES_NO_UNKNOWN) }}
+                {{ field("case-expedited_jurisdiction", "Jurisdiction", cs.expedited_jurisdiction, placeholder="e.g. Uganda – NDA") }}
+                {{ field("case-expedited_basis", "Basis for the reporting decision", cs.expedited_basis, "textarea", wide=True) }}
+                {{ field("case-reporting_channel", "Reporting channel", cs.reporting_channel, placeholder="e.g. email, telephone, ADR form, MAH website") }}
+                {{ field("case-reporting_partner", "Received through partner (if any)", cs.reporting_partner) }}
+                <div class="f f-wide subgrid" data-show-when="case-case_category=Clinical trial">
+                    {{ field("case-study_identifier", "Study identifier / protocol", cs.study_identifier) }}
+                    {{ field("case-study_subject_id", "Subject / randomisation identifier", cs.study_subject_id) }}
+                    {{ field("case-study_blinded", "Is the study treatment blinded?", cs.study_blinded, "choice", c.YES_NO_UNKNOWN, hint="If Yes, narratives state that treatment remains blinded and never name the assignment.") }}
+                </div>
+                <div class="f f-wide subgrid" data-show-when="case-case_category=Literature">
+                    {{ field("case-literature_authors", "Authors", cs.literature_authors) }}
+                    {{ field("case-literature_journal", "Journal", cs.literature_journal) }}
+                    {{ field("case-literature_year", "Publication year", cs.literature_year, placeholder="e.g. 2026") }}
+                    {{ field("case-literature_title", "Article title", cs.literature_title, wide=True) }}
+                    {{ field("case-literature_doi", "DOI / PMID", cs.literature_doi) }}
+                    {{ field("case-literature_reference", "Full reference as cited (optional)", cs.literature_reference, "textarea", wide=True) }}
+                </div>
+            </div>
+            <h3>Primary source (reporter)</h3>
+            <div class="grid">
+                {{ field("case-reporter_qualification", "Qualification", cs.reporter_qualification, "choice", c.QUALIFICATIONS, nf=True, nf_value=nfc.reporter_qualification) }}
+                {{ field("case-reporter_country_id", "Country", cs.reporter_country_id, "country") }}
+                {{ field("case-reporter_title", "Title", cs.reporter_title, nf=True, nf_value=nfc.reporter_title, placeholder="e.g. Dr") }}
+                {{ field("case-reporter_given_name", "Given name", cs.reporter_given_name, nf=True, nf_value=nfc.reporter_given_name) }}
+                {{ field("case-reporter_middle_name", "Middle name", cs.reporter_middle_name) }}
+                {{ field("case-reporter_family_name", "Family name", cs.reporter_family_name, nf=True, nf_value=nfc.reporter_family_name, check="identifiable_reporter") }}
+                {{ field("case-reporter_name", "Reporter name as originally recorded", cs.reporter_name, hint="Kept as received. Filled automatically from the name parts when they are entered.") }}
+                {{ field("case-reporter_organisation", "Organisation", cs.reporter_organisation, nf=True, nf_value=nfc.reporter_organisation) }}
+                {{ field("case-reporter_email", "Email", cs.reporter_email, nf=True, nf_value=nfc.reporter_email) }}
+                {{ field("case-reporter_phone", "Telephone", cs.reporter_phone, nf=True, nf_value=nfc.reporter_phone) }}
+            </div>
+            <div class="entries" data-entries="reporters">
+                {% for row in record.reporters %}{{ reporter_entry(c.row_key("reporters", row), row, loop.index0) }}{% endfor %}
+            </div>
+            <button type="button" class="ui-btn small add-entry" data-add="reporters">+ Add primary source</button>
+        </details>
+
+        {# ---------------------------------------------------- B #}
+        <details class="icsr-section" id="section-patient" open>
+            <summary><h2>B. Patient information</h2></summary>
+            <h3>Patient characteristics</h3>
+            <div class="grid">
+                {{ field("case-patient_initials", "Name or initials", cs.patient_initials, nf=True, nf_value=nfc.patient_initials, check="minimum_patient") }}
+                {{ field("case-patient_sex", "Sex", cs.patient_sex, "choice", c.SEXES, nf=True, nf_value=nfc.patient_sex) }}
+                {{ field("case-patient_dob_text", "Date of birth", cs.patient_dob_text, "date", nf=True, nf_value=nfc.patient_dob_text) }}
+                {{ value_unit("case-patient_age_value", "case-patient_age_unit", "Age at onset of reaction/event", cs.patient_age_value, cs.patient_age_unit or "Years", c.AGE_UNITS, nf=True, nf_value=nfc.patient_age_value) }}
+                {{ field("case-patient_age_group", "Age group", cs.patient_age_group, "choice", c.AGE_GROUPS) }}
+                {{ value_unit("case-gestation_period", "case-gestation_unit", "Gestation period when the reaction was observed (foetus)", cs.gestation_period, cs.gestation_unit, c.GESTATION_UNITS) }}
+                {{ value_unit("case-patient_weight_value", "case-patient_weight_unit", "Weight", cs.patient_weight_value, cs.patient_weight_unit or "kg", c.WEIGHT_UNITS, nf=True, nf_value=nfc.patient_weight_value) }}
+                {{ value_unit("case-patient_height_value", "case-patient_height_unit", "Height", cs.patient_height_value, cs.patient_height_unit or "cm", c.HEIGHT_UNITS, nf=True, nf_value=nfc.patient_height_value) }}
+                {{ field("case-patient_lmp_text", "Date of last menstrual period", cs.patient_lmp_text, "date", nf=True, nf_value=nfc.patient_lmp_text) }}
+                {{ field("case-patient_pregnancy_status", "Pregnancy status", cs.patient_pregnancy_status, "choice", ["Yes", "No", "Not applicable", "Unknown"]) }}
+                {{ field("case-patient_ethnicity", "Ethnicity (if reported)", cs.patient_ethnicity, nf=True, nf_value=nfc.patient_ethnicity) }}
+            </div>
+            <h3>Death</h3>
+            <div class="grid">
+                {{ field("case-patient_died", "Did the patient die?", cs.patient_died, "choice", c.YES_NO_UNKNOWN) }}
+            </div>
+            <div class="grid sub-block" data-show-when="case-patient_died=Yes">
+                {{ field("case-death_date_text", "Date of death", cs.death_date_text, "date", nf=True, nf_value=nfc.death_date_text) }}
+                {{ field("case-death_reported_causes", "Reported cause(s) of death", cs.death_reported_causes, "textarea", wide=True) }}
+                {{ field("case-autopsy_done", "Was an autopsy done?", cs.autopsy_done, "choice", c.YES_NO_UNKNOWN) }}
+                {{ field("case-autopsy_causes", "Autopsy-determined cause(s) of death", cs.autopsy_causes, "textarea", wide=True) }}
+            </div>
+            <h3>Parent–child report</h3>
+            <div class="grid">
+                {{ field("case-parent_child_report", "Is this a parent–child report?", cs.parent_child_report, "choice", c.YES_NO_UNKNOWN, hint="Yes when the child or foetus had the reaction after exposure through the parent. The patient fields above then describe the child.") }}
+            </div>
+            <div class="sub-block parent-block" data-show-when="case-parent_child_report=Yes">
+                <h4>Parent</h4>
+                <div class="grid">
+                    {{ field("parent-identification", "Parent identification", parent.identification, nf=True, nf_value=nfp.identification) }}
+                    {{ field("parent-sex", "Parent sex", parent.sex, "choice", c.SEXES) }}
+                    {{ field("parent-dob_text", "Parent date of birth", parent.dob_text, "date", nf=True, nf_value=nfp.dob_text) }}
+                    {{ value_unit("parent-age_value", "parent-age_unit", "Parent age", parent.age_value, parent.age_unit or "Years", c.AGE_UNITS) }}
+                    {{ field("parent-lmp_text", "Parent last menstrual period", parent.lmp_text, "date", nf=True, nf_value=nfp.lmp_text) }}
+                    {{ value_unit("parent-weight_value", "parent-weight_unit", "Parent weight", parent.weight_value, parent.weight_unit or "kg", c.WEIGHT_UNITS) }}
+                    {{ value_unit("parent-height_value", "parent-height_unit", "Parent height", parent.height_value, parent.height_unit or "cm", c.HEIGHT_UNITS) }}
+                    {{ field("parent-medical_history_text", "Parent medical history (free text)", parent.medical_history_text, "textarea", wide=True) }}
+                    {{ field("parent-past_drugs_text", "Parent past drug history (free text)", parent.past_drugs_text, "textarea", wide=True) }}
+                </div>
+                <h4>Parent medical history (structured)</h4>
+                <div class="entries" data-entries="parent_history">
+                    {% for row in record.history if row.for_parent %}{{ history_entry("parent_history", c.row_key("parent_history", row), row, loop.index0) }}{% endfor %}
+                </div>
+                <button type="button" class="ui-btn small add-entry" data-add="parent_history">+ Add parent medical history</button>
+                <h4>Parent past drug history (structured)</h4>
+                <div class="entries" data-entries="parent_past_drugs">
+                    {% for row in record.past_drugs if row.for_parent %}{{ past_drug_entry("parent_past_drugs", c.row_key("parent_past_drugs", row), row, loop.index0) }}{% endfor %}
+                </div>
+                <button type="button" class="ui-btn small add-entry" data-add="parent_past_drugs">+ Add parent drug history</button>
+            </div>
+        </details>
+
+        {# ---------------------------------------------------- C #}
+        <details class="icsr-section" id="section-drugs" open>
+            <summary><h2>C. Drugs and medicinal products</h2><span class="count" data-count="products"></span></summary>
+            <div class="entries" data-entries="products">
+                {% for row in record.products %}{{ product_entry(c.row_key("products", row), row, loop.index0) }}{% endfor %}
+            </div>
+            <button type="button" class="ui-btn small add-entry" data-add="products">+ Add drug</button>
+        </details>
+
+        {# ---------------------------------------------------- D #}
+        <details class="icsr-section" id="section-reactions" open>
+            <summary><h2>D. Reactions / events</h2><span class="count" data-count="reactions"></span></summary>
+            <div class="entries" data-entries="reactions">
+                {% for row in record.reactions %}{{ reaction_entry(c.row_key("reactions", row), row, loop.index0) }}{% endfor %}
+            </div>
+            <button type="button" class="ui-btn small add-entry" data-add="reactions">+ Add reaction/event</button>
+
+            <h3 id="drug-reaction">Drug–reaction relationship</h3>
+            {% set saved_products = record.products|selectattr("case_product_id")|list %}
+            {% set saved_reactions = record.reactions|selectattr("reaction_id")|list %}
+            {% if saved_products and saved_reactions %}
+                <p class="f-hint">Dechallenge, rechallenge and time intervals are recorded for each drug against each reaction. New drugs or reactions appear here after saving.</p>
+                <div class="table-scroll">
+                <table class="ui-table dr-table">
+                    <thead><tr><th>Drug → reaction</th><th>Start of drug to onset</th><th>Last dose to onset</th><th>Dechallenge</th><th>Rechallenge</th></tr></thead>
+                    <tbody>
+                    {% for prod in saved_products %}{% for rx in saved_reactions %}
+                        {% set pair = (record.drug_reactions|selectattr("case_product_id", "equalto", prod.case_product_id)|selectattr("reaction_id", "equalto", rx.reaction_id)|list) %}
+                        {% set dr = pair[0] if pair else {} %}
+                        {% set k = "dr-p" ~ prod.case_product_id ~ "--r" ~ rx.reaction_id ~ "-" %}
+                        <tr>
+                            <td><strong>{{ prod.product_name }}</strong> → {{ (rx.reported_term or "")[:60] }}<input type="hidden" name="{{ k }}__pair" value="1"></td>
+                            <td class="nowrap"><input class="mini" name="{{ k }}start_interval_value" value="{{ c.form_value(dr.start_interval_value) }}" aria-label="Interval value"> <select name="{{ k }}start_interval_unit" aria-label="Unit"><option value="">—</option>{% for u in c.DURATION_UNITS %}<option {% if dr.start_interval_unit == u %}selected{% endif %}>{{ u }}</option>{% endfor %}</select></td>
+                            <td class="nowrap"><input class="mini" name="{{ k }}last_dose_interval_value" value="{{ c.form_value(dr.last_dose_interval_value) }}" aria-label="Interval value"> <select name="{{ k }}last_dose_interval_unit" aria-label="Unit"><option value="">—</option>{% for u in c.DURATION_UNITS %}<option {% if dr.last_dose_interval_unit == u %}selected{% endif %}>{{ u }}</option>{% endfor %}</select></td>
+                            <td><select name="{{ k }}dechallenge" aria-label="Dechallenge"><option value="">—</option>{% for v in c.CHALLENGE_RESULTS %}<option {% if dr.dechallenge == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></td>
+                            <td><select name="{{ k }}rechallenge" aria-label="Rechallenge"><option value="">—</option>{% for v in c.CHALLENGE_RESULTS %}<option {% if dr.rechallenge == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></td>
+                        </tr>
+                    {% endfor %}{% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            {% else %}
+                <p class="f-hint">Save at least one drug and one reaction to record dechallenge, rechallenge and time intervals.</p>
+            {% endif %}
+        </details>
+
+        {# ---------------------------------------------------- E #}
+        <details class="icsr-section" id="section-history" open>
+            <summary><h2>E. Relevant medical history</h2></summary>
+            <div class="grid">
+                {{ field("case-medical_history_reported", "Was any relevant medical history reported?", cs.medical_history_reported, "choice", c.YES_NO_UNKNOWN) }}
+                {{ field("case-medical_history", "Patient medical history (free text)", cs.medical_history, "textarea", wide=True, hint="Relevant history and concurrent conditions, not including the reaction/event itself.") }}
+                {{ field("case-patient_allergies", "Allergies (if reported)", cs.patient_allergies, "textarea", wide=True) }}
+                {{ field("case-social_history", "Social history (e.g. smoking, alcohol, occupation – if reported)", cs.social_history, "textarea", wide=True) }}
+                {{ field("case-concomitant_medicines", "Concomitant medicines as reported (free text)", cs.concomitant_medicines, "textarea", wide=True, hint="Enter each concomitant medicine as a drug in section C (role Concomitant) as well, when known.") }}
+                {{ field("case-treatment_given", "Treatment of the reaction", cs.treatment_given, "textarea", wide=True) }}
+            </div>
+            <h3>Structured medical history</h3>
+            <div class="entries" data-entries="history">
+                {% for row in record.history if not row.for_parent %}{{ history_entry("history", c.row_key("history", row), row, loop.index0) }}{% endfor %}
+            </div>
+            <button type="button" class="ui-btn small add-entry" data-add="history">+ Add medical history</button>
+        </details>
+
+        {# ---------------------------------------------------- F #}
+        <details class="icsr-section" id="section-tests" open>
+            <summary><h2>F. Tests and investigations</h2><span class="count" data-count="tests"></span></summary>
+            <p class="f-hint">Add one entry per test per date; results from different dates of the same test are kept separately.</p>
+            <div class="entries" data-entries="tests">
+                {% for row in record.tests %}{{ test_entry(c.row_key("tests", row), row, loop.index0) }}{% endfor %}
+            </div>
+            <button type="button" class="ui-btn small add-entry" data-add="tests">+ Add test result</button>
+        </details>
+
+        {# ---------------------------------------------------- G #}
+        <details class="icsr-section" id="section-pastdrugs" open>
+            <summary><h2>G. Relevant past drug history</h2><span class="count" data-count="past_drugs"></span></summary>
+            <p class="f-hint">Medicines taken before this episode (not the current suspect or concomitant medicines, which belong in section C).</p>
+            <div class="entries" data-entries="past_drugs">
+                {% for row in record.past_drugs if not row.for_parent %}{{ past_drug_entry("past_drugs", c.row_key("past_drugs", row), row, loop.index0) }}{% endfor %}
+            </div>
+            <button type="button" class="ui-btn small add-entry" data-add="past_drugs">+ Add drug history</button>
+        </details>
+
+        {# ---------------------------------------------------- H #}
+        <details class="icsr-section" id="section-assessments" open>
+            <summary><h2>H. Assessments</h2><span class="count" data-count="causality"></span></summary>
+            <h3>Causality</h3>
+            <p class="f-hint">One entry per drug–reaction pair and per source. AI-assisted drafts stay marked as drafts until a person records their own assessment.</p>
+            <div class="entries" data-entries="causality">
+                {% for row in record.causality %}{{ causality_entry(c.row_key("causality", row), row, loop.index0, record.products, record.reactions) }}{% endfor %}
+            </div>
+            <button type="button" class="ui-btn small add-entry" data-add="causality">+ Add causality assessment</button>
+            <h3>Listedness / expectedness</h3>
+            <p class="f-hint">Assessed against the reference safety information, recording the document and version used: <a href="{{ url_for('cases.case_detail', case_id=cs.case_id) }}#listedness">open the listedness assessment</a>.</p>
+        </details>
+
+        {# ---------------------------------------------------- I #}
+        <details class="icsr-section" id="section-summary" open>
+            <summary><h2>I. Case summary and comments</h2></summary>
+            <div class="grid">
+                {{ field("case-case_narrative", "Case narrative", cs.case_narrative, "textarea", wide=True, hint="Generate a controlled draft from the recorded facts, review it and mark it reviewed on the narrative page. Changes typed here are kept as a new narrative version.") }}
+                <p class="f f-wide"><a class="ui-btn" href="{{ url_for('cases.case_narrative', case_id=cs.case_id) }}">Open the narrative page (generate, compare versions, review) →</a></p>
+                {{ field("case-reporter_comments", "Reporter's comments", cs.reporter_comments, "textarea", wide=True) }}
+                {{ field("case-company_diagnosis", "Company's diagnosis / diagnostic interpretation", cs.company_diagnosis, "textarea", wide=True) }}
+                {{ field("case-company_comments", "Company's comments", cs.company_comments, "textarea", wide=True) }}
+                {{ field("case-linked_case_refs", "Linked / associated case references", cs.linked_case_refs, "textarea", wide=True, hint="One per line, e.g. duplicate or parent–child case numbers.") }}
+            </div>
+        </details>
+
+        {# ---------------------------------------------------- J #}
+        <details class="icsr-section" id="section-documents" open>
+            <summary><h2>J. Documents, review and reporting</h2></summary>
+            <ul class="j-links">
+                <li><a href="{{ url_for('cases.case_detail', case_id=cs.case_id) }}#attachments">Source documents and additional attachments</a></li>
+                <li><a href="{{ url_for('cases.case_detail', case_id=cs.case_id) }}#approval">Review and approval</a></li>
+                <li><a href="{{ url_for('case_reports.download_adr_report', case_id=cs.case_id) }}">Download the case report (Word)</a></li>
+            </ul>
+        </details>
+        </fieldset>
+
+        {% if not locked %}
+        <div class="icsr-savebar">
+            <span class="sub" id="unsaved-note" hidden>Unsaved changes</span>
+            <button class="ui-btn" type="submit" data-next="stay">Save and keep editing</button>
+            <button class="ui-btn primary" type="submit" data-next="case">Save and return to the case</button>
+        </div>
+        {% endif %}
+    </form>
+
+    {# Templates for new entries (key __KEY__ is replaced when added) #}
+    <template id="tpl-reporters">{{ reporter_entry("__KEY__", {}, 0) }}</template>
+    <template id="tpl-products">{{ product_entry("__KEY__", {}, 0) }}</template>
+    <template id="tpl-reactions">{{ reaction_entry("__KEY__", {}, 0) }}</template>
+    <template id="tpl-history">{{ history_entry("history", "__KEY__", {}, 0) }}</template>
+    <template id="tpl-parent_history">{{ history_entry("parent_history", "__KEY__", {}, 0) }}</template>
+    <template id="tpl-tests">{{ test_entry("__KEY__", {}, 0) }}</template>
+    <template id="tpl-past_drugs">{{ past_drug_entry("past_drugs", "__KEY__", {}, 0) }}</template>
+    <template id="tpl-parent_past_drugs">{{ past_drug_entry("parent_past_drugs", "__KEY__", {}, 0) }}</template>
+    <template id="tpl-causality">{{ causality_entry("__KEY__", {}, 0, [], []) }}</template>
+</section>
+
+<style>
+    .icsr-page { max-width: 1180px; }
+    .icsr-page [hidden] { display: none !important; }
+    .icsr-page .ui-record-head h1 .sub { font-size: 15px; font-weight: 700; }
+    .icsr-jump { position: sticky; top: 0; z-index: 5; }
+    .icsr-fields { margin: 0; padding: 0; border: 0; min-width: 0; }
+    .icsr-section { margin: 0 0 16px; padding: 4px 18px 16px; border: 2px solid #b9d3c5; border-left: 7px solid var(--forest, #0b3d2c); border-radius: 14px; background: #fff; }
+    .icsr-section > summary { display: flex; align-items: center; gap: 10px; padding: 12px 0; cursor: pointer; list-style: none; }
+    .icsr-section > summary::-webkit-details-marker { display: none; }
+    .icsr-section > summary h2 { margin: 0; font-size: 17px; color: #183d34; }
+    .icsr-section > summary::after { content: "▾"; margin-left: auto; color: #526a5f; }
+    .icsr-section:not([open]) > summary::after { content: "▸"; }
+    .icsr-section .count { padding: 2px 9px; border-radius: 99px; background: #eaf3ee; color: #145a40; font-size: 11.5px; font-weight: 800; }
+    .icsr-section h3 { margin: 14px 0 8px; padding-top: 10px; border-top: 1px dashed #dce8e1; font-size: 13.5px; color: #145a40; text-transform: uppercase; letter-spacing: .4px; }
+    .icsr-section h4 { margin: 12px 0 6px; font-size: 13px; color: #183d34; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px 16px; }
+    .f { min-width: 0; }
+    .f-wide { grid-column: 1 / -1; }
+    .vu { display: flex; gap: 6px; }
+    .vu input { flex: 1 1 auto; min-width: 0; }
+    .vu select { flex: 0 0 auto; width: auto !important; min-width: 84px; }
+    .f > label, .f legend { display: block; margin-bottom: 4px; color: #3f544d; font-size: 12px; font-weight: 800; }
+    .f input[type=text], .f input[type=date], .f select, .f textarea { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #cfe0d6; border-radius: 8px; background: #fff; font: inherit; font-size: 13px; color: #183d34; }
+    .f textarea { min-height: 64px; resize: vertical; }
+    .f select.nf { margin-top: 4px; padding: 3px 6px; border-style: dashed; color: #71817a; font-size: 11.5px; }
+    .f select.nf.is-set { border-style: solid; border-color: #c9a227; background: #fffbea; color: #6b4a0c; }
+    .f.has-nf input, .f.has-nf textarea { background: #f7f7f2; color: #8a8a7a; }
+    .f-hint { margin: 4px 0 0; color: #71817a; font-size: 11.5px; line-height: 1.4; }
+    .f-error { margin: 4px 0 0; color: #a3392b; font-size: 12px; font-weight: 700; }
+    .f-has-error input, .f-has-error select, .f-has-error textarea { border-color: #d9826f; background: #fff6f4; }
+    .check { display: inline-flex; gap: 6px; align-items: center; margin: 2px 14px 2px 0; font-size: 13px; font-weight: 600; color: #27483b; }
+    fieldset.criteria { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 2px 12px; margin: 0; padding: 8px 10px; border: 1px dashed #e1c27a; border-radius: 9px; background: #fffcf2; }
+    fieldset.criteria[hidden] { display: none; }
+    .sub-block { margin-top: 8px; padding: 10px 12px; border-left: 4px solid #cfe0d6; background: #f8fbf9; border-radius: 8px; }
+    .entries { display: grid; gap: 10px; margin: 8px 0; }
+    .entry { border: 2px solid #cfe0d6; border-radius: 12px; background: #fbfdfc; }
+    .entry > summary { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; list-style: none; border-bottom: 1px solid transparent; }
+    .entry[open] > summary { border-bottom-color: #e3eee8; background: #f1f8f4; border-radius: 10px 10px 0 0; }
+    .entry > summary::-webkit-details-marker { display: none; }
+    .entry-title { font-weight: 900; color: #183d34; font-size: 13.5px; }
+    .entry-title.is-empty { color: #8a9a92; font-style: italic; font-weight: 700; }
+    .entry-sub { color: #71817a; font-size: 12px; }
+    .entry-remove { margin-left: auto; padding: 4px 9px; border: 1px solid #efc2ba; border-radius: 7px; background: #fff; color: #a3392b; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .entry > .grid { padding: 12px; }
+    .entry.is-removed { opacity: .55; }
+    .entry.is-removed > .grid { display: none; }
+    .entry.is-removed .entry-title { text-decoration: line-through; }
+    .coding-slot .coding-status { margin: 0; padding: 7px 9px; border: 1px dashed #cfe0d6; border-radius: 8px; color: #71817a; font-size: 12px; background: #fff; }
+    .dr-table td { vertical-align: middle; }
+    .dr-table .mini { width: 64px; padding: 5px 7px; border: 1px solid #cfe0d6; border-radius: 7px; }
+    .dr-table select { padding: 5px 7px; border: 1px solid #cfe0d6; border-radius: 7px; max-width: 220px; }
+    .table-scroll { overflow-x: auto; }
+    .j-links { margin: 0; padding-left: 18px; line-height: 1.9; }
+    .j-links a { color: #145a40; font-weight: 700; text-decoration: none; }
+    .icsr-savebar { position: sticky; bottom: 0; z-index: 6; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; align-items: center; margin: 8px 0 24px; padding: 10px 12px; border: 2px solid #b9d3c5; border-radius: 12px; background: rgba(255, 255, 255, .97); box-shadow: 0 -6px 18px rgba(11, 61, 44, .08); }
+    .form-problems { margin-bottom: 12px; }
+    .form-problems ul { margin: 6px 0 0; padding-left: 18px; }
+    .form-problems a { color: #8a1f17; font-weight: 700; text-decoration: none; }
+    .field-flash { animation: field-flash 2.6s ease-out 1; border-radius: 8px; }
+    .field-flash > label { font-weight: 900 !important; color: #8a1f17 !important; }
+    @keyframes field-flash { 0% { background: #ffe9a8; box-shadow: 0 0 0 6px #ffe9a8; } 100% { background: transparent; box-shadow: none; } }
+    .subgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 14px; }
+    .subgrid > .f-wide { grid-column: 1 / -1; }
+    .icsr-checklist { margin: 0 0 14px; padding: 10px 14px; border: 1px solid #f0d9a8; border-radius: 10px; background: #fffaf0; }
+    .icsr-checklist summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .icsr-checklist ul { margin: 10px 0 0; padding: 0; list-style: none; max-height: 320px; overflow: auto; }
+    .icsr-checklist li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 5px 0; border-top: 1px solid #f5e7c8; }
+    .icsr-checklist li.lvl-required .link-btn { font-weight: 800; }
+    .icsr-checklist li.is-filled .link-btn { text-decoration: line-through; color: #6b7d75; }
+    .icsr-checklist li.is-filled::after { content: "filled – save to confirm"; font-size: 11px; color: #176247; }
+    .icsr-checklist li.not-found::after { content: "add the entry first"; font-size: 11px; color: #9b2c2c; }
+    .icsr-checklist .why { font-size: 12px; color: #6b5a3a; }
+    .icsr-checklist .sec { display: inline-block; min-width: 116px; font-size: 11px; color: #8a6a2a; font-weight: 700; }
+    .link-btn { background: none; border: 0; padding: 0; color: #145a40; cursor: pointer; text-align: left; font: inherit; font-size: 13px; text-decoration: underline; }
+    .coding-status .ui-pill { margin-right: 4px; }
+    .coding-status code { background: #eef6f1; padding: 0 4px; border-radius: 4px; font-size: 11px; }
+    .coding-status .coding-msg { display: block; margin-top: 3px; color: #8a5a10; }
+    .coding-status a { margin-left: 6px; font-weight: 700; color: #145a40; }
+    .coding-slot .coding-status.is-coded { border-style: solid; border-color: #bfe3cf; color: #2c4a3d; }
+    .focus-note { margin: 6px 0 0; padding: 6px 9px; border-radius: 7px; background: #fff3cf; color: #6b4a0c; font-size: 12px; font-weight: 700; }
+    @media (max-width: 640px) {
+        .icsr-section { padding: 2px 12px 12px; }
+        .grid { grid-template-columns: 1fr; }
+        .icsr-savebar { justify-content: stretch; }
+        .icsr-savebar .ui-btn { flex: 1 1 auto; text-align: center; }
+    }
+</style>
+<script>
+(function () {
+    var form = document.getElementById("icsr-form");
+    var counter = 0;
+
+    // ---- headings follow what is typed -----------------------------
+    function entryTitle(entry) {
+        var fields = (entry.dataset.titleFields || "").split(" ").filter(Boolean);
+        var key = entry.dataset.key, prefix = entry.dataset.entry;
+        var parts = fields.map(function (name) {
+            var el = form.querySelector('[name="' + prefix + "-" + key + "-" + name + '"]');
+            return el ? el.value.trim() : "";
+        }).filter(Boolean);
+        var title = parts.join(" · ");
+        if (entry.dataset.roleField) {
+            var role = form.querySelector('[name="' + prefix + "-" + key + "-" + entry.dataset.roleField + '"]');
+            if (title && role && role.value) title += " · " + role.value;
+        }
+        if (entry.hasAttribute("data-causality")) {
+            var d = entry.querySelector('[data-ref="products"]'), r = entry.querySelector('[data-ref="reactions"]');
+            var res = form.querySelector('[name="causality-' + key + '-result"]'), src = form.querySelector('[name="causality-' + key + '-source"]');
+            var pair = [d && d.selectedIndex > 0 ? d.options[d.selectedIndex].text : "", r && r.selectedIndex > 0 ? r.options[r.selectedIndex].text : ""].filter(Boolean).join(" → ");
+            title = pair ? pair + (res && res.value ? ": " + res.value : "") + (src && src.value ? " (" + src.value + ")" : "") : "";
+        }
+        if (title.length > 90) title = title.slice(0, 90) + "…";
+        var span = entry.querySelector("[data-entry-title]");
+        span.textContent = title || entry.dataset.emptyTitle;
+        span.classList.toggle("is-empty", !title);
+        return title;
+    }
+    function allTitles() { form.querySelectorAll("details.entry").forEach(entryTitle); refreshRefs(); counts(); }
+
+    // ---- causality drug / reaction choices follow the cards ----------
+    function refreshRefs() {
+        ["products", "reactions"].forEach(function (kind) {
+            var options = [];
+            form.querySelectorAll('details.entry[data-entry="' + kind + '"]:not(.is-removed)').forEach(function (entry) {
+                options.push([entry.dataset.key, entry.querySelector("[data-entry-title]").textContent]);
+            });
+            form.querySelectorAll('select[data-ref="' + kind + '"]').forEach(function (select) {
+                var want = select.value || select.dataset.selected || "";
+                select.innerHTML = '<option value="">—</option>';
+                options.forEach(function (o) {
+                    var opt = document.createElement("option");
+                    opt.value = o[0]; opt.textContent = o[1];
+                    if (o[0] === want) opt.selected = true;
+                    select.appendChild(opt);
+                });
+                select.dataset.selected = want;
+            });
+        });
+    }
+    function counts() {
+        form.querySelectorAll("[data-count]").forEach(function (el) {
+            var n = form.querySelectorAll('details.entry[data-entry="' + el.dataset.count + '"]:not(.is-removed)').length;
+            el.textContent = n ? n : "";
+            el.hidden = !n;
+        });
+    }
+
+    // ---- add / remove entries ---------------------------------------
+    document.querySelectorAll("[data-add]").forEach(function (button) {
+        button.addEventListener("click", function () {
+            var kind = button.dataset.add;
+            var tpl = document.getElementById("tpl-" + kind);
+            var key = "n" + (++counter) + Date.now().toString(36).slice(-3);
+            var html = tpl.innerHTML.split("__KEY__").join(key);
+            var box = form.querySelector('[data-entries="' + kind + '"]');
+            box.insertAdjacentHTML("beforeend", html);
+            var entry = box.lastElementChild;
+            entry.querySelector(".row-order").value = box.children.length - 1;
+            wire(entry);
+            if (window.setupCataloguePickers) window.setupCataloguePickers(entry);
+            allTitles();
+            var first = entry.querySelector("input[type=text], textarea, select:not(.nf)");
+            entry.scrollIntoView({ block: "center" });
+            if (first) first.focus({ preventScroll: true });
+            markDirty();
+        });
+    });
+    function wire(root) {
+        root.querySelectorAll("[data-remove-entry]").forEach(function (b) {
+            b.addEventListener("click", function (e) {
+                e.preventDefault(); e.stopPropagation();
+                var entry = b.closest("details.entry");
+                var removed = !entry.classList.contains("is-removed");
+                entry.classList.toggle("is-removed", removed);
+                entry.querySelector(".row-remove").value = removed ? "1" : "0";
+                b.textContent = removed ? "Undo remove" : "Remove";
+                refreshRefs(); counts(); markDirty();
+            });
+        });
+        root.querySelectorAll("select.nf").forEach(function (s) {
+            function show() { s.classList.toggle("is-set", !!s.value); s.closest(".f").classList.toggle("has-nf", !!s.value); }
+            s.addEventListener("change", show); show();
+        });
+        conditional(root);
+    }
+
+    // ---- conditional parts (seriousness criteria, death, parent) ----
+    function conditional(root) {
+        (root || document).querySelectorAll("[data-show-when]").forEach(function (block) {
+            var rule = block.dataset.showWhen.split("="), name = rule[0], wanted = rule[1];
+            var input = form.querySelector('[name="' + name + '"]');
+            if (!input) return;
+            function apply() { block.hidden = input.value !== wanted; }
+            input.addEventListener("change", apply); apply();
+        });
+    }
+
+    form.addEventListener("input", function (e) {
+        var entry = e.target.closest("details.entry");
+        if (entry) { entryTitle(entry); if (entry.dataset.entry === "products" || entry.dataset.entry === "reactions") refreshRefs(); }
+        markDirty();
+    });
+    form.addEventListener("change", function (e) {
+        var entry = e.target.closest("details.entry");
+        if (entry) { entryTitle(entry); refreshRefs(); }
+        markDirty();
+    });
+
+    // ---- unsaved changes are kept: warn before leaving --------------
+    var dirty = false;
+    function markDirty() { dirty = true; var n = document.getElementById("unsaved-note"); if (n) n.hidden = false; }
+    window.addEventListener("beforeunload", function (e) { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+    form.addEventListener("submit", function (e) {
+        dirty = false;
+        var which = e.submitter && e.submitter.dataset.next;
+        form.querySelector('[name="next"]').value = which === "stay" ? "stay" : "";
+    });
+
+    // ---- open, scroll to and highlight a field ----------------------
+    var CHECKS = {{ c.CHECK_FIELDS|tojson }};
+    function resolve(target) {
+        if (!target) return null;
+        if (CHECKS[target]) target = CHECKS[target];
+        if (target.indexOf("first:") === 0) {
+            var parts = target.slice(6).split("-"), kind = parts[0], name = parts.slice(1).join("-");
+            var entry = form.querySelector('details.entry[data-entry="' + kind + '"]:not(.is-removed)');
+            if (!entry) { var add = document.querySelector('[data-add="' + kind + '"]'); if (add) add.click(); entry = form.querySelector('details.entry[data-entry="' + kind + '"]'); }
+            return entry ? form.querySelector('[name="' + kind + "-" + entry.dataset.key + "-" + name + '"]') : null;
+        }
+        return document.getElementById(target) || form.querySelector('[name="' + target + '"]') || form.querySelector('[data-check="' + target + '"]');
+    }
+    window.focusIcsrField = function (target, message) {
+        var el = resolve(target);
+        if (!el) return false;
+        for (var n = el; n; n = n.parentElement) { if (n.tagName === "DETAILS") n.open = true; if (n.hidden) n.hidden = false; }
+        el.scrollIntoView({ block: "center" });
+        try { el.focus({ preventScroll: true }); } catch (err) {}
+        var box = el.closest(".f") || el.parentElement;
+        box.classList.remove("field-flash"); void box.offsetWidth; box.classList.add("field-flash");
+        if (message) {
+            var old = box.querySelector(".focus-note"); if (old) old.remove();
+            var note = document.createElement("p"); note.className = "focus-note"; note.textContent = message; box.appendChild(note);
+        }
+        return true;
+    };
+    document.querySelectorAll("[data-focus]").forEach(function (a) {
+        a.addEventListener("click", function (e) {
+            e.preventDefault();
+            if (!window.focusIcsrField(a.dataset.focus, a.dataset.why)) {
+                var li = a.closest("li"); if (li) li.classList.add("not-found");
+            }
+        });
+    });
+    // Tick checklist items off as they are filled in (until the form is saved).
+    document.querySelectorAll("[data-check-target]").forEach(function (li) {
+        var t = CHECKS[li.dataset.checkTarget] || li.dataset.checkTarget;
+        if (t.indexOf("first:") === 0) return;  // never add entries just to watch them
+        var el = resolve(t);
+        if (!el) return;
+        var box = el.closest(".f") || el.parentElement;
+        function update() {
+            var nf = box.querySelector("select.nf");
+            li.classList.toggle("is-filled", !!(el.value && el.value.trim()) || !!(nf && nf.value));
+        }
+        box.addEventListener("input", update); box.addEventListener("change", update);
+    });
+
+    wire(document);
+    allTitles();
+    var focus = {{ focus|tojson }};
+    var focusMessage = new URLSearchParams(location.search).get("why");
+    if (focus) setTimeout(function () { window.focusIcsrField(focus, focusMessage); }, 50);
+    else if (document.getElementById("form-problems")) document.getElementById("form-problems").scrollIntoView({ block: "start" });
+})();
+</script>
+{% endblock %}

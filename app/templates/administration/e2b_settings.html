@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}E2B settings | {{ company.platform_name }}{% endblock %}
+{% block page_title %}E2B settings{% endblock %}
+
+{% block content %}
+<section class="ui-page" style="max-width: 1100px;">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('administration.user_list') }}">Administration</a><span class="sep">›</span><span>E2B settings</span>
+    </nav>
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Administration</p>
+            <h1>E2B export settings</h1>
+            <p>Who the files come from, who they are for and the extra rules each recipient applies. The platform only makes files; it does not transmit them.</p>
+        </div>
+    </header>
+
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <section class="ui-card e2b-set">
+            <h2>Sender (your organisation)</h2>
+            <div class="grid">
+                <label>Sender identifier <span class="sub">as registered with the recipient</span>
+                    <input type="text" name="sender_identifier" value="{{ settings.sender_identifier }}" maxlength="60" placeholder="e.g. APDL-UG"></label>
+                <label>Sender type
+                    <select name="sender_type">{% for code, label in sender_types %}<option value="{{ code }}" {% if code == settings.sender_type %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+                <label>Organisation name <span class="sub">blank = company legal name</span>
+                    <input type="text" name="sender_organisation" value="{{ settings.sender_organisation }}" maxlength="100" placeholder="{{ company.legal_name }}"></label>
+                <label>Department
+                    <input type="text" name="sender_department" value="{{ settings.sender_department }}" maxlength="60" placeholder="{{ company.department }}"></label>
+                <label>Country (ISO 2-letter)
+                    <input type="text" name="sender_country" value="{{ settings.sender_country }}" maxlength="2" placeholder="UG"></label>
+            </div>
+        </section>
+
+        <section class="ui-card e2b-set">
+            <h2>Recipients</h2>
+            <input type="hidden" name="recipient_count" value="{{ settings.recipients|length }}">
+            <table class="ui-table">
+                <thead><tr><th>Name</th><th>Receiver identifier</th><th>Formats</th><th>Rules</th><th></th></tr></thead>
+                <tbody>
+                {% for r in settings.recipients + [{"key": "", "name": "", "identifier": "", "versions": ["R3"]}] %}
+                    {% set i = loop.index0 %}
+                    <tr>
+                        <td><input type="hidden" name="r{{ i }}-key" value="{{ r.key }}"><input type="text" name="r{{ i }}-name" value="{{ r.name }}" placeholder="{{ 'Add a recipient' if not r.name else '' }}" maxlength="100"></td>
+                        <td><input type="text" name="r{{ i }}-identifier" value="{{ r.identifier }}" maxlength="60"></td>
+                        <td>{% for v in ("R3", "R2") %}<label class="inline"><input type="checkbox" name="r{{ i }}-{{ v }}" value="1" {% if v in (r.versions or []) %}checked{% endif %}> {{ v }}</label>{% endfor %}</td>
+                        <td>{% for key, label in rules %}<label class="rule"><input type="checkbox" name="r{{ i }}-{{ key }}" value="1" {% if r.get(key, key in ('require_all_reactions_meddra', 'require_most_recent_date')) %}checked{% endif %}> {{ label }}</label>{% endfor %}</td>
+                        <td>{% if r.name %}<label class="inline"><input type="checkbox" name="r{{ i }}-remove" value="1"> Remove</label>{% endif %}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+                        <p class="sub">The identifiers and rules come from each recipient's own E2B guidance. Check them with the recipient before the first submission.</p>
+        </section>
+
+        <section class="ui-card e2b-set">
+            <h2>Official schema files (optional, recommended)</h2>
+            <p>To have every file validated against the official ICH schema, copy the schema files into this folder on the server, then refresh this page:</p>
+            <p><code>{{ schema_dir }}\r3\</code> – the ICH E2B(R3) XML schemas (the folder containing <code>MCCI_IN200100UV01.xsd</code>, usually <code>multicacheschemas</code>)<br>
+               <code>{{ schema_dir }}\r2\</code> – the E2B(R2) DTD (<code>ich-icsr-v2.1.dtd</code> or the recipient's version)</p>
+            <p>E2B(R3): {% if schemas.R3 %}<span class="ui-pill good">installed</span> {{ schemas.R3.name }}{% else %}<span class="ui-pill muted">not installed</span>{% endif %} ·
+               E2B(R2): {% if schemas.R2 %}<span class="ui-pill good">installed</span> {{ schemas.R2.name }}{% else %}<span class="ui-pill muted">not installed</span>{% endif %}</p>
+            <p class="sub">Without them, files are checked with the platform's built-in rules only and are labelled “Checked”, not “Schema-validated”.</p>
+        </section>
+
+        <div class="e2b-actions">
+            <a class="ui-btn" href="{{ url_for('administration.user_list') }}">Cancel</a>
+            <button class="ui-btn primary" type="submit">Save settings</button>
+        </div>
+    </form>
+</section>
+<style>
+    .e2b-set { margin-bottom: 14px; }
+    .e2b-set .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+    .e2b-set .grid label { font-size: 12px; font-weight: 800; color: #4a5b54; }
+    .e2b-set .grid input, .e2b-set .grid select { display: block; width: 100%; margin-top: 4px; }
+    .e2b-set td input[type=text] { width: 100%; }
+    .e2b-set label.inline { margin-right: 10px; white-space: nowrap; }
+    .e2b-set label.rule { display: block; font-size: 12px; }
+    .e2b-actions { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 20px; }
+</style>
+{% endblock %}

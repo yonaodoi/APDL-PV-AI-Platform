@@ -103,6 +103,13 @@
         </section>
 
         <section class="settings-card">
+            <h2>QPPV processing a case alone</h2>
+            <p>When this is on, the QPPV (or the designated QPPV) can take a case through every step on their own: complete it, send it for review, review it, approve it, review the narrative and record the submission. Each step the QPPV takes alone is marked as such in the case history and audit trail.</p>
+            <label class="check-line"><input type="checkbox" name="qppv_end_to_end" {% if settings.qppv_end_to_end %}checked{% endif %}> Allow the QPPV to process a case from beginning to end</label>
+            <div class="hint">When this is off, the usual rule applies: whoever sent a case cannot review it, and whoever reviewed it cannot approve it.</div>
+        </section>
+
+        <section class="settings-card">
             <h2>Step 1: Review</h2>
             <p>The first sign-off after the PV Officer sends a case.</p>
             <div class="settings-grid">

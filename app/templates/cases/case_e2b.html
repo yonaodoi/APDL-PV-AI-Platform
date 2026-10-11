@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}E2B export {{ case.case_number }} | {{ company.platform_name }}{% endblock %}
+{% block page_title %}E2B XML export{% endblock %}
+
+{% block content %}
+<section class="ui-page" style="max-width: 1100px;">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('cases.case_list') }}">Safety cases</a><span class="sep">›</span>
+        <a href="{{ url_for('cases.case_detail', case_id=case.case_id) }}">{{ case.case_number }}</a><span class="sep">›</span>
+        <span>E2B export</span>
+    </nav>
+
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Case pathway · Reporting</p>
+            <h1>E2B XML for {{ case.case_number }}</h1>
+            <p>Make an ICH E2B(R3) or E2B(R2) file from the ICSR record. The file is checked before it is saved; every export is kept as a numbered version. <strong>Nothing is sent from here.</strong> Submit the file through your usual gateway and record the submission date on the case.</p>
+        </div>
+        <div class="actions"><a href="{{ url_for('cases.case_detail', case_id=case.case_id) }}#pathway">← Back to the case</a></div>
+    </header>
+
+    <form method="get" class="ui-card e2b-choose">
+        <label>Format
+            <select name="version" onchange="this.form.submit()">
+                {% for v in ("R3", "R2") %}<option value="{{ v }}" {% if v == version %}selected{% endif %}>E2B({{ v }})</option>{% endfor %}
+            </select>
+        </label>
+        <label>Recipient
+            <select name="recipient" onchange="this.form.submit()">
+                {% for r in settings.recipients %}<option value="{{ r.key }}" {% if r.key == recipient_key %}selected{% endif %}>{{ r.name }}{% if r.identifier %} ({{ r.identifier }}){% endif %}</option>{% endfor %}
+            </select>
+        </label>
+        <noscript><button class="ui-btn" type="submit">Check</button></noscript>
+        <p class="sub">Sender: <strong>{{ settings.sender_identifier or "not set" }}</strong> ·
+            Official schema: {% if schemas[version] %}<span class="ui-pill good">installed ({{ schemas[version].name }})</span>{% else %}<span class="ui-pill muted">not installed – built-in checks only</span>{% endif %}
+            {% if session.get('role') == 'System Administrator' %} · <a href="{{ url_for('e2b_admin.settings') }}">E2B settings</a>{% endif %}</p>
+    </form>
+
+    <section class="ui-card e2b-check">
+        <h2>Check before making the file</h2>
+        {% if not issues %}
+            <p class="ui-note">No problems found for E2B({{ version }}) to {{ recipient_cfg.name if recipient_cfg else "this recipient" }}.</p>
+        {% else %}
+            {% if errors %}<p><span class="ui-pill bad">{{ errors|length }} to correct</span> A file made now is saved as a <strong>draft</strong> and must not be submitted.</p>{% endif %}
+            {% if warnings %}<p><span class="ui-pill warn">{{ warnings|length }} to check</span></p>{% endif %}
+            <ul class="e2b-issues">
+                {% for i in errors + warnings %}
+                    <li class="lvl-{{ i.level }}">
+                        <span class="ui-pill {{ 'bad' if i.level == 'error' else 'warn' }}">{{ 'Correct' if i.level == 'error' else 'Check' }}</span>
+                        {% if i.link %}<a href="{{ i.link }}">{{ i.message }} →</a>{% else %}{{ i.message }}{% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        <form method="post" action="{{ url_for('cases.generate_e2b', case_id=case.case_id) }}" data-busy="Making the E2B file…" data-busy-detail="Writing the XML and checking it.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="version" value="{{ version }}">
+            <input type="hidden" name="recipient" value="{{ recipient_key }}">
+            <button class="ui-btn primary" type="submit">{% if errors %}Make a draft file{% else %}Make the E2B({{ version }}) file{% endif %}</button>
+        </form>
+    </section>
+
+    <section class="ui-card" id="exports">
+        <h2>Files made for this case</h2>
+        {% if exports %}
+        <table class="ui-table">
+            <thead><tr><th>Version</th><th>Format / recipient</th><th>Status</th><th>Dictionaries</th><th>Made</th><th></th></tr></thead>
+            <tbody>
+            {% for x in exports %}
+                <tr>
+                    <td>v{{ x.export_version }}<div class="sub">msg {{ x.message_number }}</div></td>
+                    <td>E2B({{ x.e2b_version }})<div class="sub">{{ x.recipient_name }}</div></td>
+                    <td>
+                        {% if x.status == 'Validated' %}<span class="ui-pill good">Schema-validated</span>
+                        {% elif x.status == 'Checked' %}<span class="ui-pill info">Checked (built-in rules)</span>
+                        {% else %}<span class="ui-pill bad">Draft – not for submission</span>{% endif %}
+                        {% set n_err = x.issues|selectattr("level", "equalto", "error")|list|length %}
+                        {% if n_err %}<div class="sub">{{ n_err }} problem(s) when made</div>{% endif %}
+                    </td>
+                    <td class="sub">{% if x.meddra_version %}MedDRA {{ x.meddra_version }}{% endif %}{% if x.whodrug_version %}<br>WHODrug {{ x.whodrug_version }}{% endif %}</td>
+                    <td>{{ x.created_at|when }}<div class="sub">{{ x.created_by_name or "" }}</div></td>
+                    <td><a class="ui-btn small" href="{{ url_for('cases.download_e2b', case_id=case.case_id, export_id=x.export_id) }}">Download XML</a></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <p class="sub">“Schema-validated” and “Checked” describe this platform's checks only. Acceptance is decided by the recipient's system when the file is submitted.</p>
+        {% else %}
+            <p class="sub">No E2B file has been made for this case yet.</p>
+        {% endif %}
+    </section>
+</section>
+<style>
+    .e2b-choose { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: flex-end; margin-bottom: 14px; }
+    .e2b-choose label { font-size: 12px; font-weight: 800; color: #4a5b54; }
+    .e2b-choose select { display: block; margin-top: 4px; min-width: 220px; }
+    .e2b-choose p { flex: 1 1 100%; margin: 0; }
+    .e2b-check, #exports { margin-bottom: 14px; }
+    .e2b-issues { list-style: none; margin: 8px 0 14px; padding: 0; }
+    .e2b-issues li { padding: 6px 0; border-top: 1px solid #eef3f0; font-size: 13.5px; }
+    .e2b-issues .ui-pill { margin-right: 8px; }
+</style>
+{% endblock %}

@@ -53,6 +53,19 @@
         {% if uncertain_fields %}
             <p class="uncertain-fields"><strong>Review these fields carefully:</strong> {{ uncertain_fields|join(", ") }}</p>
         {% endif %}
+        {% if intake_proposal %}
+            <p>Report {{ intake_proposal.seq }}{% if intake_proposal.label %} – {{ intake_proposal.label }}{% endif %}{% if intake_proposal.pages %} · page(s) {{ intake_proposal.pages|join(", ") }}{% endif %}.
+               Only this report's text was used.
+               <a href="{{ url_for('cases.intake_file', document_id=intake_proposal.document_id) }}" target="_blank" rel="noopener">Open the original document</a>
+               · <a href="{{ url_for('cases.intake_document', document_id=intake_proposal.document_id) }}#report-{{ intake_proposal.proposal_id }}">All reports in this document</a></p>
+            {% for flag in intake_proposal.flags %}{% if not flag.startswith('AI:') %}<p class="uncertain-fields">{{ flag }}</p>{% endif %}{% endfor %}
+            {% if intake_proposal.duplicate_cases %}
+                <p class="uncertain-fields"><strong>Possible duplicate of:</strong>
+                {% for d in intake_proposal.duplicate_cases %}<a href="{{ url_for('cases.case_detail', case_id=d.case_id) }}" target="_blank" rel="noopener">{{ d.case_number }}</a> ({{ d.reasons|join(' ') }}){% if not loop.last %}; {% endif %}{% endfor %}.
+                If it is the same patient and event, go back and link this report as follow-up instead.</p>
+            {% endif %}
+            <details class="intake-source"><summary>Show the source text for this report</summary><pre>{{ intake_proposal.segment_text }}</pre></details>
+        {% endif %}
     </section>
 {% endif %}
 
@@ -66,8 +79,22 @@
 {% endif %}
 
 <div class="layout">
-    <form id="safety-case-form" method="post" {% if extraction_filename is defined and extraction_filename %}action="{{ url_for('cases.create_case') }}"{% endif %} {% if not editing %}data-guided-voice="true"{% endif %}>
+    <form id="safety-case-form" method="post" data-busy="{% if editing %}Saving changes…{% else %}Saving the safety case…{% endif %}" data-busy-detail="Saving, then checking completeness, listedness, duplicates and signals." {% if extraction_filename is defined and extraction_filename %}action="{{ url_for('cases.create_case') }}"{% endif %} {% if not editing %}data-guided-voice="true"{% endif %}>
         {{ form.hidden_tag() }}
+        {% if extraction_filename %}<input type="hidden" name="extraction_filename" value="{{ extraction_filename }}">{% endif %}
+        {% if intake_proposal %}<input type="hidden" name="intake_proposal_id" value="{{ intake_proposal.proposal_id }}">{% endif %}
+        {% set problem_fields = [] %}
+        {% for name, errs in form.errors.items() if errs and name != 'csrf_token' %}{% set _ = problem_fields.append(form[name]) %}{% endfor %}
+        {% if problem_fields %}
+            <div class="ui-note bad form-problems" role="alert" id="form-problems">
+                <strong>Not saved yet: {{ problem_fields|length }} field{{ 's' if problem_fields|length != 1 }} need{{ '' if problem_fields|length != 1 else 's' }} attention.</strong>
+                <ul>
+                    {% for field in problem_fields %}
+                        <li><a href="#{{ field.id }}" data-focus="{{ field.id }}">{{ field.label.text }}</a> — {{ field.errors|join(' ') }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
         {% if editing and return_section %}
             <input type="hidden" name="return_section" value="{{ return_section }}">
         {% endif %}
@@ -403,6 +430,34 @@
             box.scrollIntoView({ behavior: "smooth", block: "center" });
             input.focus({ preventScroll: true });
         }, 150);
+    })();
+</script>
+<style>
+    .intake-source summary { cursor: pointer; font-weight: 700; color: #145a40; margin-top: 6px; }
+    .intake-source pre { white-space: pre-wrap; max-height: 320px; overflow: auto; background: #fff; border: 1px solid #e3ece7; border-radius: 8px; padding: 10px; font-size: 12px; }
+    .form-problems { margin-bottom: 14px; }
+    .form-problems ul { margin: 6px 0 0; padding-left: 18px; }
+    .form-problems a { color: #8a1f17; font-weight: 800; text-decoration: none; }
+    .field-flash label { font-weight: 900 !important; color: #8a1f17 !important; }
+    .field-flash { animation: field-flash 2.4s ease-out 1; border-radius: 8px; }
+    @keyframes field-flash { 0% { background: #ffe9a8; } 100% { background: transparent; } }
+</style>
+<script>
+    (function () {
+        function focusField(id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            for (var n = el; n; n = n.parentElement) { if (n.tagName === "DETAILS") n.open = true; }
+            el.scrollIntoView({ block: "center" });
+            el.focus({ preventScroll: true });
+            var box = el.closest(".field, .form-field, .ui-field, div");
+            if (box) { box.classList.remove("field-flash"); void box.offsetWidth; box.classList.add("field-flash"); }
+        }
+        document.querySelectorAll("[data-focus]").forEach(function (a) {
+            a.addEventListener("click", function (e) { e.preventDefault(); focusField(a.dataset.focus); });
+        });
+        var first = document.querySelector("#form-problems [data-focus]");
+        if (first) { document.getElementById("form-problems").scrollIntoView({ block: "start" }); }
     })();
 </script>
 {% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ case_type }} narrative template | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Narrative template{% endblock %}
+
+{% block content %}
+<section class="ui-page" style="max-width: 1180px;">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('report_templates.template_list') }}">Report templates</a><span class="sep">›</span>
+        <a href="{{ url_for('report_templates.narrative_templates') }}">Narrative templates</a><span class="sep">›</span>
+        <span>{{ case_type }}</span>
+    </nav>
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">New draft version{% if base %} · based on version {{ base.version }}{% endif %}</p>
+            <h1>{{ case_type }} narrative template</h1>
+            <p>One sentence per line. <code>{field}</code> inserts a fact from the case; a sentence is left out when one of its facts is missing. <code>[[ … ]]</code> marks an optional part, left out when its facts are missing. <code>A || B</code> uses the first alternative whose facts are all available. Nothing else is added: the narrative never invents facts.</p>
+        </div>
+    </header>
+
+    <form method="post" class="nt-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="nt-layout">
+            <div>
+                {% for key, label, help in sections %}
+                    <div class="ui-card nt-section">
+                        <label for="section-{{ key }}"><strong>{{ label }}</strong> <span class="sub">{{ help }}</span></label>
+                        <textarea id="section-{{ key }}" name="section-{{ key }}" rows="{{ [ (values.get(key) or [])|length + 1, 2 ]|max }}" spellcheck="true">{{ (values.get(key) or [])|join("\n") }}</textarea>
+                    </div>
+                {% endfor %}
+                <div class="ui-card nt-section">
+                    <label for="change_note"><strong>What changed and why</strong></label>
+                    <input type="text" id="change_note" name="change_note" value="{{ note }}" required maxlength="2000" placeholder="e.g. Added the batch number sentence for quality-related cases">
+                </div>
+                <div class="nt-actions">
+                    <a class="ui-btn" href="{{ url_for('report_templates.narrative_templates') }}">Cancel</a>
+                    <button class="ui-btn primary" type="submit">Save draft</button>
+                </div>
+            </div>
+            <aside class="ui-card nt-tokens">
+                <p class="kicker">Fields you can use</p>
+                <ul>{% for token, label in tokens.items() %}<li><button type="button" class="token" data-token="{{ token }}" title="Insert at the cursor">{{ '{' ~ token ~ '}' }}</button> <span class="sub">{{ label }}</span></li>{% endfor %}</ul>
+            </aside>
+        </div>
+    </form>
+</section>
+<style>
+    .nt-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; align-items: start; }
+    .nt-section { margin-bottom: 10px; }
+    .nt-section label { display: block; margin-bottom: 6px; }
+    .nt-section textarea, .nt-section input { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+    .nt-actions { display: flex; gap: 10px; justify-content: flex-end; margin: 6px 0 20px; }
+    .nt-tokens { position: sticky; top: 12px; max-height: calc(100vh - 40px); overflow: auto; }
+    .nt-tokens ul { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+    .nt-tokens li { padding: 3px 0; }
+    .token { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; background: #eef6f1; border: 1px solid #cfe0d6; border-radius: 5px; padding: 1px 5px; cursor: pointer; color: #145a40; }
+    @media (max-width: 900px) { .nt-layout { grid-template-columns: 1fr; } .nt-tokens { position: static; } }
+</style>
+<script>
+(function () {
+    var last = null;
+    document.querySelectorAll(".nt-section textarea").forEach(function (t) { t.addEventListener("focus", function () { last = t; }); });
+    document.querySelectorAll(".token").forEach(function (b) {
+        b.addEventListener("click", function () {
+            if (!last) return;
+            var text = "{" + b.dataset.token + "}", s = last.selectionStart, e = last.selectionEnd;
+            last.value = last.value.slice(0, s) + text + last.value.slice(e);
+            last.focus(); last.selectionStart = last.selectionEnd = s + text.length;
+        });
+    });
+})();
+</script>
+{% endblock %}

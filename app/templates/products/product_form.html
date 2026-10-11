@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}{% if editing %}Edit {{ product.brand_name }}{% else %}Add product{% endif %} | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Product Catalogue{% endblock %}
+
+{% block content %}
+<section class="ui-page" style="max-width: 980px;">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('products.product_list') }}">Product catalogue</a><span class="sep">›</span>
+        {% if editing %}<a href="{{ url_for('products.product_detail', product_id=product.product_id) }}">{{ product.brand_name }}</a><span class="sep">›</span><span>Edit</span>{% else %}<span>Add product</span>{% endif %}
+    </nav>
+
+    {% if duplicates %}
+        <div class="ui-note warn" style="margin-bottom: 12px;">
+            <strong>Possible duplicate:</strong>
+            <ul style="margin: 6px 0 0; padding-left: 18px;">
+                {% for d in duplicates %}<li><a href="{{ url_for('products.product_detail', product_id=d.product_id) }}">{{ d.product_code }} – {{ d.brand_name }} {{ d.strength or '' }} {{ d.dosage_form or '' }} ({{ d.market or 'no market' }})</a>: {{ d.reasons|join(', ') }}</li>{% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <form method="post" class="ui-card is-strong" data-busy="Saving the product…">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if duplicates %}<input type="hidden" name="confirm_duplicate" value="1">{% endif %}
+        <h1 style="margin: 0 0 12px; font-size: 20px;">{% if editing %}Edit {{ product.brand_name }}{% else %}Add a product{% endif %}</h1>
+        <div class="ui-grid">
+            {% for key, label in fields if key not in ('status', 'notes') %}
+                <div class="ui-field">
+                    <label for="{{ key }}">{{ label }}{% if key in ('product_code', 'brand_name') %} *{% endif %}</label>
+                    <input id="{{ key }}" name="{{ key }}" type="text" value="{{ product[key] or '' }}" {% if key in ('product_code', 'brand_name') %}required{% endif %}>
+                </div>
+            {% endfor %}
+            <div class="ui-field">
+                <label for="status">Product status</label>
+                <select id="status" name="status">{% for s in statuses %}<option {% if s == (product.status or 'Active') %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+            </div>
+            <div class="ui-field">
+                <label for="rsi_id">Reference safety information</label>
+                <select id="rsi_id" name="rsi_id">
+                    <option value="">None</option>
+                    {% for r in rsi_choices %}<option value="{{ r.rsi_id }}" {% if product.rsi_id|string == r.rsi_id|string %}selected{% endif %}>{{ r.product_name }} – {{ r.document_type }}{% if r.document_version %} v{{ r.document_version }}{% endif %}{% if r.market %} ({{ r.market }}){% endif %}</option>{% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="ui-field" style="margin-top: 10px;"><label for="notes">Notes</label><textarea id="notes" name="notes" rows="2">{{ product.notes or '' }}</textarea></div>
+        {% if editing %}<div class="ui-field" style="margin-top: 10px;"><label for="change_note">Reason for this change (kept with the version)</label><input id="change_note" name="change_note" type="text" placeholder="e.g. New registration number issued"></div>{% endif %}
+        <p class="sub">Only reusable product facts belong here. Dose, treatment dates, batch, expiry and anything about a patient are recorded on each case.</p>
+        <div class="ui-actions">
+            <button class="ui-btn primary" type="submit">{% if duplicates %}Save anyway – it is a different product{% else %}Save product{% endif %}</button>
+            <a class="ui-btn" href="{{ url_for('products.product_detail', product_id=product.product_id) if editing else url_for('products.product_list') }}">Cancel</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -136,48 +136,24 @@ def reporting_dates_are_valid(form):
 @bp.get("/")
 @login_required
 def psur_list():
-    selected_product = flask.request.args.get(
-        "product",
-        "",
-    ).strip()
-    selected_status = flask.request.args.get(
-        "status",
-        "",
-    ).strip()
-    start_date = flask.request.args.get(
-        "start_date",
-        "",
-    ).strip()
-    end_date = flask.request.args.get(
-        "end_date",
-        "",
-    ).strip()
+    from app.services import psur_workspace
 
-    filters = []
-    parameters = []
+    args = flask.request.args
+    selected_product = args.get("product", "").strip()
+    selected_status = args.get("status", "").strip()
+    start_date = args.get("start_date", "").strip()
+    end_date = args.get("end_date", "").strip()
+    selected_view = args.get("view", "").strip()
+    selected_due = args.get("due", "").strip()
+    if selected_view not in psur_workspace.VIEWS:
+        selected_view = ""
+    if selected_due not in psur_workspace.DUE:
+        selected_due = ""
 
-    if selected_product:
-        filters.append("product_name = %s")
-        parameters.append(selected_product)
-
-    if selected_status:
-        filters.append("status = %s")
-        parameters.append(selected_status)
-
-    if start_date:
-        filters.append("reporting_period_end >= %s")
-        parameters.append(start_date)
-
-    if end_date:
-        filters.append("reporting_period_start <= %s")
-        parameters.append(end_date)
-
-    where_clause = ""
-    if filters:
-        where_clause = "WHERE " + " AND ".join(filters)
-
-    reports = query_all(
-        f"""
+    # PSURs are few; load them once so the workspace counts and the register
+    # come from the same records.
+    all_reports = psur_workspace.annotate(query_all(
+        """
         SELECT
             psur_id,
             report_number,
@@ -186,44 +162,47 @@ def psur_list():
             reporting_period_end,
             data_lock_point,
             status,
-            prepared_by
+            prepared_by,
+            submitted_date
         FROM pv.psur_reports
-        {where_clause}
         ORDER BY reporting_period_end DESC, psur_id DESC
-        """,
-        tuple(parameters),
-    )
+        """
+    ))
 
-    products = query_all(
-        """
-        SELECT DISTINCT product_name
-        FROM pv.psur_reports
-        WHERE product_name IS NOT NULL
-          AND product_name <> ''
-        ORDER BY product_name
-        """
-    )
+    def keep(report):
+        if selected_product and report.get("product_name") != selected_product:
+            return False
+        if selected_status and report.get("status") != selected_status:
+            return False
+        if start_date and report.get("reporting_period_end") and str(report["reporting_period_end"]) < start_date:
+            return False
+        if end_date and report.get("reporting_period_start") and str(report["reporting_period_start"]) > end_date:
+            return False
+        return psur_workspace.matches(report, selected_view or None, selected_due or None)
 
-    statuses = query_all(
-        """
-        SELECT DISTINCT status
-        FROM pv.psur_reports
-        WHERE status IS NOT NULL
-          AND status <> ''
-        ORDER BY status
-        """
-    )
+    reports = [r for r in all_reports if keep(r)]
+    products = sorted({r["product_name"] for r in all_reports if r.get("product_name")})
+    statuses = sorted({r["status"] for r in all_reports if r.get("status")})
+    active_key = {"in_progress": "in_progress", "completed": "completed"}.get(selected_view) or \
+        {"soon": "due_soon", "overdue": "overdue"}.get(selected_due) or ""
 
     return render_template(
         "psur/psur_list.html",
         reports=reports,
-        products=products,
-        statuses=statuses,
+        products=[{"product_name": p} for p in products],
+        statuses=[{"status": s} for s in statuses],
         selected_product=selected_product,
         selected_status=selected_status,
         start_date=start_date,
         end_date=end_date,
+        selected_view=selected_view,
+        selected_due=selected_due,
+        view_label=psur_workspace.VIEWS.get(selected_view) or psur_workspace.DUE.get(selected_due),
+        psur_counts=psur_workspace.counts(all_reports),
+        active_key=active_key,
     )
+
+
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
 def create_psur():

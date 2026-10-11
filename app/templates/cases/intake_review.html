@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Intake {{ document.original_filename }} | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Document intake{% endblock %}
+
+{% block content %}
+<section class="ui-page" style="max-width: 1180px;">
+    <nav class="ui-crumbs" aria-label="Breadcrumb">
+        <a href="{{ url_for('cases.case_list') }}">Safety cases</a><span class="sep">›</span>
+        <a href="{{ url_for('cases.intake_home') }}">Create from a document</a><span class="sep">›</span>
+        <span>{{ document.original_filename }}</span>
+    </nav>
+
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Case pathway · Intake</p>
+            <h1>{{ document.original_filename }}</h1>
+            <p>{% if document.page_count %}{{ document.page_count }} page(s) · {% endif %}uploaded {{ document.uploaded_at|when }}{% if document.uploaded_by_name %} by {{ document.uploaded_by_name }}{% endif %}.
+               Each candidate patient report is listed separately with the pages and text it came from. Confirm each one before a case is created; facts are never shared between reports.</p>
+        </div>
+        <div class="actions">
+            <a href="{{ url_for('cases.intake_file', document_id=document.document_id) }}" target="_blank" rel="noopener">Open original</a>
+            <a href="{{ url_for('cases.intake_home') }}">← Documents</a>
+        </div>
+    </header>
+
+    {% if working %}
+        <div class="intake-progress" role="status" aria-live="polite" id="intake-progress">
+            <span class="spinner" aria-hidden="true"></span>
+            <div>
+                <strong id="progress-status">{{ document.status }}…</strong>
+                <p id="progress-text">{{ document.progress or "Starting…" }}</p>
+                <p class="sub">You can leave this page; reading continues and the results stay here (Safety cases › Create from a document).</p>
+                {% if stuck %}
+                <form method="post" action="{{ url_for('cases.intake_retry', document_id=document.document_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <p class="sub">This is taking unusually long (the application may have been restarted). <button class="link-btn" type="submit">Start reading again</button></p>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    {% elif document.status == 'Failed' %}
+        <div class="ui-note bad">
+            <strong>The document could not be read.</strong> {{ document.error }}
+            <form method="post" action="{{ url_for('cases.intake_retry', document_id=document.document_id) }}" style="margin-top: 8px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="ui-btn primary" type="submit">Try again</button>
+            </form>
+        </div>
+    {% else %}
+        {% set visible = proposals|rejectattr("status", "equalto", "Merged")|list %}
+        {% set open_reports = visible|selectattr("status", "equalto", "Proposed")|list %}
+        <div class="intake-summary">
+            <article class="ui-card"><p class="kicker">Reports found</p><p class="big">{{ visible|length }}</p>
+                <p class="sub">{{ visible|selectattr("kind", "equalto", "New patient")|list|length }} new patient(s) · {{ visible|selectattr("kind", "equalto", "Follow-up")|list|length }} follow-up</p></article>
+            <article class="ui-card"><p class="kicker">Still to decide</p><p class="big">{{ open_reports|length }}</p>
+                <p class="sub">{{ visible|selectattr("status", "equalto", "Created")|list|length }} case(s) created · {{ visible|selectattr("status", "equalto", "Linked")|list|length }} linked · {{ visible|selectattr("status", "equalto", "Rejected")|list|length }} rejected</p></article>
+            <article class="ui-card"><p class="kicker">Proposal</p>
+                {% set to_create = open_reports|selectattr("kind", "equalto", "New patient")|list|length %}
+                {% set total_cases = visible|selectattr("kind", "equalto", "New patient")|rejectattr("status", "in", ["Rejected"])|list|length %}
+                <p><strong>{{ total_cases }} case(s)</strong> from this document{% if to_create %} · {{ to_create }} still to create{% endif %}</p>
+                <p class="sub">{{ document.progress or "" }}</p>
+                {% if can_retry %}
+                <form method="post" action="{{ url_for('cases.intake_retry', document_id=document.document_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="link-btn" type="submit">Read the document again</button>
+                </form>
+                {% endif %}
+            </article>
+        </div>
+
+        {% if not visible %}<div class="ui-note">No patient report was found. If the document does describe a patient, enter the case manually: <a href="{{ url_for('cases.create_case') }}">New safety case</a>.</div>{% endif %}
+
+        {% if open_reports|length > 1 %}
+        <form method="post" action="{{ url_for('cases.intake_merge', document_id=document.document_id) }}" id="merge-form" class="merge-bar">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <span>Same patient in more than one report? Tick them and</span>
+            <button class="ui-btn" type="submit">Merge selected</button>
+        </form>
+        {% endif %}
+
+        {% for p in visible %}
+        {% set x = p.extracted or {} %}
+        <article class="ui-card report status-{{ p.status|lower }}" id="report-{{ p.proposal_id }}">
+            <div class="report-head">
+                <div>
+                    {% if p.status == 'Proposed' and open_reports|length > 1 %}
+                        <label class="pick"><input type="checkbox" name="proposal_ids" value="{{ p.proposal_id }}" form="merge-form"> select</label>
+                    {% endif %}
+                    <p class="kicker">Report {{ p.seq }} · {{ p.kind }}{% if p.pages %} · page(s) {{ p.pages|join(", ") }}{% endif %}</p>
+                    <h2>{{ p.label or ("Report " ~ p.seq) }}</h2>
+                </div>
+                <span class="ui-pill {% if p.status == 'Created' or p.status == 'Linked' %}good{% elif p.status == 'Rejected' %}bad{% else %}warn{% endif %}">
+                    {% if p.status == 'Proposed' %}To review{% else %}{{ p.status }}{% endif %}
+                </span>
+            </div>
+
+            {% if p.excerpt %}
+                <blockquote class="excerpt {% if not p.excerpt_found %}not-found{% endif %}">“{{ p.excerpt }}”{% if not p.excerpt_found %}<span class="sub"> (not found in the document text)</span>{% endif %}</blockquote>
+            {% endif %}
+
+            {% if p.extraction_status == 'Done' %}
+                <dl class="facts">
+                    <div><dt>Patient</dt><dd>{{ x.patient_initials or "—" }}{% if x.patient_sex %}, {{ x.patient_sex }}{% endif %}{% if x.patient_age_years %}, {{ x.patient_age_years }} y{% endif %}{% if x.patient_date_of_birth %}, born {{ x.patient_date_of_birth }}{% endif %}</dd></div>
+                    <div><dt>Reporter</dt><dd>{{ x.reporter_name or "—" }}{% if x.source %} ({{ x.source }}){% endif %}</dd></div>
+                    <div><dt>Suspect product</dt><dd>{{ x.product_name or "—" }}{% if x.strength %} {{ x.strength }}{% endif %}</dd></div>
+                    <div><dt>Reaction/event</dt><dd>{{ x.event_description or "—" }}</dd></div>
+                    <div><dt>Onset</dt><dd>{{ x.event_onset_date or "—" }}</dd></div>
+                    <div><dt>Outcome</dt><dd>{{ x.event_outcome or "—" }}</dd></div>
+                </dl>
+                {% if x['__uncertain'] %}<p class="sub">The AI marked these as uncertain: {{ x['__uncertain']|join(", ") }}</p>{% endif %}
+            {% elif p.extraction_status == 'Pending' %}
+                <p class="sub">Extracting the facts for this report…</p>
+            {% else %}
+                <div class="ui-note bad">Facts could not be extracted: {{ p.extraction_error }}</div>
+            {% endif %}
+
+            {% for flag in p.flags %}<p class="flag {% if flag.startswith('AI:') %}ai{% endif %}">{{ flag }}</p>{% endfor %}
+            {% if p.duplicate_cases %}
+                <p class="flag dup"><strong>Possible duplicate of existing case(s):</strong>
+                    {% for d in p.duplicate_cases %}<a href="{{ url_for('cases.case_detail', case_id=d.case_id) }}" target="_blank" rel="noopener">{{ d.case_number }}</a> – {{ d.reasons|join(' ') }}{% if not loop.last %}; {% endif %}{% endfor %}</p>
+            {% endif %}
+
+            {% if p.segment_text %}<details class="source"><summary>Source text used for this report</summary><pre>{{ p.segment_text }}</pre></details>{% endif %}
+
+            {% if p.status == 'Created' %}
+                <p class="done">{% if p.created_case_id %}Saved as <a href="{{ url_for('cases.case_detail', case_id=p.created_case_id) }}#pathway"><strong>{{ p.created_case_number }}</strong></a> – <a href="{{ url_for('cases.case_validity', case_id=p.created_case_id) }}">confirm its validity →</a>{% else %}The case created from this report was deleted.{% endif %}</p>
+            {% elif p.status == 'Linked' %}
+                <p class="done">Added as follow-up to <a href="{{ url_for('cases.case_detail', case_id=p.follow_up_case_id) }}#attachments"><strong>{{ p.follow_up_case_number }}</strong></a>.</p>
+            {% elif p.status == 'Rejected' %}
+                <form method="post" action="{{ url_for('cases.intake_restore', proposal_id=p.proposal_id) }}" class="done">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    Rejected{% if p.decision_note %}: {{ p.decision_note }}{% endif %}{% if p.decided_by_name %} ({{ p.decided_by_name }}){% endif %}.
+                    <button class="link-btn" type="submit">Restore</button>
+                </form>
+            {% elif p.status == 'Proposed' %}
+                <div class="report-actions">
+                    {% if p.kind == 'New patient' %}
+                        {% if p.extraction_status == 'Done' %}
+                            <a class="ui-btn primary" href="{{ url_for('cases.intake_create_case', proposal_id=p.proposal_id) }}">Create safety case →</a>
+                        {% endif %}
+                    {% elif p.kind == 'Follow-up' %}
+                        <form method="post" action="{{ url_for('cases.intake_follow_up', proposal_id=p.proposal_id) }}" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <label>Existing case number <input type="text" name="case_number" required value="{{ p.follow_up_case_number or p.follow_up_reference or '' }}"></label>
+                            <button class="ui-btn primary" type="submit">Add as follow-up</button>
+                        </form>
+                    {% endif %}
+                    <form method="post" action="{{ url_for('cases.intake_kind', proposal_id=p.proposal_id) }}" class="inline-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <label>Treat as <select name="kind">{% for k in kinds %}<option {% if k == p.kind %}selected{% endif %}>{{ k }}</option>{% endfor %}</select></label>
+                        <button class="ui-btn" type="submit">Change</button>
+                    </form>
+                    <details class="more">
+                        <summary>Split or reject</summary>
+                        <form method="post" action="{{ url_for('cases.intake_split', proposal_id=p.proposal_id) }}" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <label>Second patient starts at (paste words from the source text) <input type="text" name="marker" required></label>
+                            <button class="ui-btn" type="submit">Split</button>
+                        </form>
+                        <form method="post" action="{{ url_for('cases.intake_reject', proposal_id=p.proposal_id) }}" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <label>Reason <input type="text" name="reason" placeholder="e.g. not an adverse event report" required></label>
+                            <button class="ui-btn danger" type="submit">Reject</button>
+                        </form>
+                    </details>
+                </div>
+            {% endif %}
+        </article>
+        {% endfor %}
+    {% endif %}
+</section>
+<style>
+    .intake-progress { display: flex; gap: 16px; align-items: center; padding: 18px 20px; border-radius: 14px; background: #f1f8f4; border: 1px solid #cfe5d8; }
+    .intake-progress p { margin: 4px 0 0; }
+    .spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid #cfe5d8; border-top-color: #145a40; animation: spin 0.9s linear infinite; flex: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .intake-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .intake-summary p { margin: 3px 0; }
+    .intake-summary .big { font-size: 28px; font-weight: 800; color: #145a40; }
+    .merge-bar { display: flex; gap: 10px; align-items: center; margin: 0 0 12px; font-size: 13px; color: #4a5b54; flex-wrap: wrap; }
+    .report { margin-bottom: 14px; }
+    .report.status-rejected { opacity: .75; }
+    .report:target { box-shadow: 0 0 0 3px #fde68a; }
+    .report-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+    .report-head h2 { font-size: 17px; margin: 2px 0 6px; }
+    .report-head .kicker { margin: 0; }
+    .pick { font-size: 12px; color: #4a5b54; }
+    .excerpt { margin: 6px 0 10px; padding: 8px 12px; border-left: 3px solid #9cc9b0; background: #f7fbf8; font-style: italic; color: #34473f; }
+    .excerpt.not-found { border-left-color: #e0a440; background: #fffaf0; }
+    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 16px; margin: 6px 0; }
+    .facts dt { font-size: 11px; font-weight: 800; color: #6b7d75; text-transform: uppercase; letter-spacing: .04em; }
+    .facts dd { margin: 0; font-size: 14px; color: #263a32; }
+    .flag { margin: 6px 0; padding: 6px 10px; border-radius: 8px; background: #fff6e2; color: #6b4a0c; font-size: 13px; }
+    .flag.ai { background: #f2f5f4; color: #4a5b54; }
+    .flag.dup { background: #fdecec; color: #8a2424; }
+    .source summary { cursor: pointer; font-weight: 700; color: #145a40; font-size: 13px; margin: 8px 0; }
+    .source pre { white-space: pre-wrap; max-height: 320px; overflow: auto; background: #fff; border: 1px solid #e3ece7; border-radius: 8px; padding: 10px; font-size: 12px; }
+    .report-actions { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; margin-top: 10px; }
+    .inline-form { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin: 6px 0; }
+    .inline-form label { font-size: 12px; font-weight: 700; color: #4a5b54; }
+    .inline-form input, .inline-form select { display: block; margin-top: 4px; }
+    .inline-form input[name=marker] { min-width: 320px; }
+    .more summary { cursor: pointer; font-size: 13px; color: #145a40; font-weight: 700; padding: 8px 0; }
+    .done { margin: 10px 0 0; font-size: 14px; }
+    .done a, .facts a, .flag a { color: #145a40; font-weight: 700; }
+    .link-btn { background: none; border: 0; padding: 0; color: #145a40; cursor: pointer; font: inherit; text-decoration: underline; }
+    .ui-btn.danger { color: #9b2c2c; border-color: #e7b7b7; }
+    @media (max-width: 640px) { .inline-form input[name=marker] { min-width: 0; width: 100%; } }
+</style>
+{% if working %}
+<script>
+(function () {
+    var url = {{ url_for('cases.intake_status', document_id=document.document_id)|tojson }};
+    var auto = {{ (request.args.get('auto') or '')|tojson }};
+    function poll() {
+        fetch(url, { credentials: "same-origin" }).then(function (r) { return r.json(); }).then(function (data) {
+            document.getElementById("progress-status").textContent = data.status + (data.done ? "" : "…");
+            if (data.progress) document.getElementById("progress-text").textContent = data.progress;
+            if (data.done) { location.href = location.pathname + (auto ? "?auto=1" : ""); return; }
+            setTimeout(poll, 2500);
+        }).catch(function () { setTimeout(poll, 5000); });
+    }
+    setTimeout(poll, 1500);
+})();
+</script>
+{% endif %}
+{% endblock %}

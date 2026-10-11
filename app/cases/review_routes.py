@@ -469,11 +469,26 @@ def follow_up_tasks():
                 if a in attachment_status
             ]
         group["reply_waiting"] = any(r["status"] == "New" for r in group["replies"])
+    validity = _validity_for([group["case_id"] for group in cases])
+    for group in cases:
+        group["validity"] = validity.get(group["case_id"])
+    show = request.args.get("show", "")
+    counts = {
+        "all": len(cases),
+        "invalid": sum(1 for g in cases if g["validity"] == "Awaiting information"),
+        "overdue": sum(1 for g in cases if g.get("due_date") and g["due_date"] < date.today()),
+    }
+    if show == "invalid":
+        cases = [g for g in cases if g["validity"] == "Awaiting information"]
+    elif show == "overdue":
+        cases = [g for g in cases if g.get("due_date") and g["due_date"] < date.today()]
     unmatched = unmatched_replies()
     return render_template(
         "cases/follow_up_tasks.html",
         tasks=tasks,
         cases=cases,
+        show=show,
+        counts=counts,
         unmatched=unmatched,
         link_choices=_link_choices() if unmatched else [],
         inbox={
@@ -492,6 +507,26 @@ def follow_up_tasks():
             "last_run": current_app.config.get("FOLLOW_UP_LAST_RUN"),
         },
     )
+
+
+def _validity_for(case_ids):
+    if not case_ids:
+        return {}
+    try:
+        rows = query_all(
+            "SELECT case_id, validity_decision FROM pv.safety_cases WHERE case_id = ANY(%s)",
+            (list(case_ids),),
+        )
+    except Exception:
+        current_app.logger.warning("Validity not available (run the migrations?)", exc_info=True)
+        try:
+            from app.db import get_db
+
+            get_db().rollback()
+        except Exception:
+            pass
+        return {}
+    return {r["case_id"]: r["validity_decision"] for r in rows}
 
 
 def _reply_attachment_status(replies):
@@ -961,7 +996,7 @@ def approvals():
 
     role = session.get("role")
     reviewer = can_review(role, is_designated_qppv(session["user_id"]))
-    approver = can_approve(role)
+    approver = can_approve(role, designated_qppv=is_designated_qppv(session["user_id"]))
     try:
         data = {
             "pending_review": cases_at_stage(PENDING_REVIEW),

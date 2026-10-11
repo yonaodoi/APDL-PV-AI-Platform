@@ -189,6 +189,38 @@ def update_ai_assessment_generation_job(
                 job_id,
             ),
         )
+    if status in ("Completed", "Failed"):
+        _notify_job_finished(job_id, status, error_message)
+
+
+def _notify_job_finished(job_id, status, error_message):
+    """Tell the person who asked, wherever they are in the platform."""
+    from app.services.notifications import notify
+
+    try:
+        job = query_one(
+            """
+            SELECT j.case_id, j.requested_by, c.case_number
+            FROM pv.case_ai_assessment_generation_jobs AS j
+            JOIN pv.safety_cases AS c ON c.case_id = j.case_id
+            WHERE j.job_id = %s
+            """,
+            (job_id,),
+        )
+    except Exception:
+        return
+    if not job:
+        return
+    try:
+        link = url_for("case_ai_reports.view_ai_case_assessment", case_id=job["case_id"])
+    except RuntimeError:
+        link = f"/cases/{job['case_id']}/ai-assessment"
+    if status == "Completed":
+        notify(job["requested_by"], "ai_assessment", f"AI case assessment ready: {job['case_number']}",
+               "The draft assessment is saved on the case. Open it to review and approve.", link)
+    else:
+        notify(job["requested_by"], "ai_assessment", f"AI case assessment failed: {job['case_number']}",
+               (error_message or "The assessment could not be completed.")[:300], link, tone="error")
 
 @bp.get("/cases/<int:case_id>/ai-assessment")
 @login_required
