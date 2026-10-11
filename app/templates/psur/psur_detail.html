@@ -259,7 +259,7 @@
                     <a href="#attachments">Attachments</a>
                     <hr>
                     <a href="{{ url_for('psur.psur_list') }}">Back to all PSURs</a>
-                    {% if session.get('role') == 'System Administrator' %}<a class="menu-danger" href="{{ url_for('administration.delete_record_page', kind='psur', record_id=report.psur_id) }}">Delete…</a>{% endif %}
+                    {% if session.get('role') in ('System Administrator', 'QPPV', 'Group Head RA & Quality') %}<a class="menu-danger" href="{{ url_for('administration.delete_record_page', kind='psur', record_id=report.psur_id) }}">Delete…</a>{% endif %}
                 </div>
             </details>
         </div>

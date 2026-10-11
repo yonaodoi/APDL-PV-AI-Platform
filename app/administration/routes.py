@@ -985,7 +985,7 @@ def _record_detail_url(kind, record_id):
 
 
 @bp.route("/delete/<kind>/<int:record_id>", methods=["GET", "POST"])
-@roles_required("System Administrator")
+@roles_required("System Administrator", "QPPV", "Group Head RA & Quality")
 def delete_record_page(kind, record_id):
     """Confirm and permanently delete a case, signal, complaint or PSUR record."""
     from app.services.record_deletion import (
@@ -1036,7 +1036,7 @@ def delete_record_page(kind, record_id):
 
 
 @bp.get("/deleted-records")
-@roles_required("System Administrator", "Auditor")
+@roles_required("System Administrator", "QPPV", "Group Head RA & Quality", "Auditor")
 def deleted_records_list():
     from app.services.record_deletion import RECORD_TYPES, deleted_records
 
@@ -1048,7 +1048,7 @@ def deleted_records_list():
 
 
 @bp.get("/deleted-records/<int:deleted_id>.json")
-@roles_required("System Administrator", "Auditor")
+@roles_required("System Administrator", "QPPV", "Group Head RA & Quality", "Auditor")
 def deleted_record_snapshot(deleted_id):
     import json
 
@@ -1085,3 +1085,9 @@ def deleted_record_snapshot(deleted_id):
         mimetype="application/json",
         headers={"Content-Disposition": f"attachment; filename=deleted_{row['record_type']}_{row['record_id']}.json"},
     )
+
+
+@bp.get("/settings")
+@roles_required("System Administrator")
+def settings_hub():
+    return render_template("administration/settings_hub.html")

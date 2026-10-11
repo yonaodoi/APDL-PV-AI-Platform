@@ -1058,3 +1058,19 @@ def poll_notifications():
         {"notification_id": i["notification_id"], "tone": i["tone"], "title": i["title"],
          "message": i["message"], "link": i["link"]} for i in items
     ]})
+
+
+
+@bp.get("/my-tasks")
+@login_required
+def my_tasks():
+    from app.services import my_tasks as service
+    from app.services.case_workflow import is_designated_qppv
+
+    sections = service.collect(session["user_id"], session.get("role"), is_designated_qppv(session["user_id"]))
+    for section in sections:
+        for item in section["items"]:
+            endpoint, args, anchor = item["href"]
+            item["url"] = url_for(endpoint, **args) + anchor
+    return flask.render_template("my_tasks.html", sections=sections,
+                                 total=sum(len(s["items"]) for s in sections))

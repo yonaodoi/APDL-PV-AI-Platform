@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}My tasks | {{ company.platform_name }}{% endblock %}
+{% block page_title %}My tasks{% endblock %}
+
+{% block content %}
+<section class="ui-page" style="max-width: 1100px;">
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Work</p>
+            <h1>My tasks</h1>
+            <p>{% if total %}{{ total }} item{{ 's' if total != 1 }} waiting for you, most urgent first in each group.{% else %}Nothing is waiting for you right now.{% endif %}</p>
+        </div>
+    </header>
+    <div class="mt-grid">
+        {% for s in sections %}
+            <section class="ui-card mt-card {% if not s['items'] %}is-empty{% endif %}">
+                <h2>{{ s.title }} <span class="ui-pill {{ 'warn' if s['items'] else 'muted' }}">{{ s['items']|length }}</span></h2>
+                {% if s['items'] %}
+                    <ul>
+                        {% for i in s['items'][:12] %}
+                            <li><a href="{{ i.url }}">{{ i.label }}</a>{% if i.detail %} <span class="sub {% if i.tone == 'bad' %}mt-bad{% endif %}">{{ i.detail }}</span>{% endif %}</li>
+                        {% endfor %}
+                    </ul>
+                    {% if s['items']|length > 12 %}<p class="sub">and {{ s['items']|length - 12 }} more.</p>{% endif %}
+                {% else %}
+                    <p class="sub">{{ s.empty }}</p>
+                {% endif %}
+            </section>
+        {% endfor %}
+    </div>
+</section>
+<style>
+    .mt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+    .mt-card h2 { display: flex; justify-content: space-between; align-items: center; margin: 0 0 8px; font-size: 15px; }
+    .mt-card ul { list-style: none; margin: 0; padding: 0; }
+    .mt-card li { padding: 6px 0; border-top: 1px solid #eef3f0; font-size: 13.5px; }
+    .mt-card.is-empty { opacity: 0.75; }
+    .mt-bad { color: #a3352a; font-weight: 700; }
+</style>
+{% endblock %}

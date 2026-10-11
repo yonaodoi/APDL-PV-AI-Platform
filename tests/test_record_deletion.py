@@ -17,7 +17,7 @@ CASE = {"case_id": 7, "case_number": "APDL-ICSR-26-TEST1"}
 
 def test_only_the_system_administrator_can_delete(monkeypatch):
     monkeypatch.setattr(record_deletion, "load_record", lambda kind, rid: CASE)
-    for role in ("PV Officer", "QPPV", "Group Head RA & Quality", "Auditor"):
+    for role in ("PV Officer", "Deputy QPPV", "Medical Reviewer", "Auditor"):
         client = _client(monkeypatch, role)
         assert client.get("/administration/delete/case/7").status_code in (302, 403)
         assert client.post("/administration/delete/case/7", data={}).status_code in (302, 403)
@@ -51,13 +51,13 @@ def test_deleting_needs_the_number_and_a_reason(monkeypatch):
     assert calls[-1] == ("case", 7, "Training record", "APDL-ICSR-26-TEST1")
 
 
-def test_delete_link_shows_only_for_administrators():
+def test_delete_link_shows_only_for_deleting_roles():
     from pathlib import Path
 
     for template in ("cases/case_detail.html", "signals/signal_detail.html",
                      "complaints/complaint_detail.html", "psur/psur_detail.html"):
         text = Path("app/templates", template).read_text(encoding="utf-8")
-        assert "{% if session.get('role') == 'System Administrator' %}<a class=\"menu-danger\"" in text, template
+        assert "{% if session.get('role') in ('System Administrator', 'QPPV', 'Group Head RA & Quality') %}<a class=\"menu-danger\"" in text, template
 
 
 class FakeCursor:

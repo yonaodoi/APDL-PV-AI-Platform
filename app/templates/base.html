@@ -274,7 +274,7 @@
     </style>
     <link
         rel="stylesheet"
-        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-40') }}"
+        href="{{ url_for('static', filename='css/platform.css', v='ui-refresh-44') }}"
     >
     <style>:root { --sidebar-footer: "{{ company.short_name|upper|replace('"', '') }}  /  PV OPERATIONS"; {{ company_brand_css }} }</style>
 </head>
@@ -295,99 +295,91 @@
             </div>
 
             <nav class="primary-nav" aria-label="Primary navigation">
+                {% set ep = request.endpoint or '' %}
+                {% set role = session.get('role') %}
+                {% macro nav(endpoint_url, label, active, sub=False, count=None, count_label=None) -%}
+                    <a class="nav-link{% if sub %} nav-sub{% endif %}{% if active %} active{% endif %}" href="{{ endpoint_url }}" {% if active %}aria-current="page"{% endif %}>{{ label }}{% if count %} <span class="nav-count" {% if count_label %}aria-label="{{ count }} {{ count_label }}"{% endif %}>{{ count }}</span>{% endif %}</a>
+                {%- endmacro %}
+                {% macro roll(gid, endpoint_url, label, active, open, count=None) -%}
+                    <div class="nav-roll{% if open %} is-open{% endif %}" data-roll="{{ gid }}">
+                        <a class="nav-link{% if active %} active{% endif %}" href="{{ endpoint_url }}" {% if active %}aria-current="page"{% endif %}>{{ label }}{% if count %} <span class="nav-count">{{ count }}</span>{% endif %}</a>
+                        <button type="button" class="nav-roll-toggle" aria-expanded="{{ 'true' if open else 'false' }}" aria-controls="roll-{{ gid }}" title="Show or hide the items under {{ label }}"><span class="visually-hidden">Show or hide the items under {{ label }}</span><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                    </div>
+                {%- endmacro %}
+                {% set follow_up_eps = ('case_review.review_queue', 'case_review.follow_up_tasks', 'case_review.complete_follow_up_task', 'case_review.download_follow_up_request', 'case_review.send_follow_up_request') %}
+                {% set reminder_eps = ('case_review.follow_up_reminders', 'case_review.acknowledge_follow_up_reminder') %}
+                {% set intake_ep = ep.startswith('cases.intake') or ep == 'cases.extract_case_from_document' %}
+                {% set in_cases = ep.startswith('cases.') or ep.startswith('case_ai_reports.') or ep.startswith('case_review.') or ep.startswith('case_reports.') %}
+
                 <div class="nav-group">
-                    <div class="nav-label">WORKSPACE</div>
-                    <a
-                        class="nav-link {% if request.endpoint == 'core.dashboard' %}active{% endif %}"
-                        href="{{ url_for('core.dashboard') }}"
-                        {% if request.endpoint == 'core.dashboard' %}aria-current="page"{% endif %}
-                    >Dashboard</a>
-                    <a
-                        class="nav-link {% if (request.endpoint or '').startswith('cases.') or (request.endpoint or '').startswith('case_ai_reports.') %}active{% endif %}"
-                        href="{{ url_for('cases.case_list') }}"
-                        {% if (request.endpoint or '').startswith('cases.') or (request.endpoint or '').startswith('case_ai_reports.') %}aria-current="page"{% endif %}
-                    >Safety Cases</a>
-                    <a
-                        class="nav-link nav-sub {% if request.endpoint in ('case_review.review_queue', 'case_review.follow_up_tasks', 'case_review.complete_follow_up_task', 'case_review.download_follow_up_request', 'case_review.send_follow_up_request') %}active{% endif %}"
-                        href="{{ url_for('case_review.follow_up_tasks') }}"
-                        {% if request.endpoint in ('case_review.review_queue', 'case_review.follow_up_tasks', 'case_review.complete_follow_up_task', 'case_review.download_follow_up_request', 'case_review.send_follow_up_request') %}aria-current="page"{% endif %}
-                    >Awaiting information</a>
-                    <a
-                        class="nav-link nav-sub {% if request.endpoint == 'case_review.approvals' %}active{% endif %}"
-                        href="{{ url_for('case_review.approvals') }}"
-                        {% if request.endpoint == 'case_review.approvals' %}aria-current="page"{% endif %}
-                    >Approvals{% if approvals_pending_count %} <span class="nav-count" title="Cases waiting for your sign-off">{{ approvals_pending_count }}</span>{% endif %}</a>
-                    <a
-                        class="nav-link nav-sub {% if request.endpoint in ('case_review.follow_up_reminders', 'case_review.acknowledge_follow_up_reminder') %}active{% endif %}"
-                        href="{{ url_for('case_review.follow_up_reminders') }}"
-                        {% if request.endpoint in ('case_review.follow_up_reminders', 'case_review.acknowledge_follow_up_reminder') %}aria-current="page"{% endif %}
-                    >
-                        Overdue reminders
-                        {% if open_follow_up_reminder_count %}
-                            <span class="nav-count" aria-label="{{ open_follow_up_reminder_count }} open reminders">{{ open_follow_up_reminder_count }}</span>
-                        {% endif %}
-                    </a>
-                    <a
-                        class="nav-link {% if (request.endpoint or '').startswith('complaints.') %}active{% endif %}"
-                        href="{{ url_for('complaints.complaint_list') }}"
-                        {% if (request.endpoint or '').startswith('complaints.') %}aria-current="page"{% endif %}
-                    >Product Quality Complaints</a>
+                    <div class="nav-label">WORK</div>
+                    {{ nav(url_for('core.dashboard'), 'Dashboard', ep == 'core.dashboard') }}
+                    {{ nav(url_for('core.my_tasks'), 'My tasks', ep == 'core.my_tasks') }}
                 </div>
 
                 <div class="nav-group">
-                    <div class="nav-label">SAFETY MANAGEMENT</div>
-                    <a
-                        class="nav-link {% if request.endpoint in ('core.analytics_home', 'core.analytics_metric_detail', 'core.regulatory_reporting') %}active{% endif %}"
-                        href="{{ url_for('core.analytics_home') }}"
-                        {% if request.endpoint in ('core.analytics_home', 'core.analytics_metric_detail', 'core.regulatory_reporting') %}aria-current="page"{% endif %}
-                    >PV &amp; Regulatory Analytics</a>
-                    <a
-                        class="nav-link {% if (request.endpoint or '').startswith('signals.') %}active{% endif %}"
-                        href="{{ url_for('signals.signal_list') }}"
-                        {% if (request.endpoint or '').startswith('signals.') %}aria-current="page"{% endif %}
-                    >Safety Signals</a>
-                    <a
-                        class="nav-link {% if (request.endpoint or '').startswith('psur.') or (request.endpoint or '').startswith('psur_sections.') or (request.endpoint or '').startswith('psur_builder.') %}active{% endif %}"
-                        href="{{ url_for('psur.psur_list') }}"
-                        {% if (request.endpoint or '').startswith('psur.') or (request.endpoint or '').startswith('psur_sections.') or (request.endpoint or '').startswith('psur_builder.') %}aria-current="page"{% endif %}
-                    >PSURs</a>
-                    <a
-                        class="nav-link {% if request.endpoint and (request.endpoint or '').startswith('products.') %}active{% endif %}"
-                        href="{{ url_for('products.product_list') }}"
-                    >Product Catalogue</a>
+                    <div class="nav-label">CASES</div>
+                    {{ roll('cases', url_for('cases.case_list'), 'Safety cases', in_cases and not intake_ep and ep not in follow_up_eps and ep not in reminder_eps and ep != 'case_review.approvals', in_cases) }}
+                    <div class="nav-subgroup{% if in_cases %} is-open{% endif %}" id="roll-cases"><div class="nav-subgroup-inner">
+                        {{ nav(url_for('cases.intake_home'), 'Create from a document', intake_ep, sub=True) }}
+                        {{ nav(url_for('case_review.follow_up_tasks'), 'Awaiting information', ep in follow_up_eps, sub=True) }}
+                        {{ nav(url_for('case_review.approvals'), 'Approvals', ep == 'case_review.approvals', sub=True, count=approvals_pending_count, count_label='cases waiting for your sign-off') }}
+                        {{ nav(url_for('case_review.follow_up_reminders'), 'Overdue reminders', ep in reminder_eps, sub=True, count=open_follow_up_reminder_count, count_label='open reminders') }}
+                    </div></div>
+                    {{ nav(url_for('complaints.complaint_list'), 'Product quality complaints', ep.startswith('complaints.')) }}
                 </div>
 
-                {% set system_role = session.get('role') %}
-                {% if system_role in ('System Administrator', 'Auditor', 'Group Head RA & Quality', 'QPPV', 'Deputy QPPV') %}
+                <div class="nav-group">
+                    <div class="nav-label">SAFETY &amp; REPORTING</div>
+                    {{ nav(url_for('signals.signal_list'), 'Safety signals', ep.startswith('signals.')) }}
+                    {% set in_psur = ep.startswith('psur.') or ep.startswith('psur_sections.') or ep.startswith('psur_builder.') or ep.startswith('psur_reports.') %}
+                    {% set psur_filter = request.args.get('due') or request.args.get('view') if ep == 'psur.psur_list' else None %}
+                    {{ roll('psur', url_for('psur.psur_list'), 'PSURs', in_psur and not psur_filter, in_psur) }}
+                    <div class="nav-subgroup{% if in_psur %} is-open{% endif %}" id="roll-psur"><div class="nav-subgroup-inner">
+                        {{ nav(url_for('psur.psur_list', view='in_progress'), 'Draft / in progress', psur_filter == 'in_progress', sub=True) }}
+                        {{ nav(url_for('psur.psur_list', due='soon'), 'Due within 30 days', psur_filter == 'soon', sub=True) }}
+                        {{ nav(url_for('psur.psur_list', due='overdue'), 'Overdue', psur_filter == 'overdue', sub=True) }}
+                        {{ nav(url_for('psur.psur_list', view='completed'), 'Completed', psur_filter == 'completed', sub=True) }}
+                        {{ nav(url_for('psur.create_psur'), 'New PSUR record', ep == 'psur.create_psur', sub=True) }}
+                    </div></div>
+                    {{ nav(url_for('core.regulatory_reporting'), 'Reporting register', ep == 'core.regulatory_reporting') }}
+                    {{ nav(url_for('core.analytics_home'), 'Analytics', ep in ('core.analytics_home', 'core.analytics_metric_detail')) }}
+                </div>
+
+                <div class="nav-group">
+                    <div class="nav-label">REFERENCE DATA</div>
+                    {{ nav(url_for('products.product_list'), 'Product catalogue', ep.startswith('products.')) }}
+                    {% if role in ('System Administrator', 'QPPV', 'Deputy QPPV', 'PV Officer', 'Medical Reviewer', 'Quality Reviewer', 'Regulatory Affairs Officer', 'Group Head RA & Quality') %}
+                        {{ nav(url_for('rsi.rsi_list'), 'Reference safety information', ep.startswith('rsi.')) }}
+                    {% endif %}
+                    {% if role in ('System Administrator', 'QPPV', 'Deputy QPPV', 'Group Head RA & Quality') %}
+                        {{ nav(url_for('terminology.overview'), 'Terminology', ep.startswith('terminology.')) }}
+                    {% endif %}
+                </div>
+
+                {% if role in ('System Administrator', 'Auditor', 'Group Head RA & Quality', 'QPPV', 'Deputy QPPV') %}
                     <div class="nav-group">
-                        <div class="nav-label">SYSTEM</div>
-                        {% if session.get('role') == 'System Administrator' %}
-                            <a
-                                class="nav-link {% if (request.endpoint or '').startswith('administration.') and request.endpoint != 'administration.audit_log' %}active{% endif %}"
-                                href="{{ url_for('administration.user_list') }}"
-                                {% if (request.endpoint or '').startswith('administration.') and request.endpoint != 'administration.audit_log' %}aria-current="page"{% endif %}
-                            >Administration</a>
+                        <div class="nav-label">ADMINISTRATION</div>
+                        {% if role == 'System Administrator' %}
+                            {{ nav(url_for('administration.user_list'), 'Users & access', ep.startswith('administration.') and ep not in ('administration.audit_log', 'administration.settings_hub', 'administration.company_profile', 'administration.sign_off_settings', 'administration.deleted_records_list', 'administration.deleted_record_snapshot')) }}
+                            {% set in_settings = ep in ('administration.settings_hub', 'administration.company_profile', 'administration.sign_off_settings', 'administration.deleted_records_list') or ep.startswith('integrations.') or ep.startswith('e2b_admin.') or ep.startswith('report_templates.') %}
+                            {{ roll('settings', url_for('administration.settings_hub'), 'Settings', ep == 'administration.settings_hub', in_settings) }}
+                            <div class="nav-subgroup{% if in_settings %} is-open{% endif %}" id="roll-settings"><div class="nav-subgroup-inner">
+                                {{ nav(url_for('administration.company_profile'), 'Company profile', ep == 'administration.company_profile', sub=True) }}
+                                {{ nav(url_for('administration.sign_off_settings'), 'Sign-off', ep == 'administration.sign_off_settings', sub=True) }}
+                                {{ nav(url_for('integrations.integration_list'), 'Licences & integrations', ep.startswith('integrations.'), sub=True) }}
+                                {{ nav(url_for('e2b_admin.settings'), 'E2B export', ep.startswith('e2b_admin.'), sub=True) }}
+                                {{ nav(url_for('report_templates.template_list'), 'Report templates', ep.startswith('report_templates.'), sub=True) }}
+                                {{ nav(url_for('administration.deleted_records_list'), 'Deleted records', ep == 'administration.deleted_records_list', sub=True) }}
+                            </div></div>
+                        {% elif role in ('QPPV', 'Deputy QPPV', 'Group Head RA & Quality') %}
+                            {{ nav(url_for('report_templates.template_list'), 'Report templates', ep.startswith('report_templates.')) }}
                         {% endif %}
-                        {% if system_role in ('System Administrator', 'QPPV', 'Deputy QPPV', 'Group Head RA & Quality') %}
-                            <a
-                                class="nav-link {% if (request.endpoint or '').startswith('report_templates.') %}active{% endif %}"
-                                href="{{ url_for('report_templates.template_list') }}"
-                                {% if (request.endpoint or '').startswith('report_templates.') %}aria-current="page"{% endif %}
-                            >Report Templates</a>
+                        {% if role in ('QPPV', 'Group Head RA & Quality', 'Auditor') %}
+                            {{ nav(url_for('administration.deleted_records_list'), 'Deleted records', ep == 'administration.deleted_records_list') }}
                         {% endif %}
-                        {% if system_role in ('System Administrator', 'QPPV', 'Deputy QPPV', 'Group Head RA & Quality') %}
-                            <a
-                                class="nav-link {% if (request.endpoint or '').startswith('terminology.') %}active{% endif %}"
-                                href="{{ url_for('terminology.overview') }}"
-                                {% if (request.endpoint or '').startswith('terminology.') %}aria-current="page"{% endif %}
-                            >Terminology</a>
-                        {% endif %}
-                        {% if system_role in ('System Administrator', 'Auditor', 'Group Head RA & Quality') %}
-                            <a
-                                class="nav-link {% if request.endpoint == 'administration.audit_log' %}active{% endif %}"
-                                href="{{ url_for('administration.audit_log') }}"
-                                {% if request.endpoint == 'administration.audit_log' %}aria-current="page"{% endif %}
-                            >Audit Trail</a>
+                        {% if role in ('System Administrator', 'Auditor', 'Group Head RA & Quality') %}
+                            {{ nav(url_for('administration.audit_log'), 'Audit trail', ep == 'administration.audit_log') }}
                         {% endif %}
                     </div>
                 {% endif %}
@@ -560,6 +552,100 @@
             if (overlay) overlay.classList.remove("is-on");
             document.querySelectorAll("form[data-busy] button[type=submit]").forEach(function (b) { b.disabled = false; });
         });
+    })();
+</script>
+<script>
+    // "⋯" action menus are lifted out of their table row or card while open
+    // and shown on top of the page, at full strength (never faded with a
+    // historic row, never cut off); they open upwards when there is no room
+    // below.
+    (function () {
+        var SELECTOR = "details.ui-menu, details.more-menu";
+        var openList = null, openMenu = null, homeNext = null;
+        function place(menu, list) {
+            var trigger = menu.querySelector("summary").getBoundingClientRect();
+            list.style.top = "0px"; list.style.left = "0px"; list.style.maxHeight = "";
+            var w = list.offsetWidth, h = list.offsetHeight, vw = window.innerWidth, vh = window.innerHeight;
+            var left = Math.max(8, Math.min(trigger.right - w, vw - w - 8));
+            var below = vh - trigger.bottom - 8, above = trigger.top - 8, top;
+            if (h <= below || below >= above) {
+                top = trigger.bottom + 4;
+                if (h > below) list.style.maxHeight = (below - 4) + "px";
+                list.classList.remove("opens-up");
+            } else {
+                top = Math.max(8, trigger.top - h - 4);
+                if (h > above) list.style.maxHeight = (above - 4) + "px";
+                list.classList.add("opens-up");
+            }
+            list.style.left = left + "px";
+            list.style.top = top + "px";
+        }
+        function putBack() {
+            if (!openList) return;
+            openList.classList.remove("pv-floating-menu", "opens-up");
+            ["top", "left", "maxHeight"].forEach(function (k) { openList.style[k] = ""; });
+            if (openMenu) openMenu.insertBefore(openList, homeNext);
+            openList = openMenu = homeNext = null;
+        }
+        function closeAll() {
+            var menu = openMenu;
+            putBack();
+            document.querySelectorAll(SELECTOR + "[open]").forEach(function (m) { m.open = false; });
+            return menu;
+        }
+        document.addEventListener("toggle", function (e) {
+            var menu = e.target;
+            if (!menu.matches || !menu.matches(SELECTOR)) return;
+            if (!menu.open) { if (menu === openMenu) putBack(); return; }
+            if (openMenu && openMenu !== menu) { var old = openMenu; putBack(); old.open = false; }
+            var list = menu.querySelector(":scope > .menu") || menu.querySelector(".menu");
+            if (!list) return;
+            openMenu = menu; openList = list; homeNext = list.nextSibling;
+            list.classList.add("pv-floating-menu");
+            document.body.appendChild(list);
+            place(menu, list);
+        }, true);
+        window.addEventListener("resize", closeAll);
+        window.addEventListener("scroll", function (e) {
+            if (openList && e.target && openList.contains && openList.contains(e.target)) return;
+            if (openList) closeAll();
+        }, true);
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape" && openMenu) { var m = closeAll(); if (m) m.querySelector("summary").focus(); }
+        });
+        document.addEventListener("click", function (e) {
+            if (!openMenu) return;
+            if (openList && openList.contains(e.target)) {
+                // Let the link or button do its job, then close the menu.
+                setTimeout(closeAll, 0);
+                return;
+            }
+            if (!e.target.closest || !e.target.closest(SELECTOR)) closeAll();
+        });
+    })();
+
+    // Roll-down menu groups: click the arrow to show or hide the items under
+    // a heading. The choice is remembered in this browser.
+    (function () {
+        function key(id) { return "pv-roll-" + id; }
+        document.querySelectorAll(".nav-roll").forEach(function (head) {
+            var id = head.dataset.roll, btn = head.querySelector(".nav-roll-toggle"),
+                panel = document.getElementById("roll-" + id);
+            if (!btn || !panel) return;
+            var saved = null;
+            try { saved = localStorage.getItem(key(id)); } catch (e) {}
+            if (saved !== null && !head.querySelector(".active") && !panel.querySelector(".active")) {
+                set(saved === "1", false);
+            }
+            function set(open, remember) {
+                head.classList.toggle("is-open", open);
+                panel.classList.toggle("is-open", open);
+                btn.setAttribute("aria-expanded", open ? "true" : "false");
+                if (remember) { try { localStorage.setItem(key(id), open ? "1" : "0"); } catch (e) {} }
+            }
+            btn.addEventListener("click", function () { set(!panel.classList.contains("is-open"), true); });
+        });
+        requestAnimationFrame(function () { document.documentElement.classList.add("nav-ready"); });
     })();
 </script>
 {% if session.get("user_id") %}

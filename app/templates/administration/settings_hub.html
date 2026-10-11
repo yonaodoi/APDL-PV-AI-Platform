@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Settings | {{ company.platform_name }}{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<section class="ui-page" style="max-width: 1100px;">
+    <nav class="ui-crumbs" aria-label="Breadcrumb"><a href="{{ url_for('administration.user_list') }}">Administration</a><span class="sep">›</span><span>Settings</span></nav>
+    <header class="ui-banner">
+        <div>
+            <p class="kicker">Administration</p>
+            <h1>Settings</h1>
+            <p>How this installation works: the company, sign-off rules, connections, documents and exports.</p>
+        </div>
+    </header>
+    <div class="set-grid">
+        {% for endpoint, title, text in [
+            ('administration.company_profile', 'Company profile', 'Name, logo, signatories and record numbering.'),
+            ('administration.sign_off_settings', 'Sign-off', 'Who reviews and approves cases, QPPV processing alone, email notices.'),
+            ('integrations.integration_list', 'Licences & integrations', 'MedDRA, WHODrug and AI service licences, credentials and connection tests.'),
+            ('terminology.overview', 'Terminology & coding rules', 'Import dictionaries, automatic coding rules, local terms.'),
+            ('e2b_admin.settings', 'E2B export', 'Sender, recipients and their rules, schema files.'),
+            ('report_templates.template_list', 'Report & narrative templates', 'Word report layouts and ICSR narrative templates.'),
+            ('administration.deleted_records_list', 'Deleted records', 'Copies of records the administrator deleted.'),
+        ] %}
+            <a class="ui-card set-card" href="{{ url_for(endpoint) }}"><strong>{{ title }} →</strong><span>{{ text }}</span></a>
+        {% endfor %}
+    </div>
+</section>
+<style>
+    .set-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .set-card { display: flex; flex-direction: column; gap: 4px; text-decoration: none; color: #1b3a30; }
+    .set-card strong { color: #145a40; font-size: 15px; }
+    .set-card span { color: #5b6d65; font-size: 13px; }
+    .set-card:hover { border-color: #9cc8b0; background: #f7fbf8; }
+</style>
+{% endblock %}

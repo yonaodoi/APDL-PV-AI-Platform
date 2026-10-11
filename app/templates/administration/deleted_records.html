@@ -6,7 +6,7 @@
 {% block content %}
 <section class="ui-page">
     <nav class="ui-crumbs" aria-label="Breadcrumb">
-        <a href="{{ url_for('administration.user_list') }}">Administration</a><span class="sep">›</span>
+        {% if session.get('role') == 'System Administrator' %}<a href="{{ url_for('administration.settings_hub') }}">Settings</a><span class="sep">›</span>{% endif %}
         <span>Deleted records</span>
     </nav>
     <header class="ui-banner">

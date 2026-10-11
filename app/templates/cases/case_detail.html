@@ -503,7 +503,7 @@
                     <a href="#attachments">Attachments</a>
                     <hr>
                     <a href="{{ url_for('cases.case_list') }}">Back to all safety cases</a>
-                    {% if session.get('role') == 'System Administrator' %}<a class="menu-danger" href="{{ url_for('administration.delete_record_page', kind='case', record_id=case.case_id) }}">Delete…</a>{% endif %}
+                    {% if session.get('role') in ('System Administrator', 'QPPV', 'Group Head RA & Quality') %}<a class="menu-danger" href="{{ url_for('administration.delete_record_page', kind='case', record_id=case.case_id) }}">Delete…</a>{% endif %}
                 </div>
             </details>
         </div>

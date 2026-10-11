@@ -1,6 +1,6 @@
 """Permanent deletion of a safety case, signal, product complaint or PSUR.
 
-Only a System Administrator may delete. Before anything is removed, a full
+Only the System Administrator, QPPV or Group Head RA & Quality may delete. Before anything is removed, a full
 snapshot of the record and of every row that depends on it (products,
 events, follow-ups, approvals, attachments metadata, the case's own audit
 log, …) is saved in ``pv.deleted_records``. The platform-wide audit trail
@@ -17,6 +17,8 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from app.db import query_all, query_one, transaction
+
+DELETE_ROLES = ("System Administrator", "QPPV", "Group Head RA & Quality")
 
 RECORD_TYPES = {
     "case": {
